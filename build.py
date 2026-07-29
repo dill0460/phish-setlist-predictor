@@ -107,30 +107,61 @@ def fetch_setlists():
         print(f"  {year}: {len(data)} rows")
     if not rows:
         sys.exit("No setlist rows fetched — check the API key and network access.")
-    return rows
+    return phish_only(rows)
+
+
+def phish_only(rows):
+    """The v5 setlists endpoints can return side-project setlists (Trey Anastasio Band,
+    Mike Gordon, ...) alongside Phish — which silently doubles the show count and floods
+    the model with songs Phish has never played. Keep artistid 1 only. Defensive: if no
+    artist field exists on the rows, keep everything rather than nuking the dataset."""
+    if not any(("artistid" in r) or ("artist_slug" in r) for r in rows[:200]):
+        print("  ! no artist field on setlist rows — skipping artist filter", file=sys.stderr)
+        return rows
+    out = [r for r in rows
+           if str(r.get("artistid", "")) == "1"
+           or str(r.get("artist_slug", "")).lower() == "phish"
+           or ("artistid" not in r and "artist_slug" not in r)]
+    dropped = len(rows) - len(out)
+    print(f"  artist filter: kept {len(out)} Phish rows, dropped {dropped} side-project rows")
+    if not out:
+        sys.exit("Artist filter removed everything — the API's artist fields changed shape; aborting rather than building an empty site.")
+    return out
 
 
 def fetch_upcoming(recent_shows=None):
-    """Scheduled shows, so the app can offer them directly. Best-effort: the endpoint shape
-    has moved around between API versions, so try a few and give up quietly."""
+    """Scheduled shows, so the app can offer them directly. Primary route is the shows-by-year
+    endpoint — the same family the setlist fetch uses and known to work — with the old
+    query-param endpoints kept as fallbacks (they have been flaky across API versions and were
+    returning nothing, which left the site claiming no shows were announced). Filtered to
+    Phish (artistid 1): the phish.net schedule also carries side-project gigs (Mike Gordon,
+    Bob Wagner & Friends, ...) that must not enter the picker."""
     today = date.today().isoformat()
-    urls = [
-        f"https://api.phish.net/v5/shows/showdate_gt/{today}.json?apikey={PHISHNET_KEY}&order_by=showdate",
-        f"https://api.phish.net/v5/shows.json?apikey={PHISHNET_KEY}&showdate_gt={today}&order_by=showdate",
-    ]
-    rows = []
-    for url in urls:
+    this_year = date.today().year
+    raw = []
+    for year in (this_year, this_year + 1):
+        url = f"https://api.phish.net/v5/shows/showyear/{year}.json?apikey={PHISHNET_KEY}&order_by=showdate"
         try:
             payload = get_json(url, tries=2)
         except Exception:
             continue
-        data = (payload or {}).get("data") or []
-        rows = [r for r in data
-                if (r.get("showdate") or "") > today
-                and str(r.get("artistid", 1)) == "1"
-                and not str(r.get("exclude", 0)) == "1"]
-        if rows:
-            break
+        raw.extend((payload or {}).get("data") or [])
+    if not any((r.get("showdate") or "") >= today for r in raw):
+        for url in [
+            f"https://api.phish.net/v5/shows/showdate_gt/{today}.json?apikey={PHISHNET_KEY}&order_by=showdate",
+            f"https://api.phish.net/v5/shows.json?apikey={PHISHNET_KEY}&showdate_gt={today}&order_by=showdate",
+        ]:
+            try:
+                payload = get_json(url, tries=2)
+            except Exception:
+                continue
+            raw.extend((payload or {}).get("data") or [])
+    # >= today, not > : on show day the show people most want predicted is TONIGHT'S, and a
+    # strict comparison made it vanish from the picker at midnight.
+    rows = [r for r in raw
+            if (r.get("showdate") or "") >= today
+            and str(r.get("artistid", 1)) == "1"
+            and not str(r.get("exclude", 0)) == "1"]
     if not rows:
         print("  no upcoming shows found (fine — the picker just stays hidden)")
         return []
