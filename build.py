@@ -40,6 +40,36 @@ TEMPLATE = os.path.join(HERE, "app_template.html")
 OUTPUT = os.path.join(HERE, "index.html")
 CACHE = os.path.join(HERE, "data")
 
+
+def assign_run_positions(shows):
+    """Tag each show (dict with 'date' and 'venue', chronologically sorted) with its real
+    position in a multi-night run: same venue, gaps of <= 3 days. Used for BOTH the historical
+    show list and the upcoming schedule, so run position is a known fact — never a guess —
+    for any show we actually have a date and venue for."""
+    if not shows:
+        return shows
+    to_d = lambda s: date(*map(int, s.split("-")))
+    runs, cur = [], [shows[0]]
+    for prev, s in zip(shows, shows[1:]):
+        if s["venue"] == prev["venue"] and (to_d(s["date"]) - to_d(prev["date"])).days <= 3:
+            cur.append(s)
+        else:
+            runs.append(cur)
+            cur = [s]
+    runs.append(cur)
+    for run in runs:
+        for i, s in enumerate(run):
+            s["runN"] = f"night {i + 1} of {len(run)}" if len(run) > 1 else "single night"
+            if len(run) < 3:
+                s["runPos"] = "none"
+            elif i == 0:
+                s["runPos"] = "open"
+            elif i == len(run) - 1:
+                s["runPos"] = "close"
+            else:
+                s["runPos"] = "middle"
+    return shows
+
 PHISHNET_KEY = os.environ.get("PHISHNET_API_KEY", "").strip()
 FIRST_YEAR = 1983
 UA = {"User-Agent": "phish-setlist-predictor (github.com/dill0460)"}
@@ -80,7 +110,7 @@ def fetch_setlists():
     return rows
 
 
-def fetch_upcoming():
+def fetch_upcoming(recent_shows=None):
     """Scheduled shows, so the app can offer them directly. Best-effort: the endpoint shape
     has moved around between API versions, so try a few and give up quietly."""
     today = date.today().isoformat()
@@ -112,27 +142,12 @@ def fetch_upcoming():
         seen.add(d)
         out.append({"date": d, "venue": r.get("venue") or "", "city": r.get("city") or "",
                     "state": r.get("state") or r.get("country") or ""})
-    # work out where each date sits in its run (same venue, gaps of <= 3 days)
-    to_d = lambda s: date(*map(int, s.split("-")))
-    runs, cur = [], [out[0]]
-    for prev, s in zip(out, out[1:]):
-        if s["venue"] == prev["venue"] and (to_d(s["date"]) - to_d(prev["date"])).days <= 3:
-            cur.append(s)
-        else:
-            runs.append(cur)
-            cur = [s]
-    runs.append(cur)
-    for run in runs:
-        for i, s in enumerate(run):
-            s["runN"] = f"night {i + 1} of {len(run)}" if len(run) > 1 else "single night"
-            if len(run) < 3:
-                s["runPos"] = "none"
-            elif i == 0:
-                s["runPos"] = "open"
-            elif i == len(run) - 1:
-                s["runPos"] = "close"
-            else:
-                s["runPos"] = "middle"
+    # Prepend the tail of real history so a run already underway (night 1 already happened)
+    # is recognized as continuing rather than mistaken for a fresh opening night.
+    context = [{"date": s["date"], "venue": s["venue"]} for s in (recent_shows or [])[-6:]]
+    combined = context + out
+    assign_run_positions(combined)
+    out = combined[len(context):]
     print(f"  {len(out)} upcoming shows through {out[-1]['date']}")
     return out[:40]
 
@@ -375,7 +390,7 @@ def set_minutes(shows_list, songs, plays, since="2022-01-01"):
     by_date = defaultdict(list)
     for p in plays:
         by_date[p["date"]].append(p)
-    s1, s2, e = [], [], []
+    s1, s2, e, total = [], [], [], []
     for s in shows_list:
         if s["date"] < since:
             continue
@@ -394,8 +409,22 @@ def set_minutes(shows_list, songs, plays, since="2022-01-01"):
             s2.append(tot["s2"])
         if miss["e"] <= 1 and tot["e"]:
             e.append(tot["e"])
+        if miss["s1"] <= 2 and miss["s2"] <= 2 and tot["s1"] and tot["s2"]:
+            total.append(tot["s1"] + tot["s2"] + (tot["e"] if miss["e"] <= 1 else 0))
     med = lambda a: round(statistics.median(a)) if a else 0
-    out = {"s1": med(s1) or 73, "s2": med(s2) or 67, "e": med(e) or 15}
+    sd = lambda a: round(statistics.pstdev(a), 1) if len(a) > 1 else 0
+    pct = lambda a, p, lo, hi: (round(sorted(a)[max(0, min(len(a) - 1, int(len(a) * p)))])
+                                if a else round((lo + hi) / 2))
+    out = {
+        "s1": med(s1) or 73, "s2": med(s2) or 67, "e": med(e) or 15,
+        "s1Sd": sd(s1) or 12, "s2Sd": sd(s2) or 12, "eSd": sd(e) or 5,
+        "bounds": {
+            "s1": [pct(s1, 0.05, 50, 70), pct(s1, 0.95, 90, 100)],
+            "s2": [pct(s2, 0.05, 45, 65), pct(s2, 0.95, 85, 95)],
+            "e": [pct(e, 0.05, 5, 10), pct(e, 0.95, 20, 30)],
+            "total": [pct(total, 0.05, 120, 140), pct(total, 0.95, 175, 200)],
+        },
+    }
     print(f"  set minutes: {out}")
     return out
 
@@ -621,6 +650,7 @@ BREATHER_SONGS = [
     "Let Me Lie", "All of These Dreams", "Army of One", "Evening Song", "Corinna",
     "Secret Smile", "The Connection", "Olivia's Pool", "Bittersweet Motel", "Sleep",
     "Roggae", "Wingsuit", "The Horse", "Silent in the Morning", "Devotion to a Dream",
+    "Dancing in Midair",
     # Ruled out as not mellow: NICU, My Friend My Friend, Tela, Waking Up Dead, Show of Life,
     #   Frankie Says, Everything Is Hollow, Death Don't Hurt Very Long, Poor Heart, Cities,
     #   Plasma, Sample in a Jar. Ruled out as finales: Tweezer Reprise, Shine a Light.
@@ -700,16 +730,17 @@ def main():
         print(f"  ! durations unavailable ({e}) — continuing without them", file=sys.stderr)
         durations = {}
 
+    print("Shaping...")
+    shows_list, songs, plays = shape(raw, durations)
+    assign_run_positions(shows_list)   # every historical show gets its real run position — known, not guessed
+    print(f"  {len(shows_list)} shows, {len(songs)} songs, {len(plays)} (song, show) records")
+
     print("Fetching upcoming shows...")
     try:
-        upcoming = fetch_upcoming()
+        upcoming = fetch_upcoming(shows_list)
     except Exception as e:
         print(f"  ! upcoming unavailable ({e})", file=sys.stderr)
         upcoming = []
-
-    print("Shaping...")
-    shows_list, songs, plays = shape(raw, durations)
-    print(f"  {len(shows_list)} shows, {len(songs)} songs, {len(plays)} (song, show) records")
 
     print("Mining patterns...")
     pairs = mine_pairs(raw)
