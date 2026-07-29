@@ -3,31 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phish Setlist Predictor</title>
+<title>Phish Setlist Predictor — what are they gonna play?</title>
+<meta name="description" content="A statistically honest guess at the next Phish setlist, built from every show since 1983. Song odds, bustout watch, and Phantasy Tour picks.">
 <style>
-  .viz-root {
+  :root {
     color-scheme: light;
-    --surface-1: #fcfcfb; --page: #f9f9f7;
-    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
-    --gridline: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --surface-1: #fffdf8; --page: #faf6ee;
+    --text-primary: #191410; --text-secondary: #57504a; --text-muted: #8d857c;
+    --gridline: #e8e2d4; --baseline: #cec6b4; --border: rgba(25,20,16,0.10);
     --series-1: #2a78d6; --series-2: #eb6834;
     --seq-100: #cde2fb; --seq-400: #3987e5; --seq-500: #256abf; --seq-650: #104281;
     --pred-100: #f6d9c9; --hover-wash: rgba(42,120,214,0.08);
+    --accent: #7a2e8e; --accent-ink: #ffffff; --good: #1a7f4e;
+    --chip: rgba(25,20,16,0.05);
     --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22140%22%20height%3D%22140%22%20viewBox%3D%220%200%20140%20140%22%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23171614%22%20stroke-width%3D%221.6%22%3E%0A%20%20%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%225%22/%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2210%22/%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2215%22/%3E%0A%3C/g%3E%0A%3Ccircle%20cx%3D%22104%22%20cy%3D%2234%22%20r%3D%2215%22%20fill%3D%22none%22%20stroke%3D%22%23171614%22%20stroke-width%3D%226%22/%3E%0A%3Ccircle%20cx%3D%2297%22%20cy%3D%2224%22%20r%3D%221.6%22%20fill%3D%22%23171614%22/%3E%3Ccircle%20cx%3D%22112%22%20cy%3D%2227%22%20r%3D%221.6%22%20fill%3D%22%23171614%22/%3E%0A%3Ccircle%20cx%3D%22108%22%20cy%3D%2242%22%20r%3D%221.6%22%20fill%3D%22%23171614%22/%3E%3Ccircle%20cx%3D%2292%22%20cy%3D%2238%22%20r%3D%221.6%22%20fill%3D%22%23171614%22/%3E%0A%3Cpath%20d%3D%22M40%20108%20C%2034%20100%2C%2036%2094%2C%2044%2093%20C%2050%2092%2C%2054%2096%2C%2058%2098%20C%2066%2092%2C%2078%2090%2C%2090%2096%20C%2096%2099%2C%2098%20104%2C%2094%20108%20C%2090%20112%2C%2080%20110%2C%2074%20106%20C%2068%20110%2C%2058%20112%2C%2052%20108%20C%2048%20111%2C%2042%20112%2C%2040%20108%20Z%22%20fill%3D%22%23171614%22/%3E%0A%3Cpath%20d%3D%22M90%2096%20C%20100%2092%2C%20110%2094%2C%20116%2088%22%20stroke%3D%22%23171614%22%20stroke-width%3D%223%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%0A%3Cpath%20d%3D%22M44%2093%20L40%2087%20M52%2092%20L50%2085%20M58%2098%20L60%2091%20M70%20100%20L72%2093%22%20stroke%3D%22%23171614%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%3C/svg%3E");
     --motif-hero: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22140%22%20height%3D%22140%22%20viewBox%3D%220%200%20140%20140%22%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23fff8ec%22%20stroke-width%3D%221.6%22%3E%0A%20%20%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%225%22/%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2210%22/%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2215%22/%3E%0A%3C/g%3E%0A%3Ccircle%20cx%3D%22104%22%20cy%3D%2234%22%20r%3D%2215%22%20fill%3D%22none%22%20stroke%3D%22%23fff8ec%22%20stroke-width%3D%226%22/%3E%0A%3Ccircle%20cx%3D%2297%22%20cy%3D%2224%22%20r%3D%221.6%22%20fill%3D%22%23fff8ec%22/%3E%3Ccircle%20cx%3D%22112%22%20cy%3D%2227%22%20r%3D%221.6%22%20fill%3D%22%23fff8ec%22/%3E%0A%3Ccircle%20cx%3D%22108%22%20cy%3D%2242%22%20r%3D%221.6%22%20fill%3D%22%23fff8ec%22/%3E%3Ccircle%20cx%3D%2292%22%20cy%3D%2238%22%20r%3D%221.6%22%20fill%3D%22%23fff8ec%22/%3E%0A%3Cpath%20d%3D%22M40%20108%20C%2034%20100%2C%2036%2094%2C%2044%2093%20C%2050%2092%2C%2054%2096%2C%2058%2098%20C%2066%2092%2C%2078%2090%2C%2090%2096%20C%2096%2099%2C%2098%20104%2C%2094%20108%20C%2090%20112%2C%2080%20110%2C%2074%20106%20C%2068%20110%2C%2058%20112%2C%2052%20108%20C%2048%20111%2C%2042%20112%2C%2040%20108%20Z%22%20fill%3D%22%23fff8ec%22/%3E%0A%3Cpath%20d%3D%22M90%2096%20C%20100%2092%2C%20110%2094%2C%20116%2088%22%20stroke%3D%22%23fff8ec%22%20stroke-width%3D%223%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%0A%3Cpath%20d%3D%22M44%2093%20L40%2087%20M52%2092%20L50%2085%20M58%2098%20L60%2091%20M70%20100%20L72%2093%22%20stroke%3D%22%23fff8ec%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%3C/svg%3E");
-    --hero-grad: linear-gradient(115deg, #1f6f6b 0%, #3d5a8a 32%, #6a4a8c 60%, #c9772e 100%);
+    --hero-grad: linear-gradient(118deg, #4a1d6e 0%, #8e2f7a 34%, #d4472e 68%, #f0952e 100%);
   }
   @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) .viz-root {
+    :root {
       color-scheme: dark;
-      --surface-1: #1a1a19; --page: #0d0d0d;
-      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
-      --gridline: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --surface-1: #1b1815; --page: #100e0c;
+      --text-primary: #ffffff; --text-secondary: #c9c2b6; --text-muted: #8d857c;
+      --gridline: #2e2a25; --baseline: #3b362f; --border: rgba(255,255,255,0.10);
       --series-1: #3987e5; --series-2: #d95926;
       --seq-100: #184f95; --seq-400: #3987e5; --seq-500: #5598e7; --seq-650: #9ec5f4;
       --pred-100: #5a3320; --hover-wash: rgba(57,135,229,0.12);
+      --accent: #c99ae0; --accent-ink: #241028; --good: #4ec48a;
+      --chip: rgba(255,255,255,0.07);
       --motif: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22140%22%20height%3D%22140%22%20viewBox%3D%220%200%20140%20140%22%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23f2f0e8%22%20stroke-width%3D%221.6%22%3E%0A%20%20%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%225%22/%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2210%22/%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2224%22%20r%3D%2215%22/%3E%0A%3C/g%3E%0A%3Ccircle%20cx%3D%22104%22%20cy%3D%2234%22%20r%3D%2215%22%20fill%3D%22none%22%20stroke%3D%22%23f2f0e8%22%20stroke-width%3D%226%22/%3E%0A%3Ccircle%20cx%3D%2297%22%20cy%3D%2224%22%20r%3D%221.6%22%20fill%3D%22%23f2f0e8%22/%3E%3Ccircle%20cx%3D%22112%22%20cy%3D%2227%22%20r%3D%221.6%22%20fill%3D%22%23f2f0e8%22/%3E%0A%3Ccircle%20cx%3D%22108%22%20cy%3D%2242%22%20r%3D%221.6%22%20fill%3D%22%23f2f0e8%22/%3E%3Ccircle%20cx%3D%2292%22%20cy%3D%2238%22%20r%3D%221.6%22%20fill%3D%22%23f2f0e8%22/%3E%0A%3Cpath%20d%3D%22M40%20108%20C%2034%20100%2C%2036%2094%2C%2044%2093%20C%2050%2092%2C%2054%2096%2C%2058%2098%20C%2066%2092%2C%2078%2090%2C%2090%2096%20C%2096%2099%2C%2098%20104%2C%2094%20108%20C%2090%20112%2C%2080%20110%2C%2074%20106%20C%2068%20110%2C%2058%20112%2C%2052%20108%20C%2048%20111%2C%2042%20112%2C%2040%20108%20Z%22%20fill%3D%22%23f2f0e8%22/%3E%0A%3Cpath%20d%3D%22M90%2096%20C%20100%2092%2C%20110%2094%2C%20116%2088%22%20stroke%3D%22%23f2f0e8%22%20stroke-width%3D%223%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%0A%3Cpath%20d%3D%22M44%2093%20L40%2087%20M52%2092%20L50%2085%20M58%2098%20L60%2091%20M70%20100%20L72%2093%22%20stroke%3D%22%23f2f0e8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%0A%3C/svg%3E");
-      --hero-grad: linear-gradient(115deg, #123a38 0%, #1f2f4d 32%, #3a2a52 60%, #6b3f18 100%);
+      --hero-grad: linear-gradient(118deg, #2c1244 0%, #571d4b 34%, #7e2a1b 68%, #8f581b 100%);
     }
   }
   * { box-sizing: border-box; }
@@ -37,26 +42,54 @@
   }
   body::before {
     content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background-image: var(--motif); background-size: 140px 140px; opacity: 0.045;
+    background-image: var(--motif); background-size: 140px 140px; opacity: 0.05;
   }
   .viz-root { padding: 28px 32px 60px; max-width: 1180px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* ---------- hero ---------- */
   .hero {
     background-image: var(--hero-grad), var(--motif-hero);
     background-size: cover, 130px 130px;
     background-blend-mode: normal, overlay;
-    border-radius: 14px; padding: 22px 26px; margin-bottom: 18px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    border-radius: 18px; padding: 34px 34px 30px; margin-bottom: 22px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.14);
   }
-  .hero h1, .hero .subtitle { color: #fff8ec; }
-  .hero .subtitle { color: rgba(255,248,236,0.82); }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  .subtitle { color: var(--text-secondary); font-size: 13px; margin: 0 0 20px; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--baseline); flex-wrap: wrap; }
-  .tab-btn { font-family: inherit; font-size: 13px; font-weight: 600; padding: 10px 16px; border: none; background: none; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  .tab-btn.active { color: var(--series-1); border-bottom-color: var(--series-1); }
+  .hero h1 { color: #fff8ec; font-size: 38px; line-height: 1.08; margin: 0 0 10px; font-weight: 800; letter-spacing: -0.5px; }
+  .hero .subtitle { color: rgba(255,248,236,0.9); font-size: 15px; line-height: 1.55; margin: 0 0 16px; max-width: 720px; }
+  .hero .subtitle b { color: #fff8ec; }
+  .hero-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .hero-chip {
+    font-size: 12px; font-weight: 600; color: #fff8ec; background: rgba(255,248,236,0.16);
+    border: 1px solid rgba(255,248,236,0.28); border-radius: 999px; padding: 5px 12px;
+  }
+
+  /* ---------- timeframe strip ---------- */
+  .tf-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .tf-label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+  .tf-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tf-pills button {
+    font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 15px; border-radius: 999px;
+    border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary); cursor: pointer;
+  }
+  .tf-pills button:hover { border-color: var(--accent); color: var(--text-primary); }
+  .tf-pills button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .tf-note { font-size: 12px; color: var(--text-muted); margin: 2px 0 10px; }
+  .window-summary { font-size: 12.5px; color: var(--text-secondary); margin-top: 8px; }
+  .window-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 8px; margin: 16px 0 18px; flex-wrap: wrap; }
+  .tab-btn {
+    font-family: inherit; font-size: 13.5px; font-weight: 700; padding: 10px 18px; border-radius: 999px;
+    border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary); cursor: pointer;
+  }
+  .tab-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .tabpanel { display: none; }
   .tabpanel.active { display: block; }
-  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+
+  /* ---------- cards & fields ---------- */
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
   .controls-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
@@ -66,23 +99,31 @@
     font-size: 9.5px; font-weight: 700; font-style: normal; text-transform: none; letter-spacing: 0;
     cursor: help; vertical-align: 1px;
   }
-  .hint:hover { background: var(--series-1); color: #fff; }
+  .hint:hover { background: var(--accent); color: var(--accent-ink); }
   #runPosNote, #nextDateNote { font-size: 11px; min-height: 14px; }
   #runPosNote.auto, #nextDateNote.auto { color: var(--series-1); font-weight: 600; }
   select, input[type=number], input[type=date], input[type=text] {
-    font-family: inherit; font-size: 13px; padding: 7px 10px; border-radius: 6px;
+    font-family: inherit; font-size: 13px; padding: 7px 10px; border-radius: 8px;
     border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-primary);
   }
-  .mode-toggle { display: flex; gap: 6px; }
+  .mode-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
   .mode-toggle button {
-    font-family: inherit; font-size: 12px; padding: 7px 12px; border-radius: 6px;
-    border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary); cursor: pointer;
+    font-family: inherit; font-size: 12.5px; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary); cursor: pointer; font-weight: 600;
   }
-  .mode-toggle button.active { background: var(--series-1); border-color: var(--series-1); color: #fff; font-weight: 600; }
-  .window-summary { margin-top: 14px; font-size: 12.5px; color: var(--text-secondary); }
-  .window-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .mode-toggle button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn-spin {
+    font-family: inherit; font-size: 14.5px; font-weight: 700; padding: 11px 22px; border-radius: 999px;
+    border: none; cursor: pointer; color: #fff8ec;
+    background-image: linear-gradient(115deg, #8e2f7a, #d4472e 70%, #f0952e);
+    box-shadow: 0 2px 8px rgba(142,47,122,0.35);
+  }
+  .btn-spin:hover { filter: brightness(1.08); box-shadow: 0 3px 12px rgba(142,47,122,0.45); }
+  .btn-spin:active { transform: translateY(1px); }
   .hidden { display: none !important; }
-  .chart-title { font-size: 13px; font-weight: 600; margin: 0 0 14px; }
+
+  /* ---------- charts & tables ---------- */
+  .chart-title { font-size: 14px; font-weight: 700; margin: 0 0 14px; }
   .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
   .bar-label { width: 200px; font-size: 12px; color: var(--text-secondary); text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bar-track { flex: 1; position: relative; height: 16px; }
@@ -91,11 +132,12 @@
   .bar-fill.freq { background: var(--seq-400); }
   .bar-value { font-size: 11.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; width: 44px; flex-shrink: 0; }
   .search-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
-  .search-row input { width: 280px; }
+  .search-row input { width: 280px; max-width: 100%; }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   thead th {
     text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted);
     font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--baseline); cursor: pointer; user-select: none; white-space: nowrap;
+    position: sticky; top: 0; background: var(--surface-1); z-index: 2;
   }
   thead th:hover { color: var(--text-primary); }
   thead th.sorted { color: var(--series-1); }
@@ -113,6 +155,8 @@
   .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
   .badge.bust { background: var(--pred-100); color: var(--series-2); }
   .badge.cool { background: var(--seq-100); color: var(--seq-650); }
+
+  /* ---------- explainer blocks ---------- */
   .explain { margin-top: 18px; border-top: 1px solid var(--gridline); padding-top: 14px; }
   .lede { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 8px; }
   .lede b { color: var(--text-primary); }
@@ -120,7 +164,7 @@
   details { border-top: 1px solid var(--gridline); }
   details summary {
     cursor: pointer; padding: 9px 0; font-size: 12.5px; font-weight: 600;
-    color: var(--series-1); list-style: none; display: flex; align-items: center; gap: 7px;
+    color: var(--accent); list-style: none; display: flex; align-items: center; gap: 7px;
   }
   details summary::-webkit-details-marker { display: none; }
   details summary::before { content: '+'; font-size: 14px; font-weight: 700; width: 11px; }
@@ -130,139 +174,165 @@
   details .dbody p:last-child { margin-bottom: 0; }
   details .dbody b { color: var(--text-primary); }
   details .dbody code { display: block; padding: 8px 10px; margin-bottom: 10px; font-size: 12px; }
-  details .dbody a { color: var(--series-1); }
+  details .dbody a { color: var(--accent); }
+
+  /* ---------- setlist ---------- */
   .setlist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-  .set-block h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--series-2); margin: 0 0 10px; }
-  .set-song { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--gridline); }
+  .set-block h3 {
+    font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--series-2);
+    margin: 0 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--series-2); font-weight: 800;
+  }
+  .set-song { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--gridline); }
   .set-song:last-child { border-bottom: none; }
-  .set-song .sname { font-size: 13.5px; font-weight: 500; }
+  .set-song .sname { font-size: 14px; font-weight: 500; }
   .set-song .sname .role { font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-left: 6px; }
   .set-song .sprob { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+
+  .footer { margin-top: 28px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .footer a { color: var(--accent); }
+
+  @media (max-width: 640px) {
+    .viz-root { padding: 14px 14px 40px; }
+    .hero { padding: 24px 20px 20px; border-radius: 14px; }
+    .hero h1 { font-size: 27px; }
+    .bar-label { width: 130px; }
+  }
 </style>
 </head>
 <body>
 <div class="viz-root">
   <div class="hero">
-    <h1>Phish Setlist Predictor</h1>
-    <p class="subtitle">Data through __LATEST_DATE__ &middot; __SHOW_COUNT__ shows &middot; __SONG_COUNT__ different songs ever played (most only once or twice) &middot; sources: phish.net API (setlists), phish.in (song durations)</p>
+    <h1>What are they gonna play?</h1>
+    <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam. It can't know what Trey knows &mdash; and it's honest about that too.</p>
+    <div class="hero-chips">
+      <span class="hero-chip">Updated daily &middot; through __LATEST_DATE__</span>
+      <span class="hero-chip">Backtested against 143 real shows</span>
+      <span class="hero-chip">Beats Trey's Notebook &mdash; ~5 of 18 songs in the top 20</span>
+    </div>
   </div>
+
+  <div class="tf-strip">
+    <span class="tf-label">Base the odds on:</span>
+    <div class="tf-pills">
+      <button id="tf2">Last 2 years</button>
+      <button id="tf5" class="active">Last 5 years</button>
+      <button id="tf10">Last 10 years</button>
+      <button id="tfAll">Every show since '83</button>
+    </div>
+  </div>
+  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones. Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
+
+  <details id="advWrap">
+    <summary>Advanced settings</summary>
+    <div class="dbody">
+      <p>Fine-tuning knobs. The defaults are the exact settings this tool's accuracy was tested at, so nothing here needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
+      <div class="controls-row" style="margin-top:4px;">
+        <div class="field hidden" id="upcomingField">
+          <label for="upcoming">Got a real show coming up?
+            <span class="hint" title="Pick a real, already-announced Phish show from the tour schedule. Everything else below (show date, run position) fills itself in.">?</span>
+          </label>
+          <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
+        </div>
+        <div class="field">
+          <label for="nextDate">Predicting a specific date? <span style="text-transform:none;font-weight:400">(optional)</span>
+            <span class="hint" title="Leave this blank to just predict 'whatever show is next.' Only set it if you want a particular night. If you also move the stats cutoff below into the past, this fills itself in with whatever show really happened next back then &mdash; you can't accidentally predict a date that contradicts your own stats.">?</span>
+          </label>
+          <input type="date" id="nextDate">
+          <div class="note" id="nextDateNote" style="margin-top:2px;"></div>
+        </div>
+        <div class="field" id="rollingEndField">
+          <label for="refEnd">Use stats through
+            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to today, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then &mdash; useful for testing it against a show that already happened.">?</span>
+          </label>
+          <input type="date" id="refEnd">
+        </div>
+        <div class="field hidden" id="customEndField">
+          <label for="customEnd">Use stats through</label>
+          <input type="date" id="customEnd">
+        </div>
+        <div class="field" id="runPosField">
+          <label for="runPos">Opening, middle, or closing night? <span style="text-transform:none;font-weight:400">(optional)</span>
+            <span class="hint" title="A multi-night run's opening, middle, and closing shows each tend to favor different songs. Usually filled in for you automatically &mdash; this only matters for a hypothetical date we can't match to a real show.">?</span>
+          </label>
+          <select id="runPos">
+            <option value="none" selected>Don't know / doesn't apply</option>
+            <option value="tour">First show of a tour</option>
+            <option value="open">Opening night of a run</option>
+            <option value="middle">Middle night</option>
+            <option value="close">Closing night</option>
+          </select>
+        </div>
+        <div class="note" id="runPosNote" style="flex-basis:100%; margin-top:-6px;"></div>
+      </div>
+      <div class="controls-row" style="margin-top:14px;">
+        <div class="field">
+          <label>How far back do the stats look?
+            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. Almost everyone wants Rolling &mdash; the pill buttons at the top of the page set this for you.">?</span>
+          </label>
+          <div class="mode-toggle">
+            <button id="modeRolling" class="active">Rolling (years back)</button>
+            <button id="modeCustom">Custom range</button>
+          </div>
+        </div>
+        <div class="field" id="rollingYearsField">
+          <label for="yearsBack">Years back
+            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the buttons at the top of the page are shortcuts for this. Testing found this barely changes accuracy either way &mdash; recency weighting matters more.">?</span>
+          </label>
+          <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
+        </div>
+        <div class="field hidden" id="customStartField">
+          <label for="customStart">Start date</label>
+          <input type="date" id="customStart">
+        </div>
+        <div class="field">
+          <label for="bustGap">Flag a returning song as a "bustout" after
+            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist &mdash; it doesn't change that song's actual odds of being picked at all.">?</span>
+          </label>
+          <select id="bustGap">
+            <option value="50">50+ missed shows</option>
+            <option value="75">75+ missed shows</option>
+            <option value="100" selected>100+ missed shows</option>
+            <option value="150">150+ missed shows</option>
+            <option value="200">200+ missed shows</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="recency">Weight recent shows...
+            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses &mdash; change it to see how predictions shift, not because it's wrong.">?</span>
+          </label>
+          <select id="recency">
+            <option value="0">Not at all (every show counts equally)</option>
+            <option value="200">A little more</option>
+            <option value="100" selected>Somewhat more (recommended default)</option>
+            <option value="50">A lot more</option>
+          </select>
+        </div>
+      </div>
+      <div class="window-summary" id="calSummary"></div>
+    </div>
+  </details>
+  <div class="window-summary" id="windowSummary"></div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="setlist">Predicted Setlist</button>
-    <button class="tab-btn" data-tab="predict">Song Likelihood</button>
-    <button class="tab-btn" data-tab="game">Game Picks</button>
-    <button class="tab-btn" data-tab="frequency">Frequency Explorer</button>
-  </div>
-
-  <div class="card">
-    <p class="lede" style="margin-bottom:16px;">Everything below already has a sensible default: it's set up to predict whatever show comes next, using the last 5 years of setlists. You don't need to touch any of it unless you want to look at a different night or time period.</p>
-    <div class="controls-row">
-      <div class="field hidden" id="upcomingField">
-        <label for="upcoming">Got a real show coming up?
-          <span class="hint" title="Pick a real, already-announced Phish show from the tour schedule. Everything else below (show date, run position) fills itself in.">?</span>
-        </label>
-        <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
-      </div>
-      <div class="field">
-        <label for="nextDate">Predicting a specific date? <span style="text-transform:none;font-weight:400">(optional)</span>
-          <span class="hint" title="Leave this blank to just predict 'whatever show is next.' Only set it if you want a particular night. If you also move the stats cutoff below into the past, this fills itself in with whatever show really happened next back then &mdash; you can't accidentally predict a date that contradicts your own stats.">?</span>
-        </label>
-        <input type="date" id="nextDate">
-        <div class="note" id="nextDateNote" style="margin-top:2px;"></div>
-      </div>
-      <div class="field" id="rollingEndField">
-        <label for="refEnd">Use stats through
-          <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to today, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then &mdash; useful for testing it against a show that already happened.">?</span>
-        </label>
-        <input type="date" id="refEnd">
-      </div>
-      <div class="field hidden" id="customEndField">
-        <label for="customEnd">Use stats through</label>
-        <input type="date" id="customEnd">
-      </div>
-      <div class="field" id="runPosField">
-        <label for="runPos">Opening, middle, or closing night? <span style="text-transform:none;font-weight:400">(optional)</span>
-          <span class="hint" title="A multi-night run's opening, middle, and closing shows each tend to favor different songs. Usually filled in for you automatically below &mdash; this only shows up as a choice when we can't tell from the date.">?</span>
-        </label>
-        <select id="runPos">
-          <option value="none" selected>Don't know / doesn't apply</option>
-          <option value="tour">First show of a tour</option>
-          <option value="open">Opening night of a run</option>
-          <option value="middle">Middle night</option>
-          <option value="close">Closing night</option>
-        </select>
-      </div>
-      <div class="note" id="runPosNote" style="flex-basis:100%; margin-top:-6px;"></div>
-    </div>
-
-    <details style="border-top:1px solid var(--gridline); margin-top:4px;">
-      <summary>Advanced settings</summary>
-      <div class="dbody">
-        <p>These are all fine-tuning knobs. The defaults were the exact settings used to test this tool's accuracy, so there's no need to change any of them &mdash; they're here for people who want to poke at how the prediction shifts.</p>
-        <div class="controls-row" style="margin-top:4px;">
-          <div class="field">
-            <label>How far back do the stats look?
-              <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. Almost everyone wants Rolling.">?</span>
-            </label>
-            <div class="mode-toggle">
-              <button id="modeRolling" class="active">Rolling (years back)</button>
-              <button id="modeCustom">Custom range</button>
-            </div>
-          </div>
-          <div class="field" id="rollingYearsField">
-            <label for="yearsBack">Years back
-              <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value. Testing found this barely changes accuracy either way &mdash; recency weighting below matters more.">?</span>
-            </label>
-            <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
-          </div>
-          <div class="field hidden" id="customStartField">
-            <label for="customStart">Start date</label>
-            <input type="date" id="customStart">
-          </div>
-          <div class="field">
-            <label for="bustGap">Flag a returning song as a "bustout" after
-              <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist &mdash; it doesn't change that song's actual odds of being picked at all.">?</span>
-            </label>
-            <select id="bustGap">
-              <option value="50">50+ missed shows</option>
-              <option value="75">75+ missed shows</option>
-              <option value="100" selected>100+ missed shows</option>
-              <option value="150">150+ missed shows</option>
-              <option value="200">200+ missed shows</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="recency">Weight recent shows...
-              <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Medium' is the tested default that every accuracy number on this page uses &mdash; change it to see how predictions shift, not because it's wrong.">?</span>
-            </label>
-            <select id="recency">
-              <option value="0">Not at all (every show counts equally)</option>
-              <option value="200">A little more</option>
-              <option value="100" selected>Somewhat more (recommended default)</option>
-              <option value="50">A lot more</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </details>
-
-    <div class="window-summary" id="windowSummary"></div>
-    <div class="window-summary" id="calSummary"></div>
+    <button class="tab-btn" data-tab="odds">Song Odds</button>
+    <button class="tab-btn" data-tab="game">Phantasy Tour Picks</button>
   </div>
 
   <div id="panel-setlist" class="tabpanel active">
     <div class="card">
+      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds &mdash; the same way a poker simulator deals a plausible hand. Don't like this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of that exact slot.</p>
       <div class="controls-row" style="margin-bottom:14px;">
+        <div class="field" id="rerollField">
+          <label>&nbsp;</label>
+          <button class="btn-spin" id="reroll">&#8635;&nbsp; Spin another night</button>
+        </div>
         <div class="field">
           <label>Setlist mode</label>
           <div class="mode-toggle">
             <button id="slModeSample" class="active">Realistic (weighted draw)</button>
             <button id="slModeLikely">Most likely (ranked list)</button>
           </div>
-        </div>
-        <div class="field" id="rerollField">
-          <label>&nbsp;</label>
-          <div class="mode-toggle"><button id="reroll">&#8635; Generate another</button></div>
         </div>
       </div>
       <p class="chart-title" id="setlistTitle">Predicted setlist</p>
@@ -278,8 +348,8 @@
         </table>
       </div>
       <div class="explain">
-        <p class="lede">Every song gets a probability for the next show, measured from 2,026 setlists going back to 1983. <b>Realistic</b> rolls the dice on each song at its own probability and lays the result out as a show &mdash; one plausible night, not the likeliest one. Hit <b>Generate another</b> for a different night. <b>Most likely</b> instead ranks every song and shows the arithmetic behind it.</p>
-        <p class="lede-sub">The percentage beside each song is its chance of being played at all &mdash; not the chance of that exact slot. A typical night is ~18 songs out of ~150 in active rotation, so even the top song sits near 30%.</p>
+        <p class="lede">Every song gets a probability for the next show, measured from __SHOW_COUNT__ setlists going back to 1983. <b>Realistic</b> rolls the dice on each song at its own probability and lays the result out as a show &mdash; one plausible night, not the likeliest one. <b>Most likely</b> instead ranks every song and shows the arithmetic behind it.</p>
+        <p class="lede-sub">A typical night is ~18 songs out of ~150 in active rotation, so even the surest thing on the board only sits near 30%.</p>
 
         <details><summary>How the probability is calculated</summary>
           <div class="dbody">
@@ -297,8 +367,8 @@
             <p><b>Where a song lives</b> &mdash; each song carries its own history across seven slots (set 1 opener/song/closer, set 2 opener/song/closer, encore). Songs that only ever land as closers or encores are barred from mid-set outright: Tweezer Reprise is 92% encore-or-set-2-closer, and it will never appear in the middle of a set here. Slots are filled by weighted draw, not by the single best fit &mdash; real encores draw on 193 different songs, and the five most common cover only 21% of them.</p>
             <p><b>Set length in minutes</b> &mdash; sets fill to time (~73 min, ~67 min, ~15 min encore), not to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs.</p>
             <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
-            <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's now filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar.</p>
-            <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set above. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
+            <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar.</p>
+            <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set in Advanced settings. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
             <p><b>Date-locked songs</b> &mdash; anything played almost exclusively on one calendar date is excluded unless you set the show date to match. Exactly one song qualifies: Auld Lang Syne, 28 of its 29 outings on December 31.</p>
           </div>
         </details>
@@ -320,47 +390,92 @@
     </div>
   </div>
 
-  <div id="panel-predict" class="tabpanel">
-    <div class="card">
-      <p class="lede">This tab answers one question: <b>how likely is each song at the specific show you're predicting</b> (set above)? It's the same numbers behind the Predicted Setlist tab, just shown per-song with the full math instead of laid out as a night. Looking for plain historical stats instead — like "how often has Tweezer been played between 2015 and today," with no prediction involved? That's the <b>Frequency Explorer</b> tab.</p>
-      <p class="chart-title">Top 15 by Calibrated Probability (next show after the "as of" date)</p>
-      <div id="predictChart"></div>
-      <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
-    </div>
-    <div class="card">
-      <p class="chart-title" id="bustTitle">Bustout watch</p>
-      <div id="bustChart"></div>
-    </div>
-    <div class="card">
-      <div class="search-row">
-        <input type="text" id="searchPredict" placeholder="Search songs&hellip;">
+  <div id="panel-odds" class="tabpanel">
+    <div class="card" style="padding-bottom:14px;">
+      <div class="controls-row">
+        <div class="field">
+          <label>Show me</label>
+          <div class="mode-toggle">
+            <button id="oddsModePredict" class="active">Odds for the next show</button>
+            <button id="oddsModeHistory">Just the history (no prediction)</button>
+          </div>
+        </div>
       </div>
-      <p class="count-note" id="countNotePredict"></p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr id="predictHeadRow">
-              <th data-key="name">Song</th>
-              <th data-key="pred" class="sorted">Calibrated Probability</th>
-              <th data-key="freq">Weighted Freq</th>
-              <th data-key="gap">Current Gap</th>
-              <th data-key="avgGap">Avg Gap</th>
-              <th data-key="gapRatio">Gap vs Avg</th>
-              <th data-key="gapMult">Gap Mult</th>
-              <th data-key="dur">Median Length</th>
-              <th data-key="coolAff">Follows-a-Jam</th>
-              <th data-key="bestSlotP">Most Common Slot</th>
-              <th data-key="last">Last Played</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyPredict"></tbody>
-        </table>
+      <p class="lede" style="margin:12px 0 0;" id="oddsLede"><b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus the bustout watch. Sort any column, search any song.</p>
+    </div>
+
+    <div id="odds-predict">
+      <div class="card">
+        <p class="chart-title">Top 15 by chance of being played at the next show</p>
+        <div id="predictChart"></div>
+        <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
+      </div>
+      <div class="card">
+        <p class="chart-title" id="bustTitle">Bustout watch</p>
+        <div id="bustChart"></div>
+      </div>
+      <div class="card">
+        <div class="search-row">
+          <input type="text" id="searchPredict" placeholder="Search songs&hellip;">
+        </div>
+        <p class="count-note" id="countNotePredict"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr id="predictHeadRow">
+                <th data-key="name">Song</th>
+                <th data-key="pred" class="sorted">Calibrated Probability</th>
+                <th data-key="freq">Weighted Freq</th>
+                <th data-key="gap">Current Gap</th>
+                <th data-key="avgGap">Avg Gap</th>
+                <th data-key="gapRatio">Gap vs Avg</th>
+                <th data-key="gapMult">Gap Mult</th>
+                <th data-key="dur">Median Length</th>
+                <th data-key="coolAff">Follows-a-Jam</th>
+                <th data-key="bestSlotP">Most Common Slot</th>
+                <th data-key="last">Last Played</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyPredict"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="odds-history" class="hidden">
+      <div class="card">
+        <p class="chart-title">Top 15 songs by frequency in this window</p>
+        <div id="freqChart"></div>
+        <p class="note">Frequency = distinct shows played &divide; shows in window (recency weighting applies). Debut-clamped for songs newer than the window. This view is plain history &mdash; no prediction, no calibration, just what actually happened in the window you set at the top of the page.</p>
+      </div>
+      <div class="card">
+        <div class="search-row">
+          <input type="text" id="searchFreq" placeholder="Search songs&hellip;">
+        </div>
+        <p class="count-note" id="countNoteFreq"></p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr id="freqHeadRow">
+                <th data-key="name">Song</th>
+                <th data-key="showsPlayed">Shows Played</th>
+                <th data-key="showsInWindow">Shows in Window</th>
+                <th data-key="freq" class="sorted">Frequency</th>
+                <th data-key="debut">Debut</th>
+                <th data-key="last">Last Played</th>
+                <th data-key="gap">Gap</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyFreq"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
   <div id="panel-game" class="tabpanel">
     <div class="card">
+      <p class="lede" style="margin-bottom:14px;"><b>Playing a setlist prediction game?</b> This turns the probabilities into the highest-expected-value entry &mdash; FantasyPhish's 13 picks for a single show, or Phantasy Tour's 10-song Tour Tournament team. Copy the picks straight into your entry form.</p>
       <div class="controls-row" style="margin-bottom:16px;">
         <div class="field">
           <label for="gameType">Game</label>
@@ -393,36 +508,7 @@
     </div>
   </div>
 
-  <div id="panel-frequency" class="tabpanel">
-    <div class="card">
-      <p class="lede">This tab is plain history, not a prediction: how often has each song actually been played across the window you set above? No calibration, no "chance at the next show" &mdash; just raw counts. Want the actual prediction for a specific upcoming show instead? That's the <b>Song Likelihood</b> tab.</p>
-      <p class="chart-title">Top 15 songs by frequency in this window</p>
-      <div id="freqChart"></div>
-      <p class="note">Frequency = distinct shows played &divide; shows in window (recency weighting applies). Debut-clamped for songs newer than the window.</p>
-    </div>
-    <div class="card">
-      <div class="search-row">
-        <input type="text" id="searchFreq" placeholder="Search songs&hellip;">
-      </div>
-      <p class="count-note" id="countNoteFreq"></p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr id="freqHeadRow">
-              <th data-key="name">Song</th>
-              <th data-key="showsPlayed">Shows Played</th>
-              <th data-key="showsInWindow">Shows in Window</th>
-              <th data-key="freq" class="sorted">Frequency</th>
-              <th data-key="debut">Debut</th>
-              <th data-key="last">Last Played</th>
-              <th data-key="gap">Gap</th>
-            </tr>
-          </thead>
-          <tbody id="tbodyFreq"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
+  <p class="footer">Built by a fan, for fans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
 
 </div>
 
@@ -1504,6 +1590,40 @@ if (UPCOMING.length) {
   });
 }
 
+// ---- timeframe pills: the one control most visitors ever touch ----
+const TF_PILLS = [['tf2', 2], ['tf5', 5], ['tf10', 10], ['tfAll', 43]];
+function syncPills() {
+  const y = parseFloat(els.yearsBack.value);
+  for (const [id, v] of TF_PILLS) $(id).classList.toggle('active', mode === 'rolling' && Math.abs(y - v) < 0.01);
+}
+for (const [id, v] of TF_PILLS) {
+  $(id).addEventListener('click', () => {
+    els.yearsBack.value = v;
+    if (mode !== 'rolling') { els.modeRolling.click(); } else { syncNextDate(); render(); }
+    syncPills();
+  });
+}
+els.yearsBack.addEventListener('change', syncPills);
+els.modeRolling.addEventListener('click', syncPills);
+els.modeCustom.addEventListener('click', syncPills);
+
+// ---- Song Odds sub-toggle: forward-looking odds vs plain history ----
+const ODDS_LEDE = {
+  predict: '<b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus the bustout watch. Sort any column, search any song.',
+  history: '<b>Plain history, no prediction.</b> How often each song was actually played in the window set at the top of the page &mdash; raw counts, debuts, gaps. For forward-looking odds, flip back to the other view.',
+};
+$('oddsModePredict').addEventListener('click', () => {
+  $('oddsModePredict').classList.add('active'); $('oddsModeHistory').classList.remove('active');
+  $('odds-predict').classList.remove('hidden'); $('odds-history').classList.add('hidden');
+  $('oddsLede').innerHTML = ODDS_LEDE.predict;
+});
+$('oddsModeHistory').addEventListener('click', () => {
+  $('oddsModeHistory').classList.add('active'); $('oddsModePredict').classList.remove('active');
+  $('odds-history').classList.remove('hidden'); $('odds-predict').classList.add('hidden');
+  $('oddsLede').innerHTML = ODDS_LEDE.history;
+});
+
+syncPills();
 syncNextDate();
 render();
 </script>
