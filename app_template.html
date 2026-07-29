@@ -144,7 +144,7 @@
 <div class="viz-root">
   <div class="hero">
     <h1>Phish Setlist Predictor</h1>
-    <p class="subtitle">Data through __LATEST_DATE__ &middot; 2,026 shows &middot; 984 unique songs &middot; deduped per show &middot; dynamically calibrated &middot; sources: phish.net API (setlists), phish.in (song durations)</p>
+    <p class="subtitle">Data through __LATEST_DATE__ &middot; __SHOW_COUNT__ shows &middot; __SONG_COUNT__ different songs ever played (most only once or twice) &middot; sources: phish.net API (setlists), phish.in (song durations)</p>
   </div>
 
   <div class="tabs">
@@ -155,87 +155,97 @@
   </div>
 
   <div class="card">
-    <p class="lede" style="margin-bottom:16px;">Two dates matter here, and they do different jobs: <b>"as of"</b> is the cutoff for the stats (how often each song has been played) &mdash; everything after it is invisible to the model. <b>Show date</b> is which specific night you're asking about, only needed to catch New Year's Eve and to look up a run's real position automatically.</p>
+    <p class="lede" style="margin-bottom:16px;">Everything below already has a sensible default: it's set up to predict whatever show comes next, using the last 5 years of setlists. You don't need to touch any of it unless you want to look at a different night or time period.</p>
     <div class="controls-row">
-      <div class="field">
-        <label>Baseline window
-          <span class="hint" title="How the pool of past shows for song-frequency stats is chosen: a rolling number of years counting back from the &quot;as of&quot; date below, or a fixed custom start/end range. Most people want Rolling.">?</span>
-        </label>
-        <div class="mode-toggle">
-          <button id="modeRolling" class="active">Rolling (years back)</button>
-          <button id="modeCustom">Custom range</button>
-        </div>
-      </div>
-      <div class="field" id="rollingYearsField">
-        <label for="yearsBack">Years back
-          <span class="hint" title="How many years of shows feed the frequency stats. 5 is the default. Shorter tracks a song's recent life more tightly; longer smooths out short-term dips. Testing found window length barely changes accuracy &mdash; recency weighting below matters more.">?</span>
-        </label>
-        <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
-      </div>
-      <div class="field" id="rollingEndField">
-        <label for="refEnd">Stats cutoff ("as of" date)
-          <span class="hint" title="The last show counted in the stats. Nothing after this date is used. The tool predicts whichever show comes right after it &mdash; set Show date below only if you want a specific date instead of just &quot;the next one.&quot;">?</span>
-        </label>
-        <input type="date" id="refEnd">
-      </div>
-      <div class="field hidden" id="customStartField">
-        <label for="customStart">Start date</label>
-        <input type="date" id="customStart">
-      </div>
-      <div class="field hidden" id="customEndField">
-        <label for="customEnd">Stats cutoff ("as of" date)</label>
-        <input type="date" id="customEnd">
-      </div>
       <div class="field hidden" id="upcomingField">
-        <label for="upcoming">Upcoming show
-          <span class="hint" title="Pick a real, scheduled Phish show and everything else (show date, run position) fills in automatically from the announced tour schedule.">?</span>
+        <label for="upcoming">Got a real show coming up?
+          <span class="hint" title="Pick a real, already-announced Phish show from the tour schedule. Everything else below (show date, run position) fills itself in.">?</span>
         </label>
         <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
       </div>
       <div class="field">
-        <label for="nextDate">Show date <span style="text-transform:none;font-weight:400">(optional)</span>
-          <span class="hint" title="The calendar date of the specific show you're predicting. If your stats cutoff isn't the most recent show on record, this is auto-filled and locked to whatever show really happened next &mdash; you can't predict a date that contradicts your own stats window. It's only free to set when the cutoff is at the present, since the real future show isn't known unless you pick one above. Also used to catch a date-locked song (Auld Lang Syne on 12/31).">?</span>
+        <label for="nextDate">Predicting a specific date? <span style="text-transform:none;font-weight:400">(optional)</span>
+          <span class="hint" title="Leave this blank to just predict 'whatever show is next.' Only set it if you want a particular night. If you also move the stats cutoff below into the past, this fills itself in with whatever show really happened next back then &mdash; you can't accidentally predict a date that contradicts your own stats.">?</span>
         </label>
         <input type="date" id="nextDate">
         <div class="note" id="nextDateNote" style="margin-top:2px;"></div>
       </div>
-      <div class="field">
-        <label for="runPos">Position in run
-          <span class="hint" title="Opening, middle, and closing nights of a multi-night run each favor different songs. When the show date above matches a real show (already happened or on the announced schedule), this is filled in and locked from the actual run &mdash; not a guess. Only editable when exploring a hypothetical date with no schedule match.">?</span>
+      <div class="field" id="rollingEndField">
+        <label for="refEnd">Use stats through
+          <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to today, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then &mdash; useful for testing it against a show that already happened.">?</span>
+        </label>
+        <input type="date" id="refEnd">
+      </div>
+      <div class="field hidden" id="customEndField">
+        <label for="customEnd">Use stats through</label>
+        <input type="date" id="customEnd">
+      </div>
+      <div class="field" id="runPosField">
+        <label for="runPos">Opening, middle, or closing night? <span style="text-transform:none;font-weight:400">(optional)</span>
+          <span class="hint" title="A multi-night run's opening, middle, and closing shows each tend to favor different songs. Usually filled in for you automatically below &mdash; this only shows up as a choice when we can't tell from the date.">?</span>
         </label>
         <select id="runPos">
-          <option value="none" selected>Not specified</option>
+          <option value="none" selected>Don't know / doesn't apply</option>
           <option value="tour">First show of a tour</option>
           <option value="open">Opening night of a run</option>
           <option value="middle">Middle night</option>
           <option value="close">Closing night</option>
         </select>
-        <div class="note" id="runPosNote" style="margin-top:2px;"></div>
       </div>
-      <div class="field">
-        <label for="bustGap">Bustout = gap of
-          <span class="hint" title="How many shows a song has to have missed before a return gets the &quot;bustout&quot; badge in the predicted setlist. Cosmetic only &mdash; it doesn't change any song's actual probability.">?</span>
-        </label>
-        <select id="bustGap">
-          <option value="50">50+ shows</option>
-          <option value="75">75+ shows</option>
-          <option value="100" selected>100+ shows</option>
-          <option value="150">150+ shows</option>
-          <option value="200">200+ shows</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="recency">Recency weighting
-          <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. Medium (100-show half-life) is the setting every accuracy number on this page was tested at &mdash; leave it here unless you specifically want to see how the predictions shift under a different weighting.">?</span>
-        </label>
-        <select id="recency">
-          <option value="0">None (all shows equal)</option>
-          <option value="200">Gentle (half-life 200 shows)</option>
-          <option value="100" selected>Medium (half-life 100 shows) &mdash; recommended</option>
-          <option value="50">Strong (half-life 50 shows)</option>
-        </select>
-      </div>
+      <div class="note" id="runPosNote" style="flex-basis:100%; margin-top:-6px;"></div>
     </div>
+
+    <details style="border-top:1px solid var(--gridline); margin-top:4px;">
+      <summary>Advanced settings</summary>
+      <div class="dbody">
+        <p>These are all fine-tuning knobs. The defaults were the exact settings used to test this tool's accuracy, so there's no need to change any of them &mdash; they're here for people who want to poke at how the prediction shifts.</p>
+        <div class="controls-row" style="margin-top:4px;">
+          <div class="field">
+            <label>How far back do the stats look?
+              <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. Almost everyone wants Rolling.">?</span>
+            </label>
+            <div class="mode-toggle">
+              <button id="modeRolling" class="active">Rolling (years back)</button>
+              <button id="modeCustom">Custom range</button>
+            </div>
+          </div>
+          <div class="field" id="rollingYearsField">
+            <label for="yearsBack">Years back
+              <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value. Testing found this barely changes accuracy either way &mdash; recency weighting below matters more.">?</span>
+            </label>
+            <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
+          </div>
+          <div class="field hidden" id="customStartField">
+            <label for="customStart">Start date</label>
+            <input type="date" id="customStart">
+          </div>
+          <div class="field">
+            <label for="bustGap">Flag a returning song as a "bustout" after
+              <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist &mdash; it doesn't change that song's actual odds of being picked at all.">?</span>
+            </label>
+            <select id="bustGap">
+              <option value="50">50+ missed shows</option>
+              <option value="75">75+ missed shows</option>
+              <option value="100" selected>100+ missed shows</option>
+              <option value="150">150+ missed shows</option>
+              <option value="200">200+ missed shows</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="recency">Weight recent shows...
+              <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Medium' is the tested default that every accuracy number on this page uses &mdash; change it to see how predictions shift, not because it's wrong.">?</span>
+            </label>
+            <select id="recency">
+              <option value="0">Not at all (every show counts equally)</option>
+              <option value="200">A little more</option>
+              <option value="100" selected>Somewhat more (recommended default)</option>
+              <option value="50">A lot more</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </details>
+
     <div class="window-summary" id="windowSummary"></div>
     <div class="window-summary" id="calSummary"></div>
   </div>
@@ -312,6 +322,7 @@
 
   <div id="panel-predict" class="tabpanel">
     <div class="card">
+      <p class="lede">This tab answers one question: <b>how likely is each song at the specific show you're predicting</b> (set above)? It's the same numbers behind the Predicted Setlist tab, just shown per-song with the full math instead of laid out as a night. Looking for plain historical stats instead — like "how often has Tweezer been played between 2015 and today," with no prediction involved? That's the <b>Frequency Explorer</b> tab.</p>
       <p class="chart-title">Top 15 by Calibrated Probability (next show after the "as of" date)</p>
       <div id="predictChart"></div>
       <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
@@ -354,8 +365,8 @@
         <div class="field">
           <label for="gameType">Game</label>
           <select id="gameType">
-            <option value="pt" selected>Phantasy Tour — Tour Tournament</option>
-            <option value="fp">FantasyPhish — single show</option>
+            <option value="fp" selected>FantasyPhish — single show</option>
+            <option value="pt">Phantasy Tour — Tour Tournament</option>
           </select>
         </div>
         <div class="field" id="tourLenField">
@@ -384,6 +395,7 @@
 
   <div id="panel-frequency" class="tabpanel">
     <div class="card">
+      <p class="lede">This tab is plain history, not a prediction: how often has each song actually been played across the window you set above? No calibration, no "chance at the next show" &mdash; just raw counts. Want the actual prediction for a specific upcoming show instead? That's the <b>Song Likelihood</b> tab.</p>
       <p class="chart-title">Top 15 songs by frequency in this window</p>
       <div id="freqChart"></div>
       <p class="note">Frequency = distinct shows played &divide; shows in window (recency weighting applies). Debut-clamped for songs newer than the window.</p>
@@ -603,7 +615,7 @@ const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
  'customStartField','customEndField','recency','windowSummary','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
- 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','nextDateNote',
+ 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','runPosField','nextDateNote',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
 
 els.refEnd.value = LATEST_DATE; els.refEnd.max = LATEST_DATE;
@@ -647,16 +659,18 @@ function syncRunPos() {
   let match = null, source = null;
   if (d && UPCOMING_BY_DATE.has(d)) { match = UPCOMING[UPCOMING_BY_DATE.get(d)]; source = 'scheduled'; }
   else if (d && DATE_IDX.has(d)) { match = SHOWS[DATE_IDX.get(d)]; source = 'history'; }
-  if (match && match.runPos) {
+  if (match && match.runPos && match.runPos !== 'none') {
+    // Known for a fact — no need to show a dropdown for something we're not guessing at.
     els.runPos.value = match.runPos;
-    els.runPos.disabled = true;
+    els.runPosField.classList.add('hidden');
     els.runPosNote.textContent = source === 'scheduled'
-      ? `Auto-detected from the announced schedule: ${match.runN} at ${match.venue}.`
-      : `Auto-detected from history — this show already happened: ${match.runN} at ${match.venue}.`;
+      ? `${match.runN} at ${match.venue} — already factored in.`
+      : `This show already happened — ${match.runN} at ${match.venue} — already factored in.`;
     els.runPosNote.classList.add('auto');
   } else {
-    els.runPos.disabled = false;
-    els.runPosNote.textContent = d ? 'No schedule or history match for this date — set manually to explore a hypothetical run position.' : '';
+    if (match) els.runPos.value = 'none';   // a real single-night show — nothing to pick
+    els.runPosField.classList.remove('hidden');
+    els.runPosNote.textContent = '';
     els.runPosNote.classList.remove('auto');
   }
 }
@@ -685,7 +699,11 @@ function compute() {
     const s = scores.get(song.id);
     const idxs = playIdx.get(song.id) || [];
     const slots = playSlots.get(song.id) || [];
-    if (s) {
+    // A song that's debuted but hasn't played inside the current window at all is left entirely
+    // to the dormant/bustout channel below, which prices it properly by career size and real
+    // gap. Without this guard it would get a second, duplicate row here too — the same song
+    // listed twice with two different probabilities.
+    if (s && s.showsPlayed > 0) {
       const lo = lowerBound(idxs, s.effStart), hi = upperBound(idxs, asOfIdx);
       const slotCnt = new Array(7).fill(0);
       for (let k = lo; k < hi; k++) {
@@ -1326,7 +1344,11 @@ function render() {
   const filterP = els.searchPredict.value.trim().toLowerCase();
   let fp = filterP ? rows.filter(r => r.name.toLowerCase().includes(filterP)) : rows.slice();
   fp = sortRows(fp, sortKeyPredict, sortDirPredict);
-  els.countNotePredict.textContent = `${fp.length} songs (incl. ${rows.filter(r => r.isBustout).length} dormant bustout candidates)`;
+  {
+    const inRotation = rows.filter(r => !r.deepDormant).length;
+    const restOfCatalog = rows.filter(r => r.deepDormant).length;
+    els.countNotePredict.textContent = `${fp.length} songs shown — ${inRotation} have come up somewhere in your current window; the other ${restOfCatalog} are from the full history and haven't played recently, but could still turn up as a surprise return.`;
+  }
 
   const topPred = rows.slice().sort((a, b) => b.pred - a.pred).filter(r => r.pred > 0).slice(0, 15);
   const maxPred = topPred.length ? topPred[0].pred : 1;

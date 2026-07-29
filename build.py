@@ -785,6 +785,8 @@ def main():
         "__SETMIN_JSON__": j(minutes),
         "__STATIC_CAL_JSON__": j(cal),
         "__LATEST_DATE__": shows_list[-1]["date"],
+        "__SHOW_COUNT__": f"{len(shows_list):,}",
+        "__SONG_COUNT__": f"{len(songs):,}",
     }.items():
         html = html.replace(k, v)
     with open(OUTPUT, "w", encoding="utf-8") as f:
