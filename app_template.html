@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phish Setlist Predictor</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --page: #f9f9f7;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781;
+    --gridline: #e1e0d9; --baseline: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6; --series-2: #eb6834;
+    --seq-100: #cde2fb; --seq-400: #3987e5; --seq-500: #256abf; --seq-650: #104281;
+    --pred-100: #f6d9c9; --hover-wash: rgba(42,120,214,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --page: #0d0d0d;
+      --text-primary: #ffffff; --text-secondary: #c3c2b7; --text-muted: #898781;
+      --gridline: #2c2c2a; --baseline: #383835; --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5; --series-2: #d95926;
+      --seq-100: #184f95; --seq-400: #3987e5; --seq-500: #5598e7; --seq-650: #9ec5f4;
+      --pred-100: #5a3320; --hover-wash: rgba(57,135,229,0.12);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--page); color: var(--text-primary); }
+  .viz-root { padding: 28px 32px 60px; max-width: 1180px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 13px; margin: 0 0 20px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--baseline); flex-wrap: wrap; }
+  .tab-btn { font-family: inherit; font-size: 13px; font-weight: 600; padding: 10px 16px; border: none; background: none; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-btn.active { color: var(--series-1); border-bottom-color: var(--series-1); }
+  .tabpanel { display: none; }
+  .tabpanel.active { display: block; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+  .controls-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; }
+  select, input[type=number], input[type=date], input[type=text] {
+    font-family: inherit; font-size: 13px; padding: 7px 10px; border-radius: 6px;
+    border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-primary);
+  }
+  .mode-toggle { display: flex; gap: 6px; }
+  .mode-toggle button {
+    font-family: inherit; font-size: 12px; padding: 7px 12px; border-radius: 6px;
+    border: 1px solid var(--baseline); background: var(--surface-1); color: var(--text-secondary); cursor: pointer;
+  }
+  .mode-toggle button.active { background: var(--series-1); border-color: var(--series-1); color: #fff; font-weight: 600; }
+  .window-summary { margin-top: 14px; font-size: 12.5px; color: var(--text-secondary); }
+  .window-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .hidden { display: none !important; }
+  .chart-title { font-size: 13px; font-weight: 600; margin: 0 0 14px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .bar-label { width: 200px; font-size: 12px; color: var(--text-secondary); text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; position: relative; height: 16px; }
+  .bar-fill { height: 100%; border-radius: 4px; position: relative; min-width: 2px; }
+  .bar-fill.predict { background: var(--series-2); }
+  .bar-fill.freq { background: var(--seq-400); }
+  .bar-value { font-size: 11.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; width: 44px; flex-shrink: 0; }
+  .search-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+  .search-row input { width: 280px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted);
+    font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--baseline); cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  thead th:hover { color: var(--text-primary); }
+  thead th.sorted { color: var(--series-1); }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid var(--gridline); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tbody td.song-name { font-variant-numeric: normal; white-space: normal; font-weight: 500; }
+  tbody tr:hover { background: var(--hover-wash); }
+  .freq-cell, .pred-cell { position: relative; }
+  .freq-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--seq-100); border-radius: 3px; z-index: 0; }
+  .pred-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--pred-100); border-radius: 3px; z-index: 0; }
+  .freq-text, .pred-text { position: relative; z-index: 1; }
+  .table-wrap { max-height: 560px; overflow-y: auto; }
+  .note { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
+  .count-note { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+  .slot-tag { display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-muted); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
+  .badge.bust { background: var(--pred-100); color: var(--series-2); }
+  .badge.cool { background: var(--seq-100); color: var(--seq-650); }
+  .explain { margin-top: 18px; border-top: 1px solid var(--gridline); padding-top: 14px; }
+  .lede { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 8px; }
+  .lede b { color: var(--text-primary); }
+  .lede-sub { font-size: 12.5px; line-height: 1.55; color: var(--text-muted); margin: 0 0 14px; }
+  details { border-top: 1px solid var(--gridline); }
+  details summary {
+    cursor: pointer; padding: 9px 0; font-size: 12.5px; font-weight: 600;
+    color: var(--series-1); list-style: none; display: flex; align-items: center; gap: 7px;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: '+'; font-size: 14px; font-weight: 700; width: 11px; }
+  details[open] summary::before { content: '\2212'; }
+  details .dbody { padding: 0 0 12px 18px; }
+  details .dbody p { font-size: 12.5px; line-height: 1.65; color: var(--text-secondary); margin: 0 0 10px; }
+  details .dbody p:last-child { margin-bottom: 0; }
+  details .dbody b { color: var(--text-primary); }
+  details .dbody code { display: block; padding: 8px 10px; margin-bottom: 10px; font-size: 12px; }
+  details .dbody a { color: var(--series-1); }
+  .setlist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .set-block h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--series-2); margin: 0 0 10px; }
+  .set-song { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--gridline); }
+  .set-song:last-child { border-bottom: none; }
+  .set-song .sname { font-size: 13.5px; font-weight: 500; }
+  .set-song .sname .role { font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-left: 6px; }
+  .set-song .sprob { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Phish Setlist Predictor</h1>
+  <p class="subtitle">Data through __LATEST_DATE__ &middot; 2,026 shows &middot; 984 unique songs &middot; deduped per show &middot; dynamically calibrated &middot; sources: phish.net API (setlists), phish.in (song durations)</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="setlist">Predicted Setlist</button>
+    <button class="tab-btn" data-tab="predict">Song Likelihood</button>
+    <button class="tab-btn" data-tab="game">Game Picks</button>
+    <button class="tab-btn" data-tab="frequency">Frequency Explorer</button>
+  </div>
+
+  <div class="card">
+    <div class="controls-row">
+      <div class="field">
+        <label>Baseline window</label>
+        <div class="mode-toggle">
+          <button id="modeRolling" class="active">Rolling (years back)</button>
+          <button id="modeCustom">Custom range</button>
+        </div>
+      </div>
+      <div class="field" id="rollingYearsField">
+        <label for="yearsBack">Years back</label>
+        <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
+      </div>
+      <div class="field" id="rollingEndField">
+        <label for="refEnd">"As of" date (predicts the next show)</label>
+        <input type="date" id="refEnd">
+      </div>
+      <div class="field hidden" id="customStartField">
+        <label for="customStart">Start date</label>
+        <input type="date" id="customStart">
+      </div>
+      <div class="field hidden" id="customEndField">
+        <label for="customEnd">"As of" date</label>
+        <input type="date" id="customEnd">
+      </div>
+      <div class="field hidden" id="upcomingField">
+        <label for="upcoming">Upcoming show</label>
+        <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
+      </div>
+      <div class="field">
+        <label for="nextDate">Date of show being predicted <span style="text-transform:none;font-weight:400">(optional)</span></label>
+        <input type="date" id="nextDate">
+      </div>
+      <div class="field">
+        <label for="runPos">Position in run</label>
+        <select id="runPos">
+          <option value="none" selected>Not specified</option>
+          <option value="tour">First show of a tour</option>
+          <option value="open">Opening night of a run</option>
+          <option value="middle">Middle night</option>
+          <option value="close">Closing night</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="bustGap">Bustout = gap of</label>
+        <select id="bustGap">
+          <option value="50">50+ shows</option>
+          <option value="75">75+ shows</option>
+          <option value="100" selected>100+ shows</option>
+          <option value="150">150+ shows</option>
+          <option value="200">200+ shows</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="recency">Recency weighting</label>
+        <select id="recency">
+          <option value="0">None (all shows equal)</option>
+          <option value="200">Gentle (half-life 200 shows)</option>
+          <option value="100" selected>Medium (half-life 100 shows)</option>
+          <option value="50">Strong (half-life 50 shows)</option>
+        </select>
+      </div>
+    </div>
+    <div class="window-summary" id="windowSummary"></div>
+    <div class="window-summary" id="calSummary"></div>
+  </div>
+
+  <div id="panel-setlist" class="tabpanel active">
+    <div class="card">
+      <div class="controls-row" style="margin-bottom:14px;">
+        <div class="field">
+          <label>Setlist mode</label>
+          <div class="mode-toggle">
+            <button id="slModeSample" class="active">Realistic (weighted draw)</button>
+            <button id="slModeLikely">Most likely (ranked list)</button>
+          </div>
+        </div>
+        <div class="field" id="rerollField">
+          <label>&nbsp;</label>
+          <div class="mode-toggle"><button id="reroll">&#8635; Generate another</button></div>
+        </div>
+      </div>
+      <p class="chart-title" id="setlistTitle">Predicted setlist</p>
+      <div class="setlist-grid" id="setlistGrid"></div>
+      <div class="table-wrap hidden" id="mlWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Song</th><th>Weighted Freq</th><th>Current Gap</th><th>Avg Gap</th><th>Gap vs Avg</th><th>Gap Mult</th><th>Raw Score</th><th>Calibrated Probability</th><th>Most Common Slot</th>
+            </tr>
+          </thead>
+          <tbody id="mlBody"></tbody>
+        </table>
+      </div>
+      <div class="explain">
+        <p class="lede">Every song gets a probability for the next show, measured from 2,026 setlists going back to 1983. <b>Realistic</b> rolls the dice on each song at its own probability and lays the result out as a show &mdash; one plausible night, not the likeliest one. Hit <b>Generate another</b> for a different night. <b>Most likely</b> instead ranks every song and shows the arithmetic behind it.</p>
+        <p class="lede-sub">The percentage beside each song is its chance of being played at all &mdash; not the chance of that exact slot. A typical night is ~18 songs out of ~150 in active rotation, so even the top song sits near 30%.</p>
+
+        <details><summary>How the probability is calculated</summary>
+          <div class="dbody">
+            <p><code>P(played) = how often it's been played &times; how overdue it is &rarr; corrected against reality</code></p>
+            <p><b>How often</b> &mdash; the share of shows in your window that included the song. A song woven in and out of one night counts once. Recent shows count more than old ones (adjustable half-life), so the number follows where a song is <i>now</i> rather than its career average.</p>
+            <p><b>How overdue</b> &mdash; measured from the full history rather than assumed. A song is suppressed the night after it's played (0.45&times;), peaks about 4&ndash;8 shows later (1.12&times;), and drops well below its own average once it's been gone 20+ shows (0.22&times;) &mdash; long-dormant songs come back <i>less</i> often than raw frequency implies, not more. This term does most of the predictive work.</p>
+            <p><b>Corrected against reality</b> &mdash; raw scores are checked against what actually happened in the ~120 shows before your target date, at your current settings, and bent to match. Themed runs (the 2026 Sphere, Mexico, and the 90s-themed MSG run) are excluded, since they're chosen by rules the model can't see. The correction refits whenever you change a setting.</p>
+          </div>
+        </details>
+
+        <details><summary>Patterns layered on top</summary>
+          <div class="dbody">
+            <p><b>Inseparable pairs</b> &mdash; Mike's Song &rarr; Weekapaug Groove (same set, songs in between), The Horse &rarr; Silent in the Morning (back to back), Tweezer &rarr; Tweezer Reprise (later in the night). Nine such pairs are mined from history and drawn as single units, so the partner arrives at its true conditional rate instead of doubling the pair's odds.</p>
+            <p><b>Songs that share a set</b> &mdash; thirteen further pairs turn up in the same set well beyond chance: Tweezer + Piper (2.6&times;), Also Sprach + Piper (2.6&times;), Slave + Light (2.7&times;), Funky Bitch + The Moma Dance (3.2&times;), Harry Hood + Twist (2.2&times;). They nudge set assignment rather than forcing it.</p>
+            <p><b>Where a song lives</b> &mdash; each song carries its own history across seven slots (set 1 opener/song/closer, set 2 opener/song/closer, encore). Songs that only ever land as closers or encores are barred from mid-set outright: Tweezer Reprise is 92% encore-or-set-2-closer, and it will never appear in the middle of a set here. Slots are filled by weighted draw, not by the single best fit &mdash; real encores draw on 193 different songs, and the five most common cover only 21% of them.</p>
+            <p><b>Set length in minutes</b> &mdash; sets fill to time (~73 min, ~67 min, ~15 min encore), not to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs.</p>
+            <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
+            <p><b>Position in a run</b> &mdash; set it above and measured effects apply. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar.</p>
+            <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set above. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
+            <p><b>Date-locked songs</b> &mdash; anything played almost exclusively on one calendar date is excluded unless you set the show date to match. Exactly one song qualifies: Auld Lang Syne, 28 of its 29 outings on December 31.</p>
+          </div>
+        </details>
+
+        <details><summary>How accurate is it, honestly?</summary>
+          <div class="dbody">
+            <p>Tested against 143 shows the model never saw (2023 through January 2026, themed runs excluded): <b>the top 20 songs by probability contain about 5 of the ~18 played</b>. That is far better than chance and, as far as we can tell, better than anything else public &mdash; phish.net's Trey's Notebook, which ranks by plays in the last year, gets about 3. Bolting our overdue-ness term onto their one-year count lifts them to 4.8, which says plainly that the overdue term is where nearly all the edge lives; window length barely matters.</p>
+            <p>But five of eighteen is the honest ceiling here, and it's worth being blunt about why: <b>Phish setlists are close to irreducibly random.</b> Roughly 150 songs are in live rotation, the band deliberately avoids patterns, and a good chunk of any night is songs nobody would have ranked highly. No amount of modelling fixes that. Treat a generated setlist as a plausible night, not a forecast.</p>
+            <p>Known weak spots, stated plainly: song <i>selection</i> rests on much firmer ground than song <i>ordering</i> &mdash; slot tendencies are real but weak. Bonded pairs still nudge their partners' rates upward slightly. The cool-down pattern is genuine but mild (18% vs a 14% base rate), so it fires on only about 10% of generated nights. Nothing here can anticipate a themed show, a guest sit-in, a debut, or a one-off gag, and those are a real share of any tour.</p>
+          </div>
+        </details>
+
+        <details><summary>Where the data comes from</summary>
+          <div class="dbody">
+            <p>Setlists come from the <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> API &mdash; the work of the volunteer-run, non-profit Mockingbird Foundation, and worth <a href="https://phish.net/donate" target="_blank" rel="noopener">supporting</a>. Song lengths come from <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a> (median of every circulating version since 2009). Neither project is affiliated with this tool, and any errors here are ours.</p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-predict" class="tabpanel">
+    <div class="card">
+      <p class="chart-title">Top 15 by Calibrated Probability (next show after the "as of" date)</p>
+      <div id="predictChart"></div>
+      <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
+    </div>
+    <div class="card">
+      <p class="chart-title" id="bustTitle">Bustout watch</p>
+      <div id="bustChart"></div>
+    </div>
+    <div class="card">
+      <div class="search-row">
+        <input type="text" id="searchPredict" placeholder="Search songs&hellip;">
+      </div>
+      <p class="count-note" id="countNotePredict"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr id="predictHeadRow">
+              <th data-key="name">Song</th>
+              <th data-key="pred" class="sorted">Calibrated Probability</th>
+              <th data-key="freq">Weighted Freq</th>
+              <th data-key="gap">Current Gap</th>
+              <th data-key="avgGap">Avg Gap</th>
+              <th data-key="gapRatio">Gap vs Avg</th>
+              <th data-key="gapMult">Gap Mult</th>
+              <th data-key="dur">Median Length</th>
+              <th data-key="coolAff">Follows-a-Jam</th>
+              <th data-key="bestSlotP">Most Common Slot</th>
+              <th data-key="last">Last Played</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPredict"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-game" class="tabpanel">
+    <div class="card">
+      <div class="controls-row" style="margin-bottom:16px;">
+        <div class="field">
+          <label for="gameType">Game</label>
+          <select id="gameType">
+            <option value="pt" selected>Phantasy Tour — Tour Tournament</option>
+            <option value="fp">FantasyPhish — single show</option>
+          </select>
+        </div>
+        <div class="field" id="tourLenField">
+          <label for="tourLen">Shows in the tour</label>
+          <input type="number" id="tourLen" min="1" max="60" step="1" value="20">
+        </div>
+      </div>
+      <p class="chart-title" id="gameTitle">Optimal picks</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr id="gameHead"></tr></thead>
+          <tbody id="gameBody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:600;">Ready to paste into your entry form</span>
+          <button id="copyPicks" style="font-family:inherit;font-size:11.5px;padding:5px 11px;border-radius:6px;border:1px solid var(--baseline);background:var(--surface-1);color:var(--text-secondary);cursor:pointer;">Copy</button>
+          <span id="copyOk" style="font-size:11.5px;color:var(--good);display:none;">copied</span>
+        </div>
+        <pre id="picksText" style="margin:0;padding:12px 14px;background:var(--page);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.7;white-space:pre-wrap;color:var(--text-primary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;"></pre>
+      </div>
+      <p class="note" id="gameNote"></p>
+    </div>
+  </div>
+
+  <div id="panel-frequency" class="tabpanel">
+    <div class="card">
+      <p class="chart-title">Top 15 songs by frequency in this window</p>
+      <div id="freqChart"></div>
+      <p class="note">Frequency = distinct shows played &divide; shows in window (recency weighting applies). Debut-clamped for songs newer than the window.</p>
+    </div>
+    <div class="card">
+      <div class="search-row">
+        <input type="text" id="searchFreq" placeholder="Search songs&hellip;">
+      </div>
+      <p class="count-note" id="countNoteFreq"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr id="freqHeadRow">
+              <th data-key="name">Song</th>
+              <th data-key="showsPlayed">Shows Played</th>
+              <th data-key="showsInWindow">Shows in Window</th>
+              <th data-key="freq" class="sorted">Frequency</th>
+              <th data-key="debut">Debut</th>
+              <th data-key="last">Last Played</th>
+              <th data-key="gap">Gap</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyFreq"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="application/json" id="shows-data">__SHOWS_JSON__</script>
+<script type="application/json" id="songs-data">__SONGS_JSON__</script>
+<script type="application/json" id="plays-data">__PLAYS_JSON__</script>
+
+<script>
+const SHOWS = JSON.parse(document.getElementById('shows-data').textContent);
+const SONGS = JSON.parse(document.getElementById('songs-data').textContent);
+const PLAYS = JSON.parse(document.getElementById('plays-data').textContent);
+const PAIR_RULES = __PAIRS_JSON__;
+const STATIC_CAL = __STATIC_CAL_JSON__;
+const SLOT_NAMES = ['Set 1 opener','Set 1 song','Set 1 closer','Set 2 opener','Set 2 song','Set 2 closer','Encore'];
+const EXCLUDED_TOURS = new Set(['2026 Summer Tour','2026 Sphere','2026 Mexico']);
+const GAP_MULT = [null, 0.445, 0.782, 0.935, 1.049, 1.12, 1.116, 1.088, 1.06, 0.972, 0.979,
+                  0.892, 0.864, 0.789, 0.733, 0.746, 0.742, 0.666, 0.663, 0.644, 0.222];
+const COOL_AFF = __COOL_JSON__;     // songid -> how much more often it follows a 10+ min jam (set-2 mid)
+const SET_MIN = __SETMIN_JSON__;    // typical set minutes: s1/s2/e
+const DATE_LOCKED = __DATELOCK_JSON__;  // songid -> "MM-DD" it is essentially only ever played on
+const RUN_POS = __RUNPOS_JSON__;        // {open|close: {songid: multiplier}} — measured, length-normalised
+const SET_AFF = __SETAFF_JSON__;        // pairs that share a set more often than chance
+const RUN_LEN = { open: 18.0, middle: 19.5, close: 21.4 };  // songs per show by run position
+const TOUR_OPEN = __TOUROPEN_JSON__;    // set-1 warm-up songs on the first night of a tour
+const CLOSER = __CLOSER_JSON__;         // P(song ends the night | it was played), smoothed
+const JAM_RATE = __JAMRATE_JSON__;      // share of performances flagged as a notable jam
+// The breather pool is a curated list, not a measurement. Tempo and mood appear in no dataset,
+// and the structural signals can't tell a ballad from a short fast song: NICU is 98.6% mid-set,
+// exactly like Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint.
+const BREATHERS = new Set(__BREATHERS_JSON__);
+const UPCOMING = __UPCOMING_JSON__;     // scheduled shows from phish.net, refreshed on each build
+// Sets are held to 60-95 minutes. Measured 2015+ (422 shows): set 1 runs longer and carries
+// more songs than set 2 in 81% of shows; set-2 songs average 9.2 min against 7.7 in set 1.
+const SET_BOUNDS = { s1: [60, 95], s2: [56, 92], e: [8, 22], total: [134, 196] };
+const DEFAULT_DUR = 7.2;            // median song length for songs without duration data
+const BUSTOUT_RATE = 0.25;          // measured: true 5y-dormant bustouts per show, 2015+
+const BUSTOUT_SHOW_RATE = 0.32;     // share of shows with any bustout at the 100-show threshold
+// observed career-size mix of real bustouts (n=104, 2015+): one-offs happen but are rare per song
+const BUSTOUT_TIERS = [[2, 0.15], [4, 0.11], [9, 0.22], [24, 0.25], [1e9, 0.27]];
+// bonded pairs: dependent -> {anchor, pCond}; dependents are never drawn alone
+const BONDED = {};
+for (const r of PAIR_RULES) if (r.pAB >= 0.9) BONDED[r.b] = { anchor: r.a, p: r.pBA };
+// Measured directly: since 1990 Mike's Song appears without Weekapaug Groove in 4% of shows.
+for (const r of PAIR_RULES) {
+  if (r.an === "Mike's Song" && r.bn === 'Weekapaug Groove') BONDED[r.b] = { anchor: r.a, p: 0.96 };
+}
+
+const SHOW_DATES = SHOWS.map(s => s.date);
+const LATEST_DATE = SHOW_DATES[SHOW_DATES.length - 1];
+const EARLIEST_DATE = SHOW_DATES[0];
+const DATE_IDX = new Map(SHOW_DATES.map((d, i) => [d, i]));
+
+const playIdx = new Map(), playSlots = new Map();
+for (const p of PLAYS) {
+  const i = DATE_IDX.get(p.date);
+  if (!playIdx.has(p.sid)) { playIdx.set(p.sid, []); playSlots.set(p.sid, []); }
+  playIdx.get(p.sid).push(i);
+  playSlots.get(p.sid).push(p.sl);
+}
+for (const [sid, arr] of playIdx) {
+  const order = arr.map((v, k) => k).sort((a, b) => arr[a] - arr[b]);
+  playIdx.set(sid, order.map(k => arr[k]));
+  playSlots.set(sid, order.map(k => playSlots.get(sid)[k]));
+}
+const SONG_BY_ID = new Map(SONGS.map(s => [s.id, s]));
+const DEBUT_IDX = new Map(SONGS.map(s => [s.id, DATE_IDX.get(s.debut) ?? 0]));
+
+function lowerBound(arr, t) { let a=0,b=arr.length; while(a<b){const m=(a+b)>>1; if(arr[m]<t)a=m+1; else b=m;} return a; }
+function upperBound(arr, t) { let a=0,b=arr.length; while(a<b){const m=(a+b)>>1; if(arr[m]<=t)a=m+1; else b=m;} return a; }
+function addYears(dateStr, yearsBack) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  return new Date(d.getTime() - yearsBack * 365.25 * 86400e3).toISOString().slice(0, 10);
+}
+function gapMult(gap) { return GAP_MULT[Math.min(Math.max(gap, 1), 20)]; }
+
+// ---------- core scorer: raw prediction for the show AFTER show index A ----------
+function rawScoresAt(A, settings) {
+  // returns Map sid -> {freq, gap, gm, raw}
+  const { halflife } = settings;
+  let startIdx;
+  if (settings.mode === 'rolling') {
+    startIdx = lowerBound(SHOW_DATES, addYears(SHOW_DATES[A], settings.years));
+  } else {
+    startIdx = lowerBound(SHOW_DATES, settings.customStart);
+  }
+  const W = new Array(A + 1);
+  const PW = new Array(A + 2).fill(0);
+  for (let i = 0; i <= A; i++) {
+    W[i] = halflife > 0 ? Math.pow(0.5, (A - i) / halflife) : 1;
+    PW[i + 1] = PW[i] + W[i];
+  }
+  const out = new Map();
+  for (const song of SONGS) {
+    const idxs = playIdx.get(song.id);
+    if (!idxs) continue;
+    const eff = Math.max(startIdx, DEBUT_IDX.get(song.id));
+    if (eff > A) continue;
+    const lo = lowerBound(idxs, eff), hi = upperBound(idxs, A);
+    let wP = 0;
+    for (let k = lo; k < hi; k++) wP += W[idxs[k]];
+    const denom = PW[A + 1] - PW[eff];
+    const freq = denom > 0 ? wP / denom : 0;
+    const allHi = upperBound(idxs, A);
+    let gap = null, gm = null, raw = freq;
+    if (allHi > 0) {
+      gap = A - idxs[allHi - 1];
+      gm = gapMult(gap + 1);
+      raw = Math.min(1, freq * gm);
+    }
+    out.set(song.id, { freq, gap, gm, raw, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
+  }
+  return out;
+}
+
+// ---------- dynamic calibration ----------
+const calCache = new Map();
+function fitCalibration(asOfIdx, settings) {
+  const key = JSON.stringify([asOfIdx, settings.mode, settings.years, settings.customStart, settings.halflife]);
+  if (calCache.has(key)) return calCache.get(key);
+  // eval shows: up to 120 most recent shows strictly before asOfIdx, index>=100, non-excluded tours
+  const evals = [];
+  for (let T = asOfIdx; T >= 100 && evals.length < 120; T--) {
+    if (EXCLUDED_TOURS.has(SHOWS[T].tour)) continue;
+    evals.push(T);
+  }
+  let result;
+  if (evals.length < 40) {
+    result = { pts: STATIC_CAL, n: 0, from: null, to: null };
+  } else {
+    const edges = [0, .01, .02, .03, .05, .075, .10, .125, .15, .20, 1.01];
+    const bins = edges.slice(0, -1).map(() => [0, 0, 0]); // n, sumRaw, nPlayed
+    for (const T of evals) {
+      const scores = rawScoresAt(T - 1, settings);
+      const played = new Set();
+      for (const [sid, idxs] of playIdx) {
+        const j = lowerBound(idxs, T);
+        if (j < idxs.length && idxs[j] === T) played.add(sid);
+      }
+      for (const [sid, s] of scores) {
+        if (s.raw <= 0) continue;
+        for (let b = 0; b < edges.length - 1; b++) {
+          if (s.raw >= edges[b] && s.raw < edges[b + 1]) {
+            bins[b][0]++; bins[b][1] += s.raw; bins[b][2] += played.has(sid) ? 1 : 0;
+            break;
+          }
+        }
+      }
+    }
+    // isotonic (PAVA) on non-empty bins
+    let blocks = bins.filter(b => b[0] >= 30).map(b => [b[1] / b[0], b[2] / b[0], b[0]]);
+    let i = 0;
+    while (i < blocks.length - 1) {
+      if (blocks[i][1] > blocks[i + 1][1]) {
+        const [x1, y1, w1] = blocks[i], [x2, y2, w2] = blocks[i + 1];
+        blocks.splice(i, 2, [(x1 * w1 + x2 * w2) / (w1 + w2), (y1 * w1 + y2 * w2) / (w1 + w2), w1 + w2]);
+        i = Math.max(0, i - 1);
+      } else i++;
+    }
+    const pts = [[0, 0], ...blocks.map(b => [b[0], b[1]])];
+    if (pts.length >= 3) {
+      const [xa, ya] = pts[pts.length - 2], [xb, yb] = pts[pts.length - 1];
+      const slope = (yb - ya) / Math.max(1e-9, xb - xa);
+      pts.push([0.6, Math.min(0.9, yb + slope * (0.6 - xb))]);
+    }
+    result = { pts, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
+  }
+  calCache.set(key, result);
+  return result;
+}
+function calibrateWith(pts, p) {
+  if (p <= 0) return 0;
+  let v = pts[pts.length - 1][1];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [xa, ya] = pts[i], [xb, yb] = pts[i + 1];
+    if (p <= xb) { v = xb > xa ? ya + (yb - ya) * (p - xa) / (xb - xa) : ya; break; }
+  }
+  return Math.max(0.01, v);   // window-active floor: rarest active songs play ~1% in aggregate
+}
+
+// ---------- UI state ----------
+let mode = 'rolling';
+let slModeSample = true;
+let sortKeyPredict = 'pred', sortDirPredict = -1;
+let sortKeyFreq = 'freq', sortDirFreq = -1;
+const $ = id => document.getElementById(id);
+const els = {};
+['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
+ 'customStartField','customEndField','recency','windowSummary','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
+ 'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
+ 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField',
+ 'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
+
+els.refEnd.value = LATEST_DATE; els.refEnd.max = LATEST_DATE;
+els.customEnd.value = LATEST_DATE; els.customEnd.max = LATEST_DATE;
+els.customStart.value = addYears(LATEST_DATE, 5);
+
+function getSettings() {
+  return {
+    mode,
+    years: parseFloat(els.yearsBack.value) || 5,
+    customStart: els.customStart.value || EARLIEST_DATE,
+    halflife: parseFloat(els.recency.value),
+    end: mode === 'rolling' ? (els.refEnd.value || LATEST_DATE) : (els.customEnd.value || LATEST_DATE),
+  };
+}
+
+function compute() {
+  const st = getSettings();
+  const asOfIdx = upperBound(SHOW_DATES, st.end) - 1;
+  const cal = fitCalibration(asOfIdx, st);
+  const scores = rawScoresAt(asOfIdx, st);
+
+  // global slot dist + per-song slots within window
+  const globalSlot = new Array(7).fill(0);
+  let globalN = 0;
+  const rows = [];
+  for (const song of SONGS) {
+    const s = scores.get(song.id);
+    const idxs = playIdx.get(song.id) || [];
+    const slots = playSlots.get(song.id) || [];
+    if (s) {
+      const lo = lowerBound(idxs, s.effStart), hi = upperBound(idxs, asOfIdx);
+      const slotCnt = new Array(7).fill(0);
+      for (let k = lo; k < hi; k++) {
+        for (const sl of slots[k]) { slotCnt[sl] += 1 / slots[k].length; globalSlot[sl] += 1 / slots[k].length; }
+        globalN++;
+      }
+      rows.push({
+        id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
+        showsPlayed: s.showsPlayed, showsInWindow: s.showsInWindow,
+        freq: s.freq, gap: s.gap, gapMult: s.gm, raw: s.raw,
+        pred: calibrateWith(cal.pts, s.raw), slotCnt, slotN: s.showsPlayed, isBustout: false,
+        coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0,
+        avgGap: s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null,
+      });
+    }
+  }
+  // bustout channel: debuted before window, zero window plays, career >= 3
+  const dormant = [];
+  for (const song of SONGS) {
+    if (scores.has(song.id)) {
+      if (scores.get(song.id).showsPlayed > 0) continue;
+      // window-active with 0 plays handled: freq=0 -> raw small; treat as dormant only if debut < window start
+    }
+    const idxs = playIdx.get(song.id) || [];
+    const hi = upperBound(idxs, asOfIdx);
+    if (hi === 0) continue;                       // never played yet
+    const s = scores.get(song.id);
+    const inWindowPlays = s ? s.showsPlayed : 0;
+    if (inWindowPlays > 0) continue;
+    dormant.push(song);
+  }
+  // allocate the 0.25/show bustout budget across career tiers in their observed proportions,
+  // then split evenly inside each tier — so a song with 1-2 career plays is possible but very rare
+  const tierMembers = BUSTOUT_TIERS.map(() => 0);
+  const tierOf = s => { for (let t = 0; t < BUSTOUT_TIERS.length; t++) if (s.shows <= BUSTOUT_TIERS[t][0]) return t; return BUSTOUT_TIERS.length - 1; };
+  for (const song of dormant) tierMembers[tierOf(song)]++;
+  for (const song of dormant) {
+    const idxs = playIdx.get(song.id);
+    const hi = upperBound(idxs, asOfIdx);
+    const gap = asOfIdx - idxs[hi - 1];
+    const t = tierOf(song);
+    const p = tierMembers[t] > 0 ? BUSTOUT_RATE * BUSTOUT_TIERS[t][1] / tierMembers[t] : 0;
+    if (p <= 0) continue;
+    rows.push({
+      id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
+      showsPlayed: 0, showsInWindow: 0, freq: 0, gap, gapMult: null, raw: 0,
+      pred: p, slotCnt: new Array(7).fill(0), slotN: 0, isBustout: true, deepDormant: true,
+      coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0, avgGap: null,
+    });
+  }
+
+  // a song essentially only ever played on one calendar date is impossible on any other
+  const targetMD = els.nextDate.value ? els.nextDate.value.slice(5) : null;
+  for (const r of rows) {
+    const lock = DATE_LOCKED[r.id];
+    if (lock) { r.dateLock = lock; if (lock !== targetMD) { r.pred = 0; r.dateBlocked = true; } }
+  }
+  // measured run-position effects (share-of-slots basis, so show length is already controlled for)
+  const runPos = els.runPos.value;
+  if (runPos === 'tour') {
+    // after a layoff they lean on warm-up songs in set 1
+    for (const r of rows) {
+      const m = TOUR_OPEN[r.id];
+      if (m) { r.runMult = m; r.pred = Math.min(1, r.pred * m); }
+    }
+  }
+  if (runPos === 'open' || runPos === 'close') {
+    const tbl = RUN_POS[runPos] || {};
+    for (const r of rows) {
+      const m = tbl[r.id];
+      if (m) { r.runMult = m; r.pred = Math.min(1, r.pred * m); }
+    }
+  }
+  // "bustout" is a return after a long absence — threshold is in shows, user-adjustable
+  const bustGap = parseInt(els.bustGap.value, 10);
+  for (const r of rows) if (r.gap != null && r.gap >= bustGap) r.isBustout = true;
+
+  const gShare = globalSlot.map(c => globalN > 0 ? c / globalN : 1 / 7);
+  const ALPHA = 3;
+  for (const r of rows) {
+    r.slotP = r.slotCnt.map((c, s) => (c + ALPHA * gShare[s]) / (r.slotN + ALPHA));
+    let best = 0;
+    for (let s = 1; s < 7; s++) if (r.slotP[s] > r.slotP[best]) best = s;
+    r.bestSlot = best; r.bestSlotP = r.slotP[best];
+    // songs that historically only appear as closers/encores are barred from mid-set
+    r.terminalOnly = r.slotN >= 8 && (r.slotP[2] + r.slotP[5] + r.slotP[6]) >= 0.75;
+    r.gapRatio = (r.gap != null && r.avgGap) ? r.gap / r.avgGap : null;
+    r.closer = CLOSER[r.id] != null ? CLOSER[r.id] : 0.05;
+    r.jamRate = JAM_RATE[r.id] != null ? JAM_RATE[r.id] : 0.12;
+    r.dur = r.dur != null ? r.dur : null;
+  }
+
+  const recent = SHOWS.slice(Math.max(0, asOfIdx - 49), asOfIdx + 1);
+  const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; };
+  const n1 = med(recent.map(s => s.n1)) || 9;
+  const n2 = med(recent.map(s => s.n2)) || 7;
+  const ne = med(recent.map(s => s.ne)) || 2;
+
+  const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
+  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow };
+}
+
+// ---------- setlist assembly ----------
+function selectPool(rows, total) {
+  if (!slModeSample) {
+    return rows.filter(r => r.pred > 0 && !(r.id in BONDED))
+      .sort((a, b) => b.pred - a.pred).slice(0, total);
+  }
+  const chosen = [];
+  const byId = new Map(rows.map(r => [r.id, r]));
+  for (const r of rows) {
+    if (r.pred <= 0) continue;
+    if (r.id in BONDED) continue;              // dependents ride with their anchor
+    if (Math.random() < r.pred) chosen.push(r);
+  }
+  // bonded partners come along at their conditional rates
+  const inPool = new Set(chosen.map(r => r.id));
+  for (const [depId, bond] of Object.entries(BONDED)) {
+    if (inPool.has(bond.anchor) && Math.random() < bond.p) {
+      const dep = byId.get(+depId);
+      if (dep && !inPool.has(dep.id)) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
+    }
+  }
+  const mins = a => a.reduce((s, r) => s + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
+  const NEED_MIN = 158, maxN = total + 6;
+  while (chosen.length > maxN && mins(chosen) > NEED_MIN + 20) {
+    const unlocked = chosen.filter(r => !r.locked);
+    if (!unlocked.length) break;
+    const victim = unlocked[Math.floor(Math.random() * unlocked.length)];
+    chosen.splice(chosen.indexOf(victim), 1);
+  }
+  const spare = rows.filter(r => r.pred > 0 && !inPool.has(r.id) && !(r.id in BONDED));
+  while (mins(chosen) < NEED_MIN && spare.length) {
+    const W = spare.reduce((s, r) => s + r.pred, 0);
+    let x = Math.random() * W, k = 0;
+    for (; k < spare.length - 1; k++) { x -= spare[k].pred; if (x <= 0) break; }
+    chosen.push(spare[k]); spare.splice(k, 1);
+  }
+  return chosen;
+}
+
+function applyPairPoolRules(pool, rows, total) {
+  const byId = new Map(rows.map(r => [r.id, r]));
+  const inPool = new Set(pool.map(r => r.id));
+  const locked = new Set();
+  const T = 0.65;
+  for (const rule of PAIR_RULES) {
+    if (rule.b in BONDED && slModeSample) continue;   // handled at draw time
+    const aIn = inPool.has(rule.a), bIn = inPool.has(rule.b);
+    const ra = byId.get(rule.a), rb = byId.get(rule.b);
+    if (aIn && !bIn && rule.pBA >= T && rb && rb.freq > 0) {
+      locked.add(rule.a);
+      let worst = null;
+      for (const r of pool) if (!locked.has(r.id) && !r.locked && (worst === null || r.pred < worst.pred)) worst = r;
+      if (worst && pool.length >= total) { pool.splice(pool.indexOf(worst), 1); inPool.delete(worst.id); }
+      pool.push(rb); inPool.add(rb.id); locked.add(rb.id);
+    } else if (bIn && !aIn && rule.pAB >= T) {
+      if (ra && ra.freq > 0 && ra.pred >= 0.3 * rb.pred) {
+        locked.add(rule.b);
+        pool.push(ra); inPool.add(ra.id); locked.add(ra.id);
+      } else {
+        const i = pool.indexOf(rb);
+        if (i >= 0 && !locked.has(rb.id)) { pool.splice(i, 1); inPool.delete(rb.id); }
+      }
+    } else if (aIn && bIn) { locked.add(rule.a); locked.add(rule.b); }
+  }
+  return pool;
+}
+
+function durOf(r) { return r.dur != null ? r.dur : DEFAULT_DUR; }
+function minutesOf(arr) { return arr.reduce((s, r) => s + durOf(r), 0); }
+
+// Insert a breather after a long jam in set 2's back half.
+// "Cool-down" is learned from data, not from length alone: COOL_AFF is how much more often a
+// song actually follows a 10+ min jam in a set-2 mid slot than the 35% base rate.
+function cooldownOrder(arr) {
+  if (arr.length < 5) return arr;
+  const first = arr[0], last = arr[arr.length - 1];
+  let pool = arr.slice(1, -1);
+  const out = [];
+  const halfway = Math.floor(pool.length / 2);
+  while (pool.length) {
+    pool.sort((a, b) => b.pred - a.pred);
+    const cur = pool.shift();
+    out.push(cur);
+    if (durOf(cur) >= 10 && out.length >= halfway && pool.length) {
+      let bestI = -1, bestScore = 0;
+      pool.forEach((r, i) => {
+        if (r.terminalOnly) return;                 // Tweezer Reprise & co. are never breathers
+        if (durOf(r) > 8.5) return;                 // a breather is short
+        if (!BREATHERS.has(r.id)) return;   // curated: mood isn't in the data
+        if (r.closer >= 0.15) return;       // a closer is not a breather
+        if (r.jamRate >= 0.15) return;
+        const score = (r.coolAff || 1) * (9 - durOf(r));
+        if (score > bestScore) { bestScore = score; bestI = i; }
+      });
+      if (bestI >= 0) { const cd = pool.splice(bestI, 1)[0]; cd.cool = true; out.push(cd); }
+    }
+  }
+  return [first, ...out, last];
+}
+
+function buildSetlist(rows, n1, n2, ne) {
+  rows.forEach(r => { delete r.locked; delete r.cool; });
+  const total = n1 + n2 + ne;
+  let pool = selectPool(rows, total);
+  pool = applyPairPoolRules(pool, rows, slModeSample ? Math.max(pool.length, 12) : total);
+
+  // minute budgets: a night of heavy jam vehicles simply fits fewer songs
+  const rp = els.runPos.value;
+  const lenAdj = (rp === 'open' || rp === 'close' || rp === 'middle') ? RUN_LEN[rp] / RUN_LEN.middle : 1;
+  const clamp = (v, [lo, hi]) => Math.max(lo, Math.min(hi, v));
+  const jit = () => slModeSample ? (0.93 + Math.random() * 0.14) : 1;
+  const budget = {
+    s1: clamp(SET_MIN.s1 * jit() * lenAdj, SET_BOUNDS.s1),
+    s2: clamp(SET_MIN.s2 * jit() * lenAdj, SET_BOUNDS.s2),
+    e:  clamp(SET_MIN.e  * jit() * lenAdj, SET_BOUNDS.e),
+  };
+  // set 1 outruns set 2 in 81% of shows — usually keep that, occasionally don't
+  if (budget.s2 > budget.s1 && Math.random() < 0.81) {
+    const t = budget.s1; budget.s1 = budget.s2; budget.s2 = t;
+  }
+  // and the whole night stays inside its realistic envelope
+  const tot = budget.s1 + budget.s2 + budget.e;
+  const cap = clamp(tot, SET_BOUNDS.total);
+  if (cap !== tot) {
+    const k = cap / tot;
+    budget.s1 *= k; budget.s2 *= k; budget.e *= k;
+  }
+
+  // Bustouts: never more than one a night, and most nights none at all.
+  // Measured at the 100-show threshold: 68% of real shows have zero, ~20% exactly one.
+  // The draw naturally turns up several, so thin them back to that rate.
+  if (slModeSample) {
+    const busts = pool.filter(r => r.isBustout);
+    if (busts.length) {
+      const keepOne = Math.random() < BUSTOUT_SHOW_RATE;
+      const keep = keepOne ? busts[Math.floor(Math.random() * busts.length)] : null;
+      for (const r of busts) {
+        if (r === keep) continue;
+        const i = pool.indexOf(r);
+        if (i >= 0) pool.splice(i, 1);
+      }
+    }
+  }
+
+  const used = new Set();
+  // Real encores draw on 193 different songs — the top 5 cover only 21% of slots — so slots are
+  // sampled in proportion to fit, not won outright by the single best candidate.
+  const takeBest = (slot, count, filter) => {
+    const out = [];
+    for (let k = 0; k < count; k++) {
+      const cands = pool.filter(r => !used.has(r.id) && (!filter || filter(r)));
+      if (!cands.length) break;
+      const w = cands.map(r => Math.pow(r.slotP[slot], slModeSample ? 2.2 : 4) * r.pred);
+      const W = w.reduce((a, b) => a + b, 0);
+      if (!(W > 0)) break;
+      let x = Math.random() * W, i = 0;
+      for (; i < cands.length - 1; i++) { x -= w[i]; if (x <= 0) break; }
+      const pick = slModeSample ? cands[i] : cands[w.indexOf(Math.max(...w))];
+      used.add(pick.id); out.push(pick);
+    }
+    return out;
+  };
+
+  // encore first, filled by minutes
+  const enc = [];
+  const encMin = Math.random() < 0.75 ? 2 : (Math.random() < 0.5 ? 1 : 3);  // real encores are usually 2
+  // The finale is chosen first, weighted by how often a song actually ends a night, so a show
+  // never goes out on a breather: across 710 modern shows Waste ended one and Shade none.
+  const fc = pool.filter(r => !used.has(r.id) && r.closer >= 0.08);
+  if (fc.length) {
+    const w = fc.map(r => r.closer * Math.pow(r.slotP[6] + 0.02, 1.2) * r.pred);
+    const W = w.reduce((a, b) => a + b, 0);
+    let x = Math.random() * W, i = 0;
+    for (; i < fc.length - 1; i++) { x -= w[i]; if (x <= 0) break; }
+    const pick = slModeSample ? fc[i] : fc[w.indexOf(Math.max(...w))];
+    used.add(pick.id); enc.push(pick);
+  }
+  while (enc.length < encMin || minutesOf(enc) < budget.e * 0.6) {
+    const [pick] = takeBest(6, 1);
+    if (!pick) break;
+    enc.push(pick);
+    if (enc.length >= 4 || (enc.length >= encMin && minutesOf(enc) >= budget.e)) break;
+  }
+  const s1o = takeBest(0, 1, r => !r.terminalOnly);
+  const s1c = takeBest(2, 1, r => (r.closer >= 0.09 && r.slotN >= 8) || r.slotP[2] > 0.25);
+  const s2o = takeBest(3, 1, r => !r.terminalOnly);
+  const s2c = takeBest(5, 1, r => (r.closer >= 0.09 && r.slotN >= 8) || r.slotP[5] > 0.25);
+
+  // remaining songs fill the two sets to their minute budgets, S1-leaning first
+  const coolEligible = r => BREATHERS.has(r.id) && !r.terminalOnly && durOf(r) < 8.5 && r.jamRate < 0.15;
+  const lean = r => r.slotP[1] - r.slotP[4];
+  let rest = pool.filter(r => !used.has(r.id) && !r.terminalOnly).sort((a, b) => lean(b) - lean(a));
+  const s1mid = [], s2mid = [];
+  let m1 = minutesOf(s1o) + minutesOf(s1c), m2 = minutesOf(s2o) + minutesOf(s2c);
+
+  // reserve one proven breather for set 2 up front — that's where the jams it follows live,
+  // and it must claim its minutes before the budget fills
+  const willHaveJam = [...s2o, ...s2c, ...rest.filter(r => lean(r) <= 0)].some(r => durOf(r) >= 10);
+  if (willHaveJam) {
+    const cands = rest.filter(r => coolEligible(r) && r.slotP[4] >= 0.5 * r.slotP[1]);
+    if (cands.length) {
+      cands.sort((a, b) => (b.coolAff * (7.5 - b.dur)) - (a.coolAff * (7.5 - a.dur)));
+      const pick = cands[0];
+      s2mid.push(pick); m2 += durOf(pick);
+      rest = rest.filter(r => r.id !== pick.id);
+    }
+  }
+  // Set 1 carries more songs than set 2 in 81% of shows, and set-2 songs run longer
+  // (9.2 min average vs 7.7). Fill toward per-set song targets rather than by minutes alone.
+  const wantS1More = Math.random() < 0.81;
+  const t1 = Math.max(6, Math.round(budget.s1 / 7.7));
+  const t2raw = Math.max(5, Math.round(budget.s2 / 9.2));
+  const t2 = wantS1More ? Math.min(t2raw, t1 - 1) : t2raw;
+  for (const r of rest) {
+    if (m1 >= budget.s1 && m2 >= budget.s2) break;
+    let pull = 0;
+    for (const p of SET_AFF) {
+      const other = p.a === r.id ? p.b : (p.b === r.id ? p.a : null);
+      if (other == null) continue;
+      if (s1mid.some(x => x.id === other) || s1o.some(x => x.id === other)) pull += (p.lift - 1) * 0.15;
+      if (s2mid.some(x => x.id === other) || s2o.some(x => x.id === other)) pull -= (p.lift - 1) * 0.15;
+    }
+    const gap1 = (budget.s1 - m1) / budget.s1;      // minute deficit as a share of the budget
+    const gap2 = (budget.s2 - m2) / budget.s2;
+    const cnt1 = (t1 - 2) - s1mid.length;           // openers/closers already take two slots
+    const cnt2 = (t2 - 2) - s2mid.length;
+    const lengthPull = (durOf(r) - 8.4) * -0.05;    // short songs drift to set 1
+    let toS1;
+    if (gap1 <= 0 && gap2 <= 0) break;
+    else if (gap1 <= 0) toS1 = false;
+    else if (gap2 <= 0) toS1 = true;
+    else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) + pull + lengthPull > 0;
+    // Set 2 carrying more songs than set 1 looks plainly wrong, so it simply can't happen.
+    if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0;
+    if (!toS1 && s2mid.length + 1 > s1mid.length) continue;
+    if (toS1) { s1mid.push(r); m1 += durOf(r); } else { s2mid.push(r); m2 += durOf(r); }
+  }
+  // Hard floor: no set goes on stage under 60 minutes. If the draw came up short, pull in the
+  // next most likely songs until it doesn't.
+  const spare = rows.filter(r => r.pred > 0 && !used.has(r.id) && !pool.includes(r) && !r.terminalOnly)
+    .sort((a, b) => b.pred - a.pred);
+  const topUp = (arr, getM, setM, want, preferLong) => {
+    while (getM() < want && spare.length) {
+      let bi = 0;
+      if (preferLong) {   // set 2 fills with the longer songs
+        let best = -1;
+        spare.forEach((r, i) => { const s = r.pred * (durOf(r) >= 8 ? 1.6 : 1); if (s > best) { best = s; bi = i; } });
+      }
+      const [pick] = spare.splice(bi, 1);
+      arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
+    }
+  };
+  topUp(s1mid, () => m1, v => { m1 = v; }, Math.max(60, budget.s1 * 0.92), false);
+  topUp(s2mid, () => m2, v => { m2 = v; }, Math.max(56, budget.s2 * 0.92), true);
+  while (s2mid.length > s1mid.length && spare.length) { const r = spare.shift(); s1mid.push(r); used.add(r.id); m1 += durOf(r); }
+
+  // Bonds survive every top-up: an anchor that slipped in late still brings its partner.
+  // Mike's Song plays without Weekapaug Groove in only 4% of shows since 1990.
+  for (const [depId, bond] of Object.entries(BONDED)) {
+    const placed = [...s1mid, ...s2mid, ...s1o, ...s1c, ...s2o, ...s2c, ...enc];
+    const anchor = placed.find(r => r.id === bond.anchor);
+    if (!anchor || placed.some(r => r.id === +depId)) continue;
+    if (Math.random() >= bond.p) continue;
+    const dep = rows.find(r => r.id === +depId);
+    if (!dep || used.has(dep.id)) continue;
+    used.add(dep.id);
+    (s1mid.includes(anchor) || s1o.includes(anchor) ? s1mid : s2mid).push(dep);
+  }
+
+  s1mid.sort((a, b) => b.pred - a.pred);
+  // Set 2 is long-form: don't stack short songs next to each other. Interleave so a short song
+  // sits between longer ones wherever the draw allows.
+  s2mid.sort((a, b) => b.pred - a.pred);
+  const longs = s2mid.filter(r => durOf(r) >= 8), shorts = s2mid.filter(r => durOf(r) < 8);
+  if (longs.length && shorts.length) {
+    const woven = [];
+    const every = Math.max(1, Math.round(longs.length / (shorts.length + 1)));
+    let si = 0;
+    longs.forEach((r, i) => {
+      woven.push(r);
+      if (si < shorts.length && (i + 1) % every === 0 && i < longs.length - 1) woven.push(shorts[si++]);
+    });
+    while (si < shorts.length) woven.splice(Math.max(0, woven.length - 1), 0, shorts[si++]);
+    s2mid.length = 0; s2mid.push(...woven);
+  }
+
+  enc.sort((a, b) => a.closer - b.closer);   // an encore builds — the biggest closer lands last
+  const sl = { set1: [...s1o, ...s1mid, ...s1c], set2: cooldownOrder([...s2o, ...s2mid, ...s2c]), encore: enc };
+
+  // pair placement pass
+  const findLoc = id => {
+    for (const key of ['set1', 'set2', 'encore']) {
+      const i = sl[key].findIndex(r => r.id === id);
+      if (i >= 0) return { key, i };
+    }
+    return null;
+  };
+  for (const rule of PAIR_RULES) {
+    if (rule.place === 'free') continue;
+    const la = findLoc(rule.a), lb = findLoc(rule.b);
+    if (!la || !lb || la.key === 'encore') continue;
+    if (la.key === lb.key && lb.i > la.i && (rule.place !== 'adj' || lb.i === la.i + 1)) continue;
+    const [b] = sl[lb.key].splice(lb.i, 1);
+    const arr = sl[la.key];
+    const aIdx = arr.findIndex(r => r.id === rule.a);
+    arr.splice(rule.place === 'adj' ? aIdx + 1 : Math.min(aIdx + 2, arr.length), 0, b);
+  }
+  for (const key of ['set1', 'set2']) {
+    sl[key].forEach((r, i) => { r.role = i === 0 ? 'opener' : (i === sl[key].length - 1 ? 'closer' : ''); });
+  }
+  sl.encore.forEach(r => { r.role = ''; });
+  // The last song of the night is a banger, essentially without exception: across 710 modern
+  // shows Waste closed once and Lonely Trip, Shade and What's the Use? never did. So if a
+  // low-intensity song has ended up last, swap it with the best closer available.
+  const finale = sl.encore.length ? sl.encore : sl.set2;
+  if (finale.length > 1) {
+    const lastIdx = finale.length - 1;
+    if (finale[lastIdx].closer < 0.08) {
+      let bestI = -1, best = finale[lastIdx].closer;
+      finale.forEach((r, i) => { if (i !== lastIdx && r.closer > best) { best = r.closer; bestI = i; } });
+      if (bestI >= 0) {
+        const t = finale[lastIdx]; finale[lastIdx] = finale[bestI]; finale[bestI] = t;
+        if (finale === sl.set2) {
+          sl.set2.forEach((r, i) => { r.role = i === 0 ? 'opener' : (i === sl.set2.length - 1 ? 'closer' : ''); });
+        }
+      }
+    }
+  }
+  sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
+  return sl;
+}
+
+// ---------------------------------------------------------------------------
+// Game Picks — turn the probabilities into the best possible entry.
+// Phantasy Tour's Tour Tournament: a team of 10 songs in fixed positions, scored over a
+// whole tour, with 1 consolation point if the song turns up in the wrong place.
+// FantasyPhish: 13 picks for one show — opener (3), encore (3), 11 anywhere (1 each).
+// ---------------------------------------------------------------------------
+const PT_POSITIONS = [
+  { key: 'One Timer',      pts: 15, kind: 'onetimer' },
+  { key: 'Set I Opener',   pts: 9,  kind: 'slot', slot: 0 },
+  { key: 'Set II Opener',  pts: 8,  kind: 'slot', slot: 3 },
+  { key: 'Set I Closer',   pts: 7,  kind: 'slot', slot: 2 },
+  { key: 'Set II Closer',  pts: 6,  kind: 'slot', slot: 5 },
+  { key: 'Set I Wildcard', pts: 5,  kind: 'set', slots: [0, 1, 2] },
+  { key: 'Encore',         pts: 5,  kind: 'slot', slot: 6 },
+  { key: 'Cover Song',     pts: 4,  kind: 'cover' },
+  { key: 'Set II Wildcard',pts: 4,  kind: 'set', slots: [3, 4, 5] },
+  { key: 'Wildcard',       pts: 3,  kind: 'any' },
+];
+
+function tourProb(p, n) { return 1 - Math.pow(1 - Math.min(0.999, p), n); }
+
+function gamePicks(rows, type, tourLen) {
+  const cands = rows.filter(r => r.pred > 0.002);
+  if (type === 'fp') {
+    // single show: three independent choices, no tour maths
+    const best = (fn) => cands.slice().sort((a, b) => fn(b) - fn(a));
+    const opener = best(r => r.pred * r.slotP[0])[0];
+    const encore = best(r => r.pred * r.slotP[6])[0];
+    const used = new Set([opener?.id, encore?.id]);
+    const regs = cands.filter(r => !used.has(r.id)).sort((a, b) => b.pred - a.pred).slice(0, 11);
+    const rowsOut = [
+      { pos: 'Opener (3 pts)', song: opener, p: opener.pred * opener.slotP[0], ev: 3 * opener.pred * opener.slotP[0] },
+      { pos: 'Encore (3 pts)', song: encore, p: encore.pred * encore.slotP[6], ev: 3 * encore.pred * encore.slotP[6] },
+      ...regs.map((r, i) => ({ pos: `Pick ${i + 1} (1 pt)`, song: r, p: r.pred, ev: r.pred })),
+    ];
+    return { rows: rowsOut, total: rowsOut.reduce((s, x) => s + x.ev, 0), max: 17 };
+  }
+
+  // Tour Tournament: expected points for every (song, position) pair, then a greedy assignment
+  const n = Math.max(1, tourLen);
+  const pAny = new Map(cands.map(r => [r.id, tourProb(r.pred, n)]));
+  const scored = [];
+  for (const r of cands) {
+    const anyP = pAny.get(r.id);
+    for (let pi = 0; pi < PT_POSITIONS.length; pi++) {
+      const P = PT_POSITIONS[pi];
+      let hit;
+      if (P.kind === 'slot') hit = tourProb(r.pred * r.slotP[P.slot], n);
+      else if (P.kind === 'set') hit = tourProb(r.pred * P.slots.reduce((s, k) => s + r.slotP[k], 0), n);
+      else if (P.kind === 'any') hit = anyP;
+      else if (P.kind === 'cover') hit = r.cover ? anyP : 0;
+      else if (P.kind === 'onetimer') {
+        // played at exactly one show of the tour, and it must not repeat
+        const p = Math.min(0.999, r.pred);
+        hit = n * p * Math.pow(1 - p, n - 1);
+      }
+      if (P.kind === 'cover' && !r.cover) continue;   // don't burn the cover slot on an original
+      // full points for the right slot, otherwise 1 point if it shows up at all
+      const ev = hit * P.pts + Math.max(0, anyP - hit) * 1;
+      scored.push({ song: r, pi, hit, ev });
+    }
+  }
+  scored.sort((a, b) => b.ev - a.ev);
+  const takenPos = new Set(), takenSong = new Set(), out = [];
+  for (const s of scored) {
+    if (takenPos.has(s.pi) || takenSong.has(s.song.id)) continue;
+    takenPos.add(s.pi); takenSong.add(s.song.id);
+    out.push({ pos: `${PT_POSITIONS[s.pi].key} (${PT_POSITIONS[s.pi].pts} pts)`, song: s.song, p: s.hit, ev: s.ev, order: s.pi });
+    if (out.length === PT_POSITIONS.length) break;
+  }
+  out.sort((a, b) => a.order - b.order);
+  return { rows: out, total: out.reduce((s, x) => s + x.ev, 0), max: PT_POSITIONS.reduce((s, p) => s + p.pts, 0) };
+}
+
+function renderGame(rows) {
+  const type = els.gameType.value;
+  const tourLen = parseInt(els.tourLen.value, 10) || 20;
+  els.tourLenField.classList.toggle('hidden', type !== 'pt');
+  const g = gamePicks(rows, type, tourLen);
+  els.gameTitle.textContent = type === 'pt'
+    ? `Best 10-song team for a ${tourLen}-show tour`
+    : 'Best 13 picks for the next show';
+  els.gameHead.innerHTML = '<th>Position</th><th>Song</th><th>Chance it lands there</th><th>Expected points</th>';
+  els.gameBody.innerHTML = g.rows.map(x => `
+    <tr>
+      <td>${x.pos}</td>
+      <td class="song-name">${x.song.name}${x.song.cover ? ' <span class="slot-tag">non-original</span>' : ''}</td>
+      <td>${(x.p * 100).toFixed(1)}%</td>
+      <td><b>${x.ev.toFixed(2)}</b></td>
+    </tr>`).join('');
+  const stamp = SHOWS[SHOWS.length - 1].date;
+  els.picksText.textContent = (type === 'pt'
+      ? `Phantasy Tour team — ${tourLen}-show tour (data through ${stamp})\n`
+      : `FantasyPhish picks — show after ${stamp}\n`)
+    + g.rows.map(x => `${x.pos.replace(/ \(.*\)$/, '').padEnd(17)}  ${x.song.name}`).join('\n')
+    + `\n\nExpected: ${g.total.toFixed(1)} pts`;
+  els.gameNote.innerHTML = type === 'pt' 
+    ? `Expected total: <b>${g.total.toFixed(1)}</b> points of a theoretical ${g.max} maximum. Each song is used once, and every (song, position) pairing is scored on expected points before the best combination is taken &mdash; including the consolation point when a song turns up somewhere other than its assigned slot.
+     One caveat on the Cover slot: phish.net's "not an original" flag also catches Trey solo material
+     like Sand and First Tube, which Phantasy Tour may or may not count as covers &mdash; worth
+     sanity-checking that pick against their rules before you lock it in. Tour-long odds assume ${tourLen} shows; One Timer is scored as the chance a song plays at exactly one of them, since a second outing wipes it out.`
+    : `Expected total: <b>${g.total.toFixed(1)}</b> points of a maximum ${g.max}. The opener and encore picks are chosen to maximise their own slot rather than by overall likelihood &mdash; the most likely song of the night is rarely the most likely <i>opener</i>, which is where these games are usually won and lost.`;
+}
+
+function sortRows(rows, key, dir) {
+  return rows.slice().sort((a, b) => {
+    let av = a[key], bv = b[key];
+    if (typeof av === 'string') return dir * (av || '').localeCompare(bv || '');
+    av = av == null ? -Infinity : av; bv = bv == null ? -Infinity : bv;
+    return dir * (av - bv);
+  });
+}
+function pct(p) { return p < 0.01 ? (p * 100).toFixed(1) : (p * 100).toFixed(0); }
+// current gap vs the song's own average gap: >1 means it is overdue, <1 means recently played
+function ratioCell(r) {
+  if (r.gap == null || !r.avgGap) return '—';
+  const x = r.gap / r.avgGap;
+  const col = x >= 1.5 ? 'var(--series-2)' : x < 0.6 ? 'var(--text-muted)' : 'var(--text-secondary)';
+  const tag = x >= 1.5 ? ' overdue' : '';
+  return `<span style="color:${col};font-weight:${x >= 1.5 ? 700 : 400}">${x.toFixed(2)}×${tag}</span>`;
+}
+
+function render() {
+  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow } = compute();
+  const asOfShow = asOfIdx >= 0 ? SHOWS[asOfIdx] : null;
+  const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
+  els.windowSummary.innerHTML = `Window: <b>${startDate}</b> to <b>${st.end}</b> &nbsp;&bull;&nbsp; <b>${showsInFullWindow}</b> shows &nbsp;&bull;&nbsp; predicting the show after <b>${st.end}</b>${asOfShow ? ` (last data point: ${asOfShow.venue}, ${asOfShow.city})` : ''}`;
+  els.calSummary.innerHTML = cal.n > 0
+    ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings; themed runs excluded`
+    : `Calibration: static fallback (not enough prior shows at this "as of" date)`;
+
+  // ---- Predicted setlist ----
+  if (slModeSample) {
+    els.setlistGrid.classList.remove('hidden'); els.mlWrap.classList.add('hidden');
+    els.setlistTitle.textContent = `A realistic setlist — next show after ${st.end}`;
+    const sl = buildSetlist(rows, n1, n2, ne);
+    const block = (title, arr, mins) => `
+      <div class="set-block">
+        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
+        ${arr.map(r => `<div class="set-song"><span class="sname">${r.name}${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) + '\u2032 \u00b7 ' : ''}${pct(r.pred)}%</span></div>`).join('')}
+      </div>`;
+    els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1) + block('Set 2', sl.set2, sl.minutes.s2) + block('Encore', sl.encore, sl.minutes.e);
+  } else {
+    els.setlistGrid.classList.add('hidden'); els.mlWrap.classList.remove('hidden');
+    els.setlistTitle.textContent = `Most likely songs — next show after ${st.end} (full formula shown)`;
+    const top = rows.slice().sort((a, b) => b.pred - a.pred).slice(0, 30);
+    els.mlBody.innerHTML = top.map((r, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="song-name">${r.name}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+        <td>${(r.freq * 100).toFixed(1)}%</td>
+        <td>${r.gap != null ? r.gap : '—'}</td>
+        <td>${r.avgGap != null ? r.avgGap.toFixed(1) : '—'}</td>
+        <td>${ratioCell(r)}</td>
+        <td>${r.gapMult != null ? r.gapMult.toFixed(2) + '×' : '—'}</td>
+        <td>${(r.raw * 100).toFixed(1)}%</td>
+        <td><b>${(r.pred * 100).toFixed(1)}%</b></td>
+        <td><span class="slot-tag">${SLOT_NAMES[r.bestSlot]} (${(r.bestSlotP * 100).toFixed(0)}%)</span></td>
+      </tr>`).join('');
+  }
+
+  // ---- Song Likelihood ----
+  const filterP = els.searchPredict.value.trim().toLowerCase();
+  let fp = filterP ? rows.filter(r => r.name.toLowerCase().includes(filterP)) : rows.slice();
+  fp = sortRows(fp, sortKeyPredict, sortDirPredict);
+  els.countNotePredict.textContent = `${fp.length} songs (incl. ${rows.filter(r => r.isBustout).length} dormant bustout candidates)`;
+
+  const topPred = rows.slice().sort((a, b) => b.pred - a.pred).filter(r => r.pred > 0).slice(0, 15);
+  const maxPred = topPred.length ? topPred[0].pred : 1;
+  els.predictChart.innerHTML = topPred.map(r => `
+    <div class="bar-row">
+      <div class="bar-label" title="${r.name}">${r.name}</div>
+      <div class="bar-track"><div class="bar-fill predict" style="width:${Math.max(1, r.pred / maxPred * 100)}%"></div></div>
+      <div class="bar-value">${pct(r.pred)}%</div>
+    </div>`).join('');
+
+  $('bustTitle').textContent = `Bustout watch — most likely returns among songs ${els.bustGap.value}+ shows dormant`;
+  const busts = rows.filter(r => r.isBustout && r.pred > 0).sort((a, b) => b.pred - a.pred).slice(0, 12);
+  const maxB = busts.length ? busts[0].pred : 1;
+  els.bustChart.innerHTML = busts.map(r => `
+    <div class="bar-row">
+      <div class="bar-label" title="${r.name}">${r.name} <span style="color:var(--text-muted)">(${r.gap})</span></div>
+      <div class="bar-track"><div class="bar-fill predict" style="width:${Math.max(1, r.pred / maxB * 100)}%"></div></div>
+      <div class="bar-value">${(r.pred * 100).toFixed(1)}%</div>
+    </div>`).join('') || '<p class="note">No dormant candidates.</p>';
+
+  const maxPredAll = Math.max(0.0001, ...fp.map(r => r.pred));
+  els.tbodyPredict.innerHTML = fp.slice(0, 400).map(r => `
+    <tr>
+      <td class="song-name">${r.name}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+      <td class="pred-cell"><div class="pred-bar-bg" style="width:${(r.pred / maxPredAll * 60).toFixed(1)}%"></div><span class="pred-text">${(r.pred * 100).toFixed(1)}%</span></td>
+      <td>${(r.freq * 100).toFixed(1)}%</td>
+      <td>${r.gap != null ? r.gap : '—'}</td>
+      <td>${r.avgGap != null ? r.avgGap.toFixed(1) : '—'}</td>
+      <td>${ratioCell(r)}</td>
+      <td>${r.gapMult != null ? r.gapMult.toFixed(2) + '×' : '—'}</td>
+      <td>${r.dur != null ? r.dur.toFixed(1) + ' min' : '—'}</td>
+      <td>${r.coolAff != null ? r.coolAff.toFixed(2) + '×' : '—'}</td>
+      <td><span class="slot-tag">${SLOT_NAMES[r.bestSlot]}${r.terminalOnly ? ' (closer/encore only)' : ''} (${(r.bestSlotP * 100).toFixed(0)}%)</span></td>
+      <td>${r.last}</td>
+    </tr>`).join('');
+
+  renderGame(rows);
+
+  // ---- Frequency ----
+  const filterF = els.searchFreq.value.trim().toLowerCase();
+  const freqRows = rows.filter(r => !r.isBustout);
+  let ff = filterF ? freqRows.filter(r => r.name.toLowerCase().includes(filterF)) : freqRows.slice();
+  ff = sortRows(ff, sortKeyFreq, sortDirFreq);
+  els.countNoteFreq.textContent = `${ff.length} songs`;
+  const topFreq = freqRows.filter(r => r.showsPlayed > 0).sort((a, b) => b.freq - a.freq).slice(0, 15);
+  const maxFreq = topFreq.length ? topFreq[0].freq : 1;
+  els.freqChart.innerHTML = topFreq.map(r => `
+    <div class="bar-row">
+      <div class="bar-label" title="${r.name}">${r.name}</div>
+      <div class="bar-track"><div class="bar-fill freq" style="width:${Math.max(1, r.freq / maxFreq * 100)}%"></div></div>
+      <div class="bar-value">${pct(r.freq)}%</div>
+    </div>`).join('');
+  const maxFreqAll = Math.max(0.0001, ...ff.map(r => r.freq));
+  els.tbodyFreq.innerHTML = ff.slice(0, 400).map(r => `
+    <tr>
+      <td class="song-name">${r.name}</td>
+      <td>${r.showsPlayed}</td>
+      <td>${r.showsInWindow}</td>
+      <td class="freq-cell"><div class="freq-bar-bg" style="width:${(r.freq / maxFreqAll * 60).toFixed(1)}%"></div><span class="freq-text">${(r.freq * 100).toFixed(1)}%</span></td>
+      <td>${r.debut}</td>
+      <td>${r.last}</td>
+      <td>${r.gap != null ? r.gap : '—'}</td>
+    </tr>`).join('');
+}
+
+els.modeRolling.addEventListener('click', () => {
+  mode = 'rolling';
+  els.modeRolling.classList.add('active'); els.modeCustom.classList.remove('active');
+  els.rollingYearsField.classList.remove('hidden'); els.rollingEndField.classList.remove('hidden');
+  els.customStartField.classList.add('hidden'); els.customEndField.classList.add('hidden');
+  render();
+});
+els.modeCustom.addEventListener('click', () => {
+  mode = 'custom';
+  els.modeCustom.classList.add('active'); els.modeRolling.classList.remove('active');
+  els.customStartField.classList.remove('hidden'); els.customEndField.classList.remove('hidden');
+  els.rollingYearsField.classList.add('hidden'); els.rollingEndField.classList.add('hidden');
+  render();
+});
+[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.bustGap, els.runPos].forEach(el => el.addEventListener('change', render));
+els.recency.addEventListener('change', render);
+els.searchPredict.addEventListener('input', render);
+els.searchFreq.addEventListener('input', render);
+$('slModeSample').addEventListener('click', () => {
+  slModeSample = true;
+  $('slModeSample').classList.add('active'); $('slModeLikely').classList.remove('active');
+  els.rerollField.classList.remove('hidden');
+  render();
+});
+$('slModeLikely').addEventListener('click', () => {
+  slModeSample = false;
+  $('slModeLikely').classList.add('active'); $('slModeSample').classList.remove('active');
+  els.rerollField.classList.add('hidden');
+  render();
+});
+$('reroll').addEventListener('click', render);
+els.gameType.addEventListener('change', render);
+els.copyPicks.addEventListener('click', () => {
+  navigator.clipboard.writeText(els.picksText.textContent).then(() => {
+    els.copyOk.style.display = 'inline';
+    setTimeout(() => { els.copyOk.style.display = 'none'; }, 1600);
+  });
+});
+els.tourLen.addEventListener('change', render);
+$('predictHeadRow').querySelectorAll('th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.getAttribute('data-key');
+    if (sortKeyPredict === key) sortDirPredict *= -1; else { sortKeyPredict = key; sortDirPredict = key === 'name' ? 1 : -1; }
+    $('predictHeadRow').querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
+    th.classList.add('sorted');
+    render();
+  });
+});
+$('freqHeadRow').querySelectorAll('th').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.getAttribute('data-key');
+    if (sortKeyFreq === key) sortDirFreq *= -1; else { sortKeyFreq = key; sortDirFreq = key === 'name' ? 1 : -1; }
+    $('freqHeadRow').querySelectorAll('th').forEach(t => t.classList.remove('sorted'));
+    th.classList.add('sorted');
+    render();
+  });
+});
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    $('panel-' + btn.getAttribute('data-tab')).classList.add('active');
+  });
+});
+
+// Scheduled shows come from phish.net and refresh whenever the site rebuilds. Picking one
+// fills in the date and works out where it sits in its run.
+if (UPCOMING.length) {
+  els.upcomingField.classList.remove('hidden');
+  UPCOMING.forEach((s, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${s.date} — ${s.venue}, ${s.city}${s.runPos && s.runPos !== 'none' ? ` (${s.runN})` : ''}`;
+    els.upcoming.appendChild(o);
+  });
+  els.upcoming.addEventListener('change', () => {
+    const s = UPCOMING[+els.upcoming.value];
+    if (!s) return;
+    els.nextDate.value = s.date;
+    if (s.runPos) els.runPos.value = s.runPos;
+    render();
+  });
+}
+
+render();
+</script>
+</body>
+</html>
