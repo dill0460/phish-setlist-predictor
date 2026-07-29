@@ -57,10 +57,27 @@
   .hero h1 { color: #fff8ec; font-size: 38px; line-height: 1.08; margin: 0 0 10px; font-weight: 800; letter-spacing: -0.5px; }
   .hero .subtitle { color: rgba(255,248,236,0.9); font-size: 15px; line-height: 1.55; margin: 0 0 16px; max-width: 720px; }
   .hero .subtitle b { color: #fff8ec; }
-  .hero-meta {
-    font-size: 11.5px; font-weight: 600; color: rgba(255,248,236,0.72); margin: 0;
-    text-transform: uppercase; letter-spacing: 0.08em;
+  .songlink { cursor: pointer; }
+  .songlink:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+  #songCardWrap {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
   }
+  #songCard {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px 18px; max-width: 440px; width: 100%; box-shadow: 0 10px 34px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  #songCard h3 { margin: 0 24px 2px 0; font-size: 18px; }
+  #songCard .sc-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+  #songCard .sc-line { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 8px; }
+  #songCard .sc-line b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  #songCard .sc-link { display: inline-block; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+  #scClose {
+    position: absolute; top: 10px; right: 12px; border: none; background: none; cursor: pointer;
+    font-size: 18px; color: var(--text-muted); line-height: 1; padding: 4px;
+  }
+  #scClose:hover { color: var(--text-primary); }
 
   /* ---------- timeframe strip ---------- */
   .tf-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -203,7 +220,6 @@
   <div class="hero">
     <h1>What are they gonna play?</h1>
     <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>2,026 shows</b> and <b>967 songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
-    <p class="hero-meta">Updated daily &middot; data through 2026-07-27 &middot; backtested against 143 real shows</p>
   </div>
 
   <div class="tf-strip">
@@ -215,7 +231,8 @@
       <button id="tfAll">Every show since '83</button>
     </div>
   </div>
-  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones. Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
+  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
+  <p class="tf-note">Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
 
   <details id="advWrap">
     <summary>Advanced settings</summary>
@@ -316,7 +333,7 @@
 
   <div id="panel-setlist" class="tabpanel active">
     <div class="card">
-      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds &mdash; the same way a poker simulator deals a plausible hand. Don't like this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of that exact slot.</p>
+      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Don't like this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of appearing in that exact slot. Click any song for its history.</p>
       <div class="controls-row" style="margin-bottom:14px;">
         <div class="field" id="rerollField">
           <label>&nbsp;</label>
@@ -396,10 +413,15 @@
           </div>
         </div>
       </div>
-      <p class="lede" style="margin:12px 0 0;" id="oddsLede"><b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus the bustout watch. Sort any column, search any song.</p>
+      <p class="lede" style="margin:12px 0 0;" id="oddsLede"><b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus who's most likely to open, close, and encore, and the bustout watch. Sort any column, search any song.</p>
     </div>
 
     <div id="odds-predict">
+      <div class="card">
+        <p class="chart-title">Most likely by slot &mdash; who opens, who closes, who encores</p>
+        <div class="setlist-grid" id="slotGrid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));"></div>
+        <p class="note">Each percentage is the chance of that <b>exact slot</b> &mdash; the song being played AND landing there &mdash; so the numbers run smaller than plain play odds. It's a song's play probability times its own historical share of that slot: the same math the Phantasy Tour picks are built on. Click any song for its history.</p>
+      </div>
       <div class="card">
         <p class="chart-title">Top 15 by chance of being played at the next show</p>
         <div id="predictChart"></div>
@@ -456,6 +478,7 @@
                 <th data-key="showsPlayed">Shows Played</th>
                 <th data-key="showsInWindow">Shows in Window</th>
                 <th data-key="freq" class="sorted">Frequency</th>
+                <th data-key="onceEvery">Once Every</th>
                 <th data-key="debut">Debut</th>
                 <th data-key="last">Last Played</th>
                 <th data-key="gap">Gap</th>
@@ -511,6 +534,16 @@
           </div>
         </details>
       </div>
+    </div>
+  </div>
+
+  <div id="songCardWrap" class="hidden">
+    <div id="songCard">
+      <button id="scClose" aria-label="Close">&times;</button>
+      <h3 id="scTitle"></h3>
+      <p class="sc-sub" id="scSub"></p>
+      <div id="scBody"></div>
+      <a class="sc-link" id="scLink" href="#" target="_blank" rel="noopener">Full song history on phish.net &nearr;</a>
     </div>
   </div>
 
@@ -709,6 +742,7 @@ function calibrateWith(pts, p) {
 // ---------- UI state ----------
 let mode = 'rolling';
 let slModeSample = true;
+let LAST_CTX = null;   // rows + asOfIdx from the latest compute(), for the song detail card
 let sortKeyPredict = 'pred', sortDirPredict = -1;
 let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
@@ -829,6 +863,7 @@ function compute() {
         pred: calibrateWith(cal.pts, s.raw), slotCnt, slotN: s.showsPlayed, isBustout: false,
         coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0,
         avgGap: s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null,
+        onceEvery: s.freq > 0 ? 1 / s.freq : null,
       });
     }
   }
@@ -863,7 +898,7 @@ function compute() {
       id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
       showsPlayed: 0, showsInWindow: 0, freq: 0, gap, gapMult: null, raw: 0,
       pred: p, slotCnt: new Array(7).fill(0), slotN: 0, isBustout: true, deepDormant: true,
-      coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0, avgGap: null,
+      coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0, avgGap: null, onceEvery: null,
     });
   }
 
@@ -1130,9 +1165,15 @@ function buildSetlist(rows, n1, n2, ne) {
     return out;
   };
 
-  // encore first, filled by minutes
+  // encore first
   const enc = [];
-  const encMin = Math.random() < 0.75 ? 2 : (Math.random() < 0.5 ? 1 : 3);  // real encores are usually 2
+  // Encore size drawn from the real distribution (2022+ shows): 16% one song, 58% two,
+  // 21% three, 5% four — and the whole encore held under its measured 95th-percentile
+  // minutes. The old draw hardcoded "usually 2" with no minutes ceiling, which is how
+  // three 10+ minute bangers once stacked into a 31-minute encore.
+  const encU = Math.random();
+  const encMin = encU < 0.16 ? 1 : encU < 0.735 ? 2 : encU < 0.945 ? 3 : 4;
+  const encCap = SET_BOUNDS.e[1];
   // The finale is chosen first, weighted by how often a song actually ends a night, so a show
   // never goes out on a breather: across 710 modern shows Waste ended one and Shade none.
   const fc = pool.filter(r => !used.has(r.id) && r.closer >= 0.08);
@@ -1144,11 +1185,18 @@ function buildSetlist(rows, n1, n2, ne) {
     const pick = slModeSample ? fc[i] : fc[w.indexOf(Math.max(...w))];
     used.add(pick.id); enc.push(pick);
   }
-  while (enc.length < encMin || minutesOf(enc) < budget.e * 0.6) {
-    const [pick] = takeBest(6, 1);
-    if (!pick) break;
-    enc.push(pick);
-    if (enc.length >= 4 || (enc.length >= encMin && minutesOf(enc) >= budget.e)) break;
+  // The rest of the encore leads, it doesn't stack: with the finale already chosen above
+  // by closing power (and landing last via the sort below), the songs in front of it are
+  // the short/mild ones — Sleeping Monkey in front of Tweezer Reprise, not Harry Hood in
+  // front of Antelope. Non-final picks are capped at ~10 minutes and the encore stops
+  // adding songs once it approaches its measured minutes ceiling.
+  while (enc.length < encMin) {
+    const room = encCap - minutesOf(enc);
+    if (room < 3) break;
+    let picked = takeBest(6, 1, r => durOf(r) <= Math.min(10, room));
+    if (!picked.length && room >= 8) picked = takeBest(6, 1, r => durOf(r) <= room);
+    if (!picked.length) break;
+    enc.push(picked[0]);
   }
   const s1o = takeBest(0, 1, r => !r.terminalOnly);
   const s1c = takeBest(2, 1, r => (r.closer >= 0.09 && r.slotN >= 8) || r.slotP[2] > 0.25);
@@ -1182,6 +1230,12 @@ function buildSetlist(rows, n1, n2, ne) {
   const t2 = wantS1More ? Math.min(t2raw, t1 - 1) : t2raw;
   for (const r of rest) {
     if (m1 >= budget.s1 && m2 >= budget.s2) break;
+    // Overshoot guard: a set's last draw used to be allowed to blow past the budget by its
+    // whole length (a 19-minute YEM landing in a set already at its cap → a 101-minute
+    // set 1). A song that would push a set more than ~4 minutes over now goes to the other
+    // set if it fits there, and is skipped outright if it fits neither.
+    const fits1 = m1 + durOf(r) <= budget.s1 + 4, fits2 = m2 + durOf(r) <= budget.s2 + 4;
+    if (!fits1 && !fits2) continue;
     let pull = 0;
     for (const p of SET_AFF) {
       const other = p.a === r.id ? p.b : (p.b === r.id ? p.a : null);
@@ -1199,8 +1253,10 @@ function buildSetlist(rows, n1, n2, ne) {
     else if (gap1 <= 0) toS1 = false;
     else if (gap2 <= 0) toS1 = true;
     else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) + pull + lengthPull > 0;
+    if (toS1 && !fits1) toS1 = false;
+    if (!toS1 && !fits2) { if (fits1) toS1 = true; else continue; }
     // Set 2 carrying more songs than set 1 looks plainly wrong, so it simply can't happen.
-    if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0;
+    if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0 && fits1;
     if (!toS1 && s2mid.length + 1 > s1mid.length) continue;
     if (toS1) { s1mid.push(r); m1 += durOf(r); } else { s2mid.push(r); m2 += durOf(r); }
   }
@@ -1213,10 +1269,21 @@ function buildSetlist(rows, n1, n2, ne) {
     .sort((a, b) => b.pred - a.pred);
   const topUp = (arr, getM, setM, want, preferLong) => {
     while (getM() < want && spare.length) {
-      let bi = 0;
-      if (preferLong) {   // set 2 fills with the longer songs
-        let best = -1;
-        spare.forEach((r, i) => { const s = r.pred * (durOf(r) >= 8 ? 1.6 : 1); if (s > best) { best = s; bi = i; } });
+      // Prefer a song that lands the set near its target instead of one that blasts past
+      // it; if nothing fits, take the shortest available to minimise the overshoot.
+      const room = want - getM() + 6;
+      const fitIdx = [];
+      spare.forEach((r, i) => { if (durOf(r) <= room) fitIdx.push(i); });
+      let bi;
+      if (fitIdx.length) {
+        bi = fitIdx[0];
+        if (preferLong) {   // set 2 fills with the longer songs
+          let best = -1;
+          for (const i of fitIdx) { const s = spare[i].pred * (durOf(spare[i]) >= 8 ? 1.6 : 1); if (s > best) { best = s; bi = i; } }
+        }
+      } else {
+        bi = 0;
+        spare.forEach((r, i) => { if (durOf(r) < durOf(spare[bi])) bi = i; });
       }
       const [pick] = spare.splice(bi, 1);
       arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
@@ -1257,6 +1324,16 @@ function buildSetlist(rows, n1, n2, ne) {
   }
 
   enc.sort((a, b) => a.closer - b.closer);   // an encore builds — the biggest closer lands last
+  // Hard structural rule after the sort: no long banger in a lead slot. A >10-minute song
+  // ahead of the finale gets dropped (the fallback path above can let one through when the
+  // pool runs thin). Bonded anchors are exempt — a Tweezer encore with its Reprise behind
+  // it is real, and trimming the anchor would orphan the dependent.
+  {
+    const anchorIds = new Set(Object.values(BONDED).map(b => b.anchor));
+    for (let i = enc.length - 2; i >= 0; i--) {
+      if (durOf(enc[i]) > 10.5 && !anchorIds.has(enc[i].id)) enc.splice(i, 1);
+    }
+  }
   const sl = { set1: [...s1o, ...s1mid, ...s1c], set2: cooldownOrder([...s2o, ...s2mid, ...s2c]), encore: enc };
 
   // pair placement pass
@@ -1318,6 +1395,21 @@ function buildSetlist(rows, n1, n2, ne) {
       if (!best) break;
       from.splice(from.indexOf(best), 1);
       to.splice(to.length - 1, 0, best);
+    }
+    // Total-night ceiling: the whole night stays inside its measured 95th-percentile
+    // minutes. Budgets are capped up front, but a long draw can still nudge the assembled
+    // night past the line — trim the least likely unlocked mid-set song until it fits.
+    for (let guard = 0; guard < 6; guard++) {
+      const tot = minutesOf(sl.set1) + minutesOf(sl.set2) + minutesOf(sl.encore);
+      if (tot <= SET_BOUNDS.total[1] + 4) break;
+      const cands = [...sl.set1.slice(1, -1), ...sl.set2.slice(1, -1)]
+        .filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
+      if (!cands.length) break;
+      cands.sort((a, b) => a.pred - b.pred);
+      for (const key of ['set1', 'set2']) {
+        const i = sl[key].indexOf(cands[0]);
+        if (i > 0 && i < sl[key].length - 1) { sl[key].splice(i, 1); break; }
+      }
     }
   }
   for (const key of ['set1', 'set2']) {
@@ -1444,7 +1536,7 @@ function renderGame(rows) {
   els.gameBody.innerHTML = g.rows.map(x => `
     <tr>
       <td>${x.pos}</td>
-      <td class="song-name">${x.song.name}${x.song.cover ? ' <span class="slot-tag">non-original</span>' : ''}</td>
+      <td class="song-name"><span class="songlink" data-sid="${x.song.id}">${x.song.name}</span>${x.song.cover ? ' <span class="slot-tag">non-original</span>' : ''}</td>
       <td>${(x.p * 100).toFixed(1)}%</td>
       <td><b>${x.ev.toFixed(2)}</b></td>
     </tr>`).join('');
@@ -1482,6 +1574,7 @@ function ratioCell(r) {
 
 function render() {
   const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow } = compute();
+  LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
   // Name the actual show being predicted, not just the cutoff date it comes after.
   const d = els.nextDate.value;
@@ -1507,7 +1600,7 @@ function render() {
     const block = (title, arr, mins) => `
       <div class="set-block">
         <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
-        ${arr.map(r => `<div class="set-song"><span class="sname">${r.name}${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) + '\u2032 \u00b7 ' : ''}${pct(r.pred)}%</span></div>`).join('')}
+        ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032 \u00b7 ${pct(r.pred)}%</span></div>`).join('')}
       </div>`;
     els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1) + block('Set 2', sl.set2, sl.minutes.s2) + block('Encore', sl.encore, sl.minutes.e);
   } else {
@@ -1517,7 +1610,7 @@ function render() {
     els.mlBody.innerHTML = top.map((r, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td class="song-name">${r.name}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+        <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
         <td>${(r.freq * 100).toFixed(1)}%</td>
         <td>${r.gap != null ? r.gap : '—'}</td>
         <td>${r.avgGap != null ? r.avgGap.toFixed(1) : '—'}</td>
@@ -1538,6 +1631,16 @@ function render() {
     const restOfCatalog = rows.filter(r => r.deepDormant).length;
     els.countNotePredict.textContent = `${fp.length} songs shown — ${inRotation} have come up somewhere in your current window; the other ${restOfCatalog} are from the full history and haven't played recently, but could still turn up as a surprise return.`;
   }
+
+  // ---- most likely by slot: top 10 for each of the five named slots ----
+  const SLOT_LISTS = [[0, 'Set 1 opener'], [2, 'Set 1 closer'], [3, 'Set 2 opener'], [5, 'Set 2 closer'], [6, 'Encore']];
+  $('slotGrid').innerHTML = SLOT_LISTS.map(([slot, label]) => {
+    const top = rows.filter(r => r.pred > 0)
+      .map(r => ({ r, p: r.pred * r.slotP[slot] }))
+      .sort((a, b) => b.p - a.p).slice(0, 10);
+    return `<div class="set-block"><h3>${label}</h3>${top.map((x, i) => `
+      <div class="set-song"><span class="sname" style="font-size:12.5px;"><span style="color:var(--text-muted);font-variant-numeric:tabular-nums;">${i + 1}.</span> <span class="songlink" data-sid="${x.r.id}">${x.r.name}</span></span><span class="sprob">${(x.p * 100).toFixed(1)}%</span></div>`).join('')}</div>`;
+  }).join('');
 
   const topPred = rows.slice().sort((a, b) => b.pred - a.pred).filter(r => r.pred > 0).slice(0, 15);
   const maxPred = topPred.length ? topPred[0].pred : 1;
@@ -1561,14 +1664,14 @@ function render() {
   const maxPredAll = Math.max(0.0001, ...fp.map(r => r.pred));
   els.tbodyPredict.innerHTML = fp.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name">${r.name}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
       <td class="pred-cell"><div class="pred-bar-bg" style="width:${(r.pred / maxPredAll * 60).toFixed(1)}%"></div><span class="pred-text">${(r.pred * 100).toFixed(1)}%</span></td>
       <td>${(r.freq * 100).toFixed(1)}%</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
       <td>${r.avgGap != null ? r.avgGap.toFixed(1) : '—'}</td>
       <td>${ratioCell(r)}</td>
       <td>${r.gapMult != null ? r.gapMult.toFixed(2) + '×' : '—'}</td>
-      <td>${r.dur != null ? r.dur.toFixed(1) + ' min' : '—'}</td>
+      <td>${r.dur != null ? r.dur.toFixed(1) + ' min' : '~' + DEFAULT_DUR.toFixed(1) + ' min'}</td>
       <td>${r.coolAff != null ? r.coolAff.toFixed(2) + '×' : '—'}</td>
       <td><span class="slot-tag">${SLOT_NAMES[r.bestSlot]}${r.terminalOnly ? ' (closer/encore only)' : ''} (${(r.bestSlotP * 100).toFixed(0)}%)</span></td>
       <td>${r.last}</td>
@@ -1593,10 +1696,11 @@ function render() {
   const maxFreqAll = Math.max(0.0001, ...ff.map(r => r.freq));
   els.tbodyFreq.innerHTML = ff.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name">${r.name}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span></td>
       <td>${r.showsPlayed}</td>
       <td>${r.showsInWindow}</td>
       <td class="freq-cell"><div class="freq-bar-bg" style="width:${(r.freq / maxFreqAll * 60).toFixed(1)}%"></div><span class="freq-text">${(r.freq * 100).toFixed(1)}%</span></td>
+      <td>${r.onceEvery ? r.onceEvery.toFixed(1) + ' shows' : '—'}</td>
       <td>${r.debut}</td>
       <td>${r.last}</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
@@ -1693,6 +1797,52 @@ if (UPCOMING.length) {
   });
 }
 
+// ---- song detail card: click any song name for its phish.net-style stat sheet ----
+const pnetSlug = name => name.toLowerCase().replace(/['’.]/g, '').replace(/&/g, 'and')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function showSongCard(sid) {
+  const song = SONG_BY_ID.get(sid);
+  if (!song) return;
+  const r = LAST_CTX && LAST_CTX.rows.get(sid);
+  const asOf = LAST_CTX ? LAST_CTX.asOfIdx : SHOWS.length - 1;
+  const idxs = playIdx.get(sid) || [];
+  const hi = upperBound(idxs, asOf);
+  const lastIdx = hi > 0 ? idxs[hi - 1] : null;
+  const gap = lastIdx != null ? asOf - lastIdx : null;
+  const sinceDebut = asOf - (DEBUT_IDX.get(sid) ?? 0) + 1;
+  const lines = [];
+  if (r && r.freq > 0) {
+    lines.push(`Played at <b>${(r.freq * 100).toFixed(1)}%</b> of shows in your stats window &mdash; about once every <b>${(1 / r.freq).toFixed(1)}</b> shows lately.`);
+  } else {
+    lines.push('Not played at all in your current stats window.');
+  }
+  if (lastIdx != null) {
+    const bust = gap >= parseInt(els.bustGap.value, 10) ? ' <span class="badge bust">bustout territory</span>' : '';
+    lines.push(`Last played <b>${SHOW_DATES[lastIdx]}</b> &mdash; <b>${gap}</b> show${gap === 1 ? '' : 's'} ago.${bust}`);
+  }
+  if (hi > 0 && sinceDebut > 0) {
+    lines.push(`Career: <b>${hi}</b> plays across <b>${sinceDebut.toLocaleString()}</b> shows since its debut &mdash; on average once every <b>${(sinceDebut / hi).toFixed(1)}</b> shows.`);
+  }
+  const durTxt = song.dur != null
+    ? `<b>${song.dur.toFixed(1)} min</b>`
+    : `<b>~${DEFAULT_DUR.toFixed(1)} min</b> (no measured recordings &mdash; catalog-median ballpark)`;
+  const slotTxt = (r && r.slotN >= 3) ? ` &middot; Most common slot: <b>${SLOT_NAMES[r.bestSlot]}</b>` : '';
+  lines.push(`Typical length: ${durTxt}${slotTxt}.`);
+  if (r && r.pred > 0) lines.push(`Chance at the show you're predicting: <b>${(r.pred * 100).toFixed(1)}%</b>.`);
+  $('scTitle').innerHTML = `${song.name}${song.cover ? ' <span class="slot-tag">non-original</span>' : ''}`;
+  $('scSub').textContent = `Debuted ${song.debut}`;
+  $('scBody').innerHTML = lines.map(l => `<p class="sc-line">${l}</p>`).join('');
+  $('scLink').href = 'https://phish.net/song/' + pnetSlug(song.name);
+  $('songCardWrap').classList.remove('hidden');
+}
+function hideSongCard() { $('songCardWrap').classList.add('hidden'); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('.songlink');
+  if (t) { showSongCard(+t.dataset.sid); return; }
+  if (e.target.id === 'songCardWrap' || e.target.id === 'scClose') hideSongCard();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideSongCard(); });
+
 // ---- timeframe pills: the one control most visitors ever touch ----
 const TF_PILLS = [['tf2', 2], ['tf5', 5], ['tf10', 10], ['tfAll', 43]];
 function syncPills() {
@@ -1712,7 +1862,7 @@ els.modeCustom.addEventListener('click', syncPills);
 
 // ---- Song Odds sub-toggle: forward-looking odds vs plain history ----
 const ODDS_LEDE = {
-  predict: '<b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus the bustout watch. Sort any column, search any song.',
+  predict: '<b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus who\'s most likely to open, close, and encore, and the bustout watch. Sort any column, search any song.',
   history: '<b>Plain history, no prediction.</b> How often each song was actually played in the window set at the top of the page &mdash; raw counts, debuts, gaps. For forward-looking odds, flip back to the other view.',
 };
 $('oddsModePredict').addEventListener('click', () => {
