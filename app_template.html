@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phish Setlist Predictor — what are they gonna play?</title>
-<meta name="description" content="A statistically honest guess at the next Phish setlist, built from every show since 1983. Song odds, bustout watch, and Phantasy Tour picks.">
+<title>The Helping Phriendly Setlist — what are they gonna play?</title>
+<meta name="description" content="A statistically honest guess at the next Phish setlist, built from every show since 1983. Song odds, slot-by-slot leaders, bustout watch, and Phantasy Tour picks.">
 <style>
   :root {
     color-scheme: light;
@@ -54,7 +54,11 @@
     border-radius: 18px; padding: 34px 34px 30px; margin-bottom: 22px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.14);
   }
-  .hero h1 { color: #fff8ec; font-size: 38px; line-height: 1.08; margin: 0 0 10px; font-weight: 800; letter-spacing: -0.5px; }
+  .hero h1 { color: #fff8ec; font-size: 40px; line-height: 1.05; margin: 0 0 2px; font-weight: 800; letter-spacing: -0.8px; }
+  .hero .tagline {
+    color: rgba(255,248,236,0.95); font-size: 19px; font-weight: 600; font-style: italic;
+    margin: 0 0 12px; letter-spacing: -0.2px;
+  }
   .hero .subtitle { color: rgba(255,248,236,0.9); font-size: 15px; line-height: 1.55; margin: 0 0 16px; max-width: 720px; }
   .hero .subtitle b { color: #fff8ec; }
   .songlink { cursor: pointer; }
@@ -210,7 +214,8 @@
   @media (max-width: 640px) {
     .viz-root { padding: 14px 14px 40px; }
     .hero { padding: 24px 20px 20px; border-radius: 14px; }
-    .hero h1 { font-size: 27px; }
+    .hero h1 { font-size: 28px; }
+    .hero .tagline { font-size: 16px; }
     .bar-label { width: 130px; }
   }
 </style>
@@ -218,7 +223,8 @@
 <body>
 <div class="viz-root">
   <div class="hero">
-    <h1>What are they gonna play?</h1>
+    <h1>The Helping Phriendly Setlist</h1>
+    <p class="tagline">What are they gonna play?</p>
     <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
   </div>
 
@@ -307,6 +313,12 @@
             <option value="150">150+ missed shows</option>
             <option value="200">200+ missed shows</option>
           </select>
+        </div>
+        <div class="field">
+          <label for="themeYear">Themed night? Play it like a year
+            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
+          </label>
+          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
         </div>
         <div class="field">
           <label for="recency">Weight recent shows...
@@ -579,6 +591,21 @@ const inExcludedRange = d => EXCLUDED_RANGES.some(([lo, hi]) => d >= lo && d <= 
 // Gap buckets for the gap-conditional calibration correction below.
 const GAP_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 const gapBucket = g => g <= 5 ? g : g <= 9 ? 6 : g <= 14 ? 7 : g <= 19 ? 8 : 9;
+// Themed nights. On the 2026 MSG run the band tied each night to a year — those were their
+// 92nd through 96th shows at the Garden, so night one drew on 1992, night two on 1993, and so
+// on. Checked against the four nights already played, the constraint held almost perfectly:
+// 100%, 100% and 100% of the songs on 7/22, 7/24 and 7/25 had been played in 1992, 1993 and
+// 1994 respectively, and 95% on 7/27 for 1995. The four ordinary shows immediately before the
+// run peak at scattered years and only reach 38-75%, so it isn't an artifact of old songs
+// turning up everywhere. Not automatic — nobody knows if a given night is themed — so this is
+// a control the user sets. Off by default and nothing changes.
+const THEME_OFF_MULT = 0.05;      // ~the 5% of a themed night that came from outside the year
+const SONGS_BY_YEAR = new Map();
+for (const p of PLAYS) {
+  const y = p.date.slice(0, 4);
+  if (!SONGS_BY_YEAR.has(y)) SONGS_BY_YEAR.set(y, new Set());
+  SONGS_BY_YEAR.get(y).add(p.sid);
+}
 // Within a multi-night run at one venue, Phish essentially does not repeat: measured 2009+,
 // only 0.3% of a night's songs had already been played earlier in that same run, against a
 // 17.8% rate for any three preceding shows. The Baker's Dozen ran 13 nights and 237 songs with
@@ -815,7 +842,7 @@ const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
  'customStartField','customEndField','recency','windowSummary','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
- 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','runPosField','nextDateNote',
+ 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','runPosField','nextDateNote','themeYear',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
 
 els.refEnd.value = LATEST_DATE; els.refEnd.max = LATEST_DATE;
@@ -992,7 +1019,7 @@ function compute() {
   }
   // Within-run no-repeat: if the show being predicted is night 2+ of a venue run, the songs
   // already played earlier in that run are all but off the table (measured 0.3% recurrence).
-  let runMates = new Set();
+  let runMates = new Set(), themePool = null;
   {
     const d = els.nextDate.value;
     let tv = null, td = null;
@@ -1000,10 +1027,12 @@ function compute() {
     else if (d && DATE_IDX.has(d)) { const s = SHOWS[DATE_IDX.get(d)]; tv = s.venue; td = s.date; }
     else if (asOfIdx >= 0 && asOfIdx < SHOWS.length - 1) { const s = SHOWS[asOfIdx + 1]; tv = s.venue; td = s.date; }
     runMates = runMateSongs(tv, td, asOfIdx);
-    if (runMates.size) {
+    themePool = els.themeYear.value ? (SONGS_BY_YEAR.get(els.themeYear.value) || null) : null;
+    if (runMates.size || themePool) {
       let before = 0;
       for (const r of rows) before += r.pred;
       for (const r of rows) {
+        if (themePool && !themePool.has(r.id)) { r.offTheme = true; r.pred = Math.max(0.0005, r.pred * THEME_OFF_MULT); }
         if (runMates.has(r.id)) { r.runRepeat = true; r.pred = Math.max(0.001, r.pred * RUN_REPEAT_MULT); }
       }
       // Ruling songs out doesn't shorten the show — it concentrates it. Measured over 124
@@ -1015,10 +1044,15 @@ function compute() {
       // them on its own measured budget and must not inherit this boost.
       let after = 0;
       for (const r of rows) after += r.pred;
-      const k = after > 0 ? Math.min(3, before / after) : 1;
+      const k = after > 0 ? Math.min(6, before / after) : 1;
       if (k > 1) {
         for (const r of rows) {
-          if (!runMates.has(r.id) && !r.deepDormant) r.pred = Math.min(1, r.pred * k);
+          if (runMates.has(r.id) || r.offTheme || r.deepDormant) continue;
+          // Ceiling of 0.9: stacking constraints (a themed night deep inside a run) can shrink
+          // the eligible pool far enough that redistribution would print 100% next to a song.
+          // Nothing about a Phish setlist is ever a certainty, and showing one as such is the
+          // fastest way to lose a reader who knows better.
+          r.pred = Math.min(0.9, r.pred * k);
         }
       }
     }
@@ -1050,7 +1084,7 @@ function compute() {
   const ne = med(recent.map(s => s.ne)) || 2;
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
-  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates };
+  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
 }
 
 // ---------- setlist assembly ----------
@@ -1673,7 +1707,7 @@ function ratioCell(r) {
 }
 
 function render() {
-  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates } = compute();
+  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool } = compute();
   LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
   // Name the actual show being predicted, not just the cutoff date it comes after.
@@ -1682,12 +1716,17 @@ function render() {
   if (d && UPCOMING_BY_DATE.has(d)) target = UPCOMING[UPCOMING_BY_DATE.get(d)];
   else if (d && DATE_IDX.has(d)) target = SHOWS[DATE_IDX.get(d)];
   else if (asOfIdx >= 0 && asOfIdx < SHOWS.length - 1) target = SHOWS[asOfIdx + 1];
-  else if (UPCOMING.length) target = UPCOMING[0];
+  // Only fall back to "the next announced show" when NO date is set. A date the user typed
+  // that matches nothing real is a hypothetical, and the header must say so rather than
+  // silently relabel it as the next scheduled show — the engine already treats it as unknown,
+  // so claiming otherwise would put the header and the model out of step.
+  else if (!d && UPCOMING.length) target = UPCOMING[0];
   const targetLabel = target
     ? `${target.venue}, ${target.city} &mdash; ${target.date}${target.runN && target.runPos && target.runPos !== 'none' ? ` (${target.runN})` : ''}`
     : (d ? d : 'the next show (nothing announced yet)');
   els.windowSummary.innerHTML = `Predicting: <b>${targetLabel}</b> &nbsp;&bull;&nbsp; using stats from <b>${startDate}</b> to <b>${st.end}</b> (<b>${showsInFullWindow}</b> shows)`
-    + (runMates.size ? `<br><span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '');
+    + (runMates.size ? `<br><span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
+    + (themePool ? `<br><span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
   els.calSummary.innerHTML = cal.n > 0
     ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings; themed runs excluded`
@@ -1824,7 +1863,14 @@ els.modeCustom.addEventListener('click', () => {
   syncNextDate();
   render();
 });
-[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.bustGap, els.runPos].forEach(el => el.addEventListener('change', render));
+[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.bustGap, els.runPos, els.themeYear].forEach(el => el.addEventListener('change', render));
+// Themed-year options, newest first — only years the band actually played.
+for (const y of [...SONGS_BY_YEAR.keys()].sort().reverse()) {
+  const o = document.createElement('option');
+  o.value = y;
+  o.textContent = `${y} — ${SONGS_BY_YEAR.get(y).size} songs played that year`;
+  els.themeYear.appendChild(o);
+}
 els.refEnd.addEventListener('change', syncNextDate);
 els.customEnd.addEventListener('change', syncNextDate);
 els.nextDate.addEventListener('change', syncNextDate);
