@@ -373,7 +373,7 @@
       </div>
       <div class="explain">
         <p class="lede">Every song gets a probability for the next show, measured from __SHOW_COUNT__ setlists going back to 1983. <b>Realistic</b> rolls the dice on each song at its own probability and lays the result out as a show &mdash; one plausible night, not the likeliest one. <b>Most likely</b> instead ranks every song and shows the arithmetic behind it.</p>
-        <p class="lede-sub">~150 songs in rotation, ~18 played a night &mdash; so yeah, most of the board sits in single digits. That's normal, not the model whiffing. A song jumps way past that when it's actually due, and "due" means something different for every song: 8 shows without something that's usually back every 4 is a while. 8 shows without something on a 20-show cycle is nothing.</p>
+        <p class="lede-sub">~150 songs in rotation, ~18 played a night.</p>
 
         <details><summary>How the probability is calculated</summary>
           <div class="dbody">
@@ -403,7 +403,7 @@
           <div class="dbody">
             <p>Tested against 143 shows the model never saw (2023 through January 2026, themed runs excluded): <b>the top 20 songs by probability contain about 5 of the ~18 played</b>. That is far better than chance and, as far as we can tell, better than anything else public &mdash; phish.net's Trey's Notebook, which ranks by plays in the last year, gets about 3. Bolting our overdue-ness term onto their one-year count lifts them to 4.8, which says plainly that the overdue term is where nearly all the edge lives; window length barely matters.</p>
             <p>But five of eighteen is the honest ceiling here, and it's worth being blunt about why: <b>Phish setlists are close to irreducibly random.</b> Roughly 150 songs are in live rotation, the band deliberately avoids patterns, and a good chunk of any night is songs nobody would have ranked highly. No amount of modelling fixes that. Treat a generated setlist as a plausible night, not a forecast.</p>
-            <p>Known weak spots, stated plainly: song <i>selection</i> rests on much firmer ground than song <i>ordering</i> &mdash; slot tendencies are real but weak. Bonded pairs still nudge their partners' rates upward slightly. The cool-down pattern is genuine but mild (18% vs a 14% base rate), so it fires on only about 10% of generated nights. Nothing here can anticipate a themed show, a guest sit-in, a debut, or a one-off gag, and those are a real share of any tour.</p>
+            <p>Known weak spots, stated plainly: song <i>selection</i> rests on much firmer ground than song <i>ordering</i> &mdash; slot tendencies are real but weak. We checked openers specifically, ranked by each song's odds of showing up at all times its own history of opening a set, against the same 143-show window above (139 of those had one clearly recorded opener): the real set 1 opener landed in our top 5 <b>24.5%</b> of the time, top 3 <b>15.1%</b>. Worse than song selection overall &mdash; ordering is genuinely the harder problem, and we're not going to pretend otherwise. Bonded pairs still nudge their partners' rates upward slightly. The cool-down pattern is genuine but mild (18% vs a 14% base rate), so it fires on only about 10% of generated nights. Nothing here can anticipate a themed show, a guest sit-in, a debut, or a one-off gag, and those are a real share of any tour.</p>
           </div>
         </details>
 
