@@ -413,10 +413,15 @@
           </div>
         </div>
       </div>
-      <p class="lede" style="margin:12px 0 0;" id="oddsLede"><b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus the bustout watch. Sort any column, search any song.</p>
+      <p class="lede" style="margin:12px 0 0;" id="oddsLede"><b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus who's most likely to open, close, and encore, and the bustout watch. Sort any column, search any song.</p>
     </div>
 
     <div id="odds-predict">
+      <div class="card">
+        <p class="chart-title">Most likely by slot &mdash; who opens, who closes, who encores</p>
+        <div class="setlist-grid" id="slotGrid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));"></div>
+        <p class="note">Each percentage is the chance of that <b>exact slot</b> &mdash; the song being played AND landing there &mdash; so the numbers run smaller than plain play odds. It's a song's play probability times its own historical share of that slot: the same math the Phantasy Tour picks are built on. Click any song for its history.</p>
+      </div>
       <div class="card">
         <p class="chart-title">Top 15 by chance of being played at the next show</p>
         <div id="predictChart"></div>
@@ -1627,6 +1632,16 @@ function render() {
     els.countNotePredict.textContent = `${fp.length} songs shown — ${inRotation} have come up somewhere in your current window; the other ${restOfCatalog} are from the full history and haven't played recently, but could still turn up as a surprise return.`;
   }
 
+  // ---- most likely by slot: top 10 for each of the five named slots ----
+  const SLOT_LISTS = [[0, 'Set 1 opener'], [2, 'Set 1 closer'], [3, 'Set 2 opener'], [5, 'Set 2 closer'], [6, 'Encore']];
+  $('slotGrid').innerHTML = SLOT_LISTS.map(([slot, label]) => {
+    const top = rows.filter(r => r.pred > 0)
+      .map(r => ({ r, p: r.pred * r.slotP[slot] }))
+      .sort((a, b) => b.p - a.p).slice(0, 10);
+    return `<div class="set-block"><h3>${label}</h3>${top.map((x, i) => `
+      <div class="set-song"><span class="sname" style="font-size:12.5px;"><span style="color:var(--text-muted);font-variant-numeric:tabular-nums;">${i + 1}.</span> <span class="songlink" data-sid="${x.r.id}">${x.r.name}</span></span><span class="sprob">${(x.p * 100).toFixed(1)}%</span></div>`).join('')}</div>`;
+  }).join('');
+
   const topPred = rows.slice().sort((a, b) => b.pred - a.pred).filter(r => r.pred > 0).slice(0, 15);
   const maxPred = topPred.length ? topPred[0].pred : 1;
   els.predictChart.innerHTML = topPred.map(r => `
@@ -1847,7 +1862,7 @@ els.modeCustom.addEventListener('click', syncPills);
 
 // ---- Song Odds sub-toggle: forward-looking odds vs plain history ----
 const ODDS_LEDE = {
-  predict: '<b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus the bustout watch. Sort any column, search any song.',
+  predict: '<b>Every song, scored for the next show.</b> Same engine as the Predicted Setlist tab, shown per-song with the full math &mdash; plus who\'s most likely to open, close, and encore, and the bustout watch. Sort any column, search any song.',
   history: '<b>Plain history, no prediction.</b> How often each song was actually played in the window set at the top of the page &mdash; raw counts, debuts, gaps. For forward-looking odds, flip back to the other view.',
 };
 $('oddsModePredict').addEventListener('click', () => {
