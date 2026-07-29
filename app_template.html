@@ -1130,9 +1130,15 @@ function buildSetlist(rows, n1, n2, ne) {
     return out;
   };
 
-  // encore first, filled by minutes
+  // encore first
   const enc = [];
-  const encMin = Math.random() < 0.75 ? 2 : (Math.random() < 0.5 ? 1 : 3);  // real encores are usually 2
+  // Encore size drawn from the real distribution (2022+ shows): 16% one song, 58% two,
+  // 21% three, 5% four — and the whole encore held under its measured 95th-percentile
+  // minutes. The old draw hardcoded "usually 2" with no minutes ceiling, which is how
+  // three 10+ minute bangers once stacked into a 31-minute encore.
+  const encU = Math.random();
+  const encMin = encU < 0.16 ? 1 : encU < 0.735 ? 2 : encU < 0.945 ? 3 : 4;
+  const encCap = SET_BOUNDS.e[1];
   // The finale is chosen first, weighted by how often a song actually ends a night, so a show
   // never goes out on a breather: across 710 modern shows Waste ended one and Shade none.
   const fc = pool.filter(r => !used.has(r.id) && r.closer >= 0.08);
@@ -1144,11 +1150,18 @@ function buildSetlist(rows, n1, n2, ne) {
     const pick = slModeSample ? fc[i] : fc[w.indexOf(Math.max(...w))];
     used.add(pick.id); enc.push(pick);
   }
-  while (enc.length < encMin || minutesOf(enc) < budget.e * 0.6) {
-    const [pick] = takeBest(6, 1);
-    if (!pick) break;
-    enc.push(pick);
-    if (enc.length >= 4 || (enc.length >= encMin && minutesOf(enc) >= budget.e)) break;
+  // The rest of the encore leads, it doesn't stack: with the finale already chosen above
+  // by closing power (and landing last via the sort below), the songs in front of it are
+  // the short/mild ones — Sleeping Monkey in front of Tweezer Reprise, not Harry Hood in
+  // front of Antelope. Non-final picks are capped at ~10 minutes and the encore stops
+  // adding songs once it approaches its measured minutes ceiling.
+  while (enc.length < encMin) {
+    const room = encCap - minutesOf(enc);
+    if (room < 3) break;
+    let picked = takeBest(6, 1, r => durOf(r) <= Math.min(10, room));
+    if (!picked.length && room >= 8) picked = takeBest(6, 1, r => durOf(r) <= room);
+    if (!picked.length) break;
+    enc.push(picked[0]);
   }
   const s1o = takeBest(0, 1, r => !r.terminalOnly);
   const s1c = takeBest(2, 1, r => (r.closer >= 0.09 && r.slotN >= 8) || r.slotP[2] > 0.25);
@@ -1182,6 +1195,12 @@ function buildSetlist(rows, n1, n2, ne) {
   const t2 = wantS1More ? Math.min(t2raw, t1 - 1) : t2raw;
   for (const r of rest) {
     if (m1 >= budget.s1 && m2 >= budget.s2) break;
+    // Overshoot guard: a set's last draw used to be allowed to blow past the budget by its
+    // whole length (a 19-minute YEM landing in a set already at its cap → a 101-minute
+    // set 1). A song that would push a set more than ~4 minutes over now goes to the other
+    // set if it fits there, and is skipped outright if it fits neither.
+    const fits1 = m1 + durOf(r) <= budget.s1 + 4, fits2 = m2 + durOf(r) <= budget.s2 + 4;
+    if (!fits1 && !fits2) continue;
     let pull = 0;
     for (const p of SET_AFF) {
       const other = p.a === r.id ? p.b : (p.b === r.id ? p.a : null);
@@ -1199,8 +1218,10 @@ function buildSetlist(rows, n1, n2, ne) {
     else if (gap1 <= 0) toS1 = false;
     else if (gap2 <= 0) toS1 = true;
     else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) + pull + lengthPull > 0;
+    if (toS1 && !fits1) toS1 = false;
+    if (!toS1 && !fits2) { if (fits1) toS1 = true; else continue; }
     // Set 2 carrying more songs than set 1 looks plainly wrong, so it simply can't happen.
-    if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0;
+    if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0 && fits1;
     if (!toS1 && s2mid.length + 1 > s1mid.length) continue;
     if (toS1) { s1mid.push(r); m1 += durOf(r); } else { s2mid.push(r); m2 += durOf(r); }
   }
@@ -1213,10 +1234,21 @@ function buildSetlist(rows, n1, n2, ne) {
     .sort((a, b) => b.pred - a.pred);
   const topUp = (arr, getM, setM, want, preferLong) => {
     while (getM() < want && spare.length) {
-      let bi = 0;
-      if (preferLong) {   // set 2 fills with the longer songs
-        let best = -1;
-        spare.forEach((r, i) => { const s = r.pred * (durOf(r) >= 8 ? 1.6 : 1); if (s > best) { best = s; bi = i; } });
+      // Prefer a song that lands the set near its target instead of one that blasts past
+      // it; if nothing fits, take the shortest available to minimise the overshoot.
+      const room = want - getM() + 6;
+      const fitIdx = [];
+      spare.forEach((r, i) => { if (durOf(r) <= room) fitIdx.push(i); });
+      let bi;
+      if (fitIdx.length) {
+        bi = fitIdx[0];
+        if (preferLong) {   // set 2 fills with the longer songs
+          let best = -1;
+          for (const i of fitIdx) { const s = spare[i].pred * (durOf(spare[i]) >= 8 ? 1.6 : 1); if (s > best) { best = s; bi = i; } }
+        }
+      } else {
+        bi = 0;
+        spare.forEach((r, i) => { if (durOf(r) < durOf(spare[bi])) bi = i; });
       }
       const [pick] = spare.splice(bi, 1);
       arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
@@ -1257,6 +1289,16 @@ function buildSetlist(rows, n1, n2, ne) {
   }
 
   enc.sort((a, b) => a.closer - b.closer);   // an encore builds — the biggest closer lands last
+  // Hard structural rule after the sort: no long banger in a lead slot. A >10-minute song
+  // ahead of the finale gets dropped (the fallback path above can let one through when the
+  // pool runs thin). Bonded anchors are exempt — a Tweezer encore with its Reprise behind
+  // it is real, and trimming the anchor would orphan the dependent.
+  {
+    const anchorIds = new Set(Object.values(BONDED).map(b => b.anchor));
+    for (let i = enc.length - 2; i >= 0; i--) {
+      if (durOf(enc[i]) > 10.5 && !anchorIds.has(enc[i].id)) enc.splice(i, 1);
+    }
+  }
   const sl = { set1: [...s1o, ...s1mid, ...s1c], set2: cooldownOrder([...s2o, ...s2mid, ...s2c]), encore: enc };
 
   // pair placement pass
@@ -1318,6 +1360,21 @@ function buildSetlist(rows, n1, n2, ne) {
       if (!best) break;
       from.splice(from.indexOf(best), 1);
       to.splice(to.length - 1, 0, best);
+    }
+    // Total-night ceiling: the whole night stays inside its measured 95th-percentile
+    // minutes. Budgets are capped up front, but a long draw can still nudge the assembled
+    // night past the line — trim the least likely unlocked mid-set song until it fits.
+    for (let guard = 0; guard < 6; guard++) {
+      const tot = minutesOf(sl.set1) + minutesOf(sl.set2) + minutesOf(sl.encore);
+      if (tot <= SET_BOUNDS.total[1] + 4) break;
+      const cands = [...sl.set1.slice(1, -1), ...sl.set2.slice(1, -1)]
+        .filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
+      if (!cands.length) break;
+      cands.sort((a, b) => a.pred - b.pred);
+      for (const key of ['set1', 'set2']) {
+        const i = sl[key].indexOf(cands[0]);
+        if (i > 0 && i < sl[key].length - 1) { sl[key].splice(i, 1); break; }
+      }
     }
   }
   for (const key of ['set1', 'set2']) {
