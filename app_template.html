@@ -345,7 +345,7 @@
 
   <div id="panel-setlist" class="tabpanel active">
     <div class="card">
-      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Don't like this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of appearing in that exact slot. Click any song for its history.</p>
+      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Not feeling this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of appearing in that exact slot. Click any song for its history.</p>
       <div class="controls-row" style="margin-bottom:14px;">
         <div class="field" id="rerollField">
           <label>&nbsp;</label>
@@ -373,13 +373,14 @@
       </div>
       <div class="explain">
         <p class="lede">Every song gets a probability for the next show, measured from __SHOW_COUNT__ setlists going back to 1983. <b>Realistic</b> rolls the dice on each song at its own probability and lays the result out as a show &mdash; one plausible night, not the likeliest one. <b>Most likely</b> instead ranks every song and shows the arithmetic behind it.</p>
-        <p class="lede-sub">A typical night is ~18 songs out of ~150 in active rotation, so even the surest thing on the board only sits near 30%.</p>
+        <p class="lede-sub">A typical night is ~18 songs out of ~150 in active rotation, so most of the board sits in single digits. But a staple that's genuinely overdue climbs a long way past that &mdash; into the 40s and 50s &mdash; because "overdue" is measured against each song's own rhythm rather than the calendar. Eight shows is a long time for something that usually turns up every four, and nothing at all for something that turns up every twenty.</p>
 
         <details><summary>How the probability is calculated</summary>
           <div class="dbody">
             <p><code>P(played) = how often it's been played &times; how overdue it is &rarr; corrected against reality</code></p>
             <p><b>How often</b> &mdash; the share of shows in your window that included the song. A song woven in and out of one night counts once. Recent shows count more than old ones (adjustable half-life), so the number follows where a song is <i>now</i> rather than its career average.</p>
             <p><b>How overdue</b> &mdash; measured from the full history rather than assumed. A song is suppressed the night after it's played (0.45&times;), peaks about 4&ndash;8 shows later (1.12&times;), and drops well below its own average once it's been gone 20+ shows (0.22&times;) &mdash; long-dormant songs come back <i>less</i> often than raw frequency implies, not more. This term does most of the predictive work.</p>
+            <p><b>Overdue against its own habit</b> &mdash; the two corrections above work on the calendar, which can't tell a song that plays every four shows from one that plays every twenty. So a further correction is fit on the ratio of a song's current gap to its <i>own</i> average gap. It matters a lot: a staple sitting past twice its usual gap is bumped <b>2.1&times;</b>. Before this was added, exactly the songs you'd swear were due &mdash; big, frequently played, conspicuously absent &mdash; were predicted at 25% and actually turned up 39% of the time. That gap is now closed.</p>
             <p><b>Corrected against reality</b> &mdash; raw scores are checked against what actually happened in the ~120 shows before your target date, at your current settings, and bent to match. One stretch is held out of that correction: the 2026 90s-themed MSG run and the shows just before it, since the band picked those setlists by a rule the model can't see. Sphere runs, Mexico runs and NYE runs are <i>not</i> themed &mdash; they're ordinary runs, and they stay in. The correction refits whenever you change a setting.</p>
           </div>
         </details>
@@ -591,6 +592,14 @@ const inExcludedRange = d => EXCLUDED_RANGES.some(([lo, hi]) => d >= lo && d <= 
 // Gap buckets for the gap-conditional calibration correction below.
 const GAP_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 const gapBucket = g => g <= 5 ? g : g <= 9 ? 6 : g <= 14 ? 7 : g <= 19 ? 8 : 9;
+// "Overdue" only means anything relative to a song's OWN rhythm: eight shows out is a long time
+// for something that turns up every four, and nothing at all for something that turns up every
+// twenty. The absolute-gap correction above cannot tell those apart, and measurement says the
+// blind spot is large — a high-frequency song sitting at 1.5x its own average gap was predicted
+// at 25.4% and actually played 39.3% of the time across 206 cases. So a second correction is
+// fit on the ratio of current gap to the song's own average gap.
+const RATIO_BUCKETS = [0, 1, 2, 3, 4, 5];
+const ratioBucket = r => r < 0.5 ? 0 : r < 0.8 ? 1 : r < 1.2 ? 2 : r < 1.6 ? 3 : r < 2.2 ? 4 : 5;
 // Themed nights. On the 2026 MSG run the band tied each night to a year — those were their
 // 92nd through 96th shows at the Garden, so night one drew on 1992, night two on 1993, and so
 // on. Checked against the four nights already played, the constraint held almost perfectly:
@@ -761,7 +770,7 @@ function fitCalibration(asOfIdx, settings) {
   }
   let result;
   if (evals.length < 40) {
-    result = { pts: STATIC_CAL, gapAdj: GAP_BUCKETS.map(() => 1), n: 0, from: null, to: null };
+    result = { pts: STATIC_CAL, gapAdj: GAP_BUCKETS.map(() => 1), ratioAdj: RATIO_BUCKETS.map(() => 1), n: 0, from: null, to: null };
   } else {
     const edges = [0, .01, .02, .03, .05, .075, .10, .125, .15, .20, 1.01];
     const bins = edges.slice(0, -1).map(() => [0, 0, 0]); // n, sumRaw, nPlayed
@@ -771,7 +780,7 @@ function fitCalibration(asOfIdx, settings) {
     // recently arrive at roughly half their calibrated number while long-dormant ones arrive
     // above it — a bias the score-only calibration cannot see. Run-mates are left out of this
     // fit entirely; the within-run no-repeat rule prices those separately.
-    const gapRaw = GAP_BUCKETS.map(() => []), gapHit = GAP_BUCKETS.map(() => 0);
+    const obsRaw = [], obsG = [], obsR = [], obsHit = [];
     for (const T of evals) {
       const scores = rawScoresAt(T - 1, settings);
       const played = SONGS_AT_IDX.get(T) || new Set();
@@ -785,9 +794,11 @@ function fitCalibration(asOfIdx, settings) {
           }
         }
         if (s.gap != null && !mates.has(sid)) {
-          const g = gapBucket(s.gap);
-          gapRaw[g].push(s.raw);
-          if (played.has(sid)) gapHit[g]++;
+          obsRaw.push(s.raw);
+          obsG.push(gapBucket(s.gap));
+          const avg = s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null;
+          obsR.push(avg > 0 ? ratioBucket(s.gap / avg) : -1);
+          obsHit.push(played.has(sid) ? 1 : 0);
         }
       }
     }
@@ -809,14 +820,24 @@ function fitCalibration(asOfIdx, settings) {
     }
     // Turn the gap residual into a multiplier per bucket: what actually happened divided by
     // what the calibrated curve expected. Clamped, and only fit where there's enough data.
-    const gapAdj = gapRaw.map((arr, g) => {
-      if (arr.length < 200) return 1;
-      let pred = 0;
-      for (const r of arr) pred += calibrateWith(pts, r);
-      if (!(pred > 0)) return 1;
-      return Math.max(0.25, Math.min(2, gapHit[g] / pred));
-    });
-    result = { pts, gapAdj, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
+    const gN = GAP_BUCKETS.map(() => 0), gP = GAP_BUCKETS.map(() => 0), gH = GAP_BUCKETS.map(() => 0);
+    for (let i = 0; i < obsRaw.length; i++) {
+      const g = obsG[i];
+      gN[g]++; gP[g] += calibrateWith(pts, obsRaw[i]); gH[g] += obsHit[i];
+    }
+    const gapAdj = GAP_BUCKETS.map(g =>
+      (gN[g] < 200 || !(gP[g] > 0)) ? 1 : Math.max(0.25, Math.min(2, gH[g] / gP[g])));
+    // Second correction, fit on what the first one leaves behind: how overdue the song is
+    // against its own habit, not against the calendar.
+    const rN = RATIO_BUCKETS.map(() => 0), rP = RATIO_BUCKETS.map(() => 0), rH = RATIO_BUCKETS.map(() => 0);
+    for (let i = 0; i < obsRaw.length; i++) {
+      const rb = obsR[i];
+      if (rb < 0) continue;
+      rN[rb]++; rP[rb] += calibrateWith(pts, obsRaw[i]) * gapAdj[obsG[i]]; rH[rb] += obsHit[i];
+    }
+    const ratioAdj = RATIO_BUCKETS.map(r =>
+      (rN[r] < 200 || !(rP[r] > 0)) ? 1 : Math.max(0.4, Math.min(2.2, rH[r] / rP[r])));
+    result = { pts, gapAdj, ratioAdj, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
   }
   calCache.set(key, result);
   return result;
@@ -952,7 +973,10 @@ function compute() {
         id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
         showsPlayed: s.showsPlayed, showsInWindow: s.showsInWindow,
         freq: s.freq, gap: s.gap, gapMult: s.gm, raw: s.raw,
-        pred: calibrateWith(cal.pts, s.raw) * (s.gap != null && cal.gapAdj ? cal.gapAdj[gapBucket(s.gap)] : 1),
+        pred: calibrateWith(cal.pts, s.raw)
+              * (s.gap != null && cal.gapAdj ? cal.gapAdj[gapBucket(s.gap)] : 1)
+              * ((s.gap != null && cal.ratioAdj && s.showsPlayed > 0 && s.showsInWindow > 0)
+                 ? cal.ratioAdj[ratioBucket(s.gap / (s.showsInWindow / s.showsPlayed))] : 1),
         slotCnt, slotN: s.showsPlayed, isBustout: false,
         coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0,
         avgGap: s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null,
