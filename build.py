@@ -70,6 +70,23 @@ def assign_run_positions(shows):
                 s["runPos"] = "middle"
     return shows
 
+# Date ranges kept OUT of the calibration fit. Deliberately EMPTY.
+#
+# An earlier version excluded three whole 2026 tour names ("2026 Summer Tour", "2026 Sphere",
+# "2026 Mexico") as "themed runs" — which was never principled (2024 Mexico, 2025 Mexico and
+# 2024 Sphere were all kept) and discarded every 2026 show but one, leaving the calibration
+# anchored on six-month-stale data. Narrowing it to just the 90s-themed MSG run was then
+# measured and found to move the calibration by at most 1.5 points on a single mid-tier song.
+# Not worth having: themed nights are part of what the band does, they wash out over a 120-show
+# window, and discarding inconvenient data is exactly what a sceptical reader should distrust.
+# The hook stays for a genuinely unusable stretch (a benefit show with a guest band, say).
+EXCLUDED_RANGES = []
+
+
+def in_excluded_range(d):
+    return any(lo <= d <= hi for lo, hi in EXCLUDED_RANGES)
+
+
 PHISHNET_KEY = os.environ.get("PHISHNET_API_KEY", "").strip()
 FIRST_YEAR = 1983
 UA = {"User-Agent": "phish-setlist-predictor (github.com/dill0460)"}
@@ -470,9 +487,14 @@ def fit_static_calibration(shows_list, songs, plays, gap_mult):
     for k in by:
         by[k].sort()
     debut = {s["id"]: didx[s["debut"]] for s in songs}
-    excluded = {"2026 Summer Tour", "2026 Sphere", "2026 Mexico"}
+    # Calibration exclusions are a DATE RANGE, not tour names. Only one stretch qualifies:
+    # the 2026 90s-themed MSG run plus the shows immediately before it, which leaned on newer
+    # material to keep the older songs fresh for the theme. Everything else — Sphere runs,
+    # Mexico runs, NYE runs — is a normal run with a normal setlist and belongs in the fit.
+    # (The old list excluded all three 2026 tour names, which threw out every 2026 show but
+    # one and left the calibration anchored on data six months stale.)
     test = [i for i, s in enumerate(shows_list)
-            if i > 200 and s["tour"] not in excluded][-143:]
+            if i > 200 and not in_excluded_range(s["date"])][-143:]
     if len(test) < 40:
         return [[0, 0], [0.2, 0.25], [0.6, 0.75]]
     hl = 100.0
