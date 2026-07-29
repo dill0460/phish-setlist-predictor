@@ -57,10 +57,27 @@
   .hero h1 { color: #fff8ec; font-size: 38px; line-height: 1.08; margin: 0 0 10px; font-weight: 800; letter-spacing: -0.5px; }
   .hero .subtitle { color: rgba(255,248,236,0.9); font-size: 15px; line-height: 1.55; margin: 0 0 16px; max-width: 720px; }
   .hero .subtitle b { color: #fff8ec; }
-  .hero-meta {
-    font-size: 11.5px; font-weight: 600; color: rgba(255,248,236,0.72); margin: 0;
-    text-transform: uppercase; letter-spacing: 0.08em;
+  .songlink { cursor: pointer; }
+  .songlink:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+  #songCardWrap {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
   }
+  #songCard {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px 18px; max-width: 440px; width: 100%; box-shadow: 0 10px 34px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  #songCard h3 { margin: 0 24px 2px 0; font-size: 18px; }
+  #songCard .sc-sub { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+  #songCard .sc-line { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin: 0 0 8px; }
+  #songCard .sc-line b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  #songCard .sc-link { display: inline-block; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+  #scClose {
+    position: absolute; top: 10px; right: 12px; border: none; background: none; cursor: pointer;
+    font-size: 18px; color: var(--text-muted); line-height: 1; padding: 4px;
+  }
+  #scClose:hover { color: var(--text-primary); }
 
   /* ---------- timeframe strip ---------- */
   .tf-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -203,7 +220,6 @@
   <div class="hero">
     <h1>What are they gonna play?</h1>
     <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
-    <p class="hero-meta">Updated daily &middot; data through __LATEST_DATE__ &middot; backtested against 143 real shows</p>
   </div>
 
   <div class="tf-strip">
@@ -215,7 +231,8 @@
       <button id="tfAll">Every show since '83</button>
     </div>
   </div>
-  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones. Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
+  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
+  <p class="tf-note">Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
 
   <details id="advWrap">
     <summary>Advanced settings</summary>
@@ -316,7 +333,7 @@
 
   <div id="panel-setlist" class="tabpanel active">
     <div class="card">
-      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds &mdash; the same way a poker simulator deals a plausible hand. Don't like this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of that exact slot.</p>
+      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Don't like this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of appearing in that exact slot. Click any song for its history.</p>
       <div class="controls-row" style="margin-bottom:14px;">
         <div class="field" id="rerollField">
           <label>&nbsp;</label>
@@ -456,6 +473,7 @@
                 <th data-key="showsPlayed">Shows Played</th>
                 <th data-key="showsInWindow">Shows in Window</th>
                 <th data-key="freq" class="sorted">Frequency</th>
+                <th data-key="onceEvery">Once Every</th>
                 <th data-key="debut">Debut</th>
                 <th data-key="last">Last Played</th>
                 <th data-key="gap">Gap</th>
@@ -511,6 +529,16 @@
           </div>
         </details>
       </div>
+    </div>
+  </div>
+
+  <div id="songCardWrap" class="hidden">
+    <div id="songCard">
+      <button id="scClose" aria-label="Close">&times;</button>
+      <h3 id="scTitle"></h3>
+      <p class="sc-sub" id="scSub"></p>
+      <div id="scBody"></div>
+      <a class="sc-link" id="scLink" href="#" target="_blank" rel="noopener">Full song history on phish.net &nearr;</a>
     </div>
   </div>
 
@@ -709,6 +737,7 @@ function calibrateWith(pts, p) {
 // ---------- UI state ----------
 let mode = 'rolling';
 let slModeSample = true;
+let LAST_CTX = null;   // rows + asOfIdx from the latest compute(), for the song detail card
 let sortKeyPredict = 'pred', sortDirPredict = -1;
 let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
@@ -829,6 +858,7 @@ function compute() {
         pred: calibrateWith(cal.pts, s.raw), slotCnt, slotN: s.showsPlayed, isBustout: false,
         coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0,
         avgGap: s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null,
+        onceEvery: s.freq > 0 ? 1 / s.freq : null,
       });
     }
   }
@@ -863,7 +893,7 @@ function compute() {
       id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
       showsPlayed: 0, showsInWindow: 0, freq: 0, gap, gapMult: null, raw: 0,
       pred: p, slotCnt: new Array(7).fill(0), slotN: 0, isBustout: true, deepDormant: true,
-      coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0, avgGap: null,
+      coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0, avgGap: null, onceEvery: null,
     });
   }
 
@@ -1501,7 +1531,7 @@ function renderGame(rows) {
   els.gameBody.innerHTML = g.rows.map(x => `
     <tr>
       <td>${x.pos}</td>
-      <td class="song-name">${x.song.name}${x.song.cover ? ' <span class="slot-tag">non-original</span>' : ''}</td>
+      <td class="song-name"><span class="songlink" data-sid="${x.song.id}">${x.song.name}</span>${x.song.cover ? ' <span class="slot-tag">non-original</span>' : ''}</td>
       <td>${(x.p * 100).toFixed(1)}%</td>
       <td><b>${x.ev.toFixed(2)}</b></td>
     </tr>`).join('');
@@ -1539,6 +1569,7 @@ function ratioCell(r) {
 
 function render() {
   const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow } = compute();
+  LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
   // Name the actual show being predicted, not just the cutoff date it comes after.
   const d = els.nextDate.value;
@@ -1564,7 +1595,7 @@ function render() {
     const block = (title, arr, mins) => `
       <div class="set-block">
         <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
-        ${arr.map(r => `<div class="set-song"><span class="sname">${r.name}${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) + '\u2032 \u00b7 ' : ''}${pct(r.pred)}%</span></div>`).join('')}
+        ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032 \u00b7 ${pct(r.pred)}%</span></div>`).join('')}
       </div>`;
     els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1) + block('Set 2', sl.set2, sl.minutes.s2) + block('Encore', sl.encore, sl.minutes.e);
   } else {
@@ -1574,7 +1605,7 @@ function render() {
     els.mlBody.innerHTML = top.map((r, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td class="song-name">${r.name}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+        <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
         <td>${(r.freq * 100).toFixed(1)}%</td>
         <td>${r.gap != null ? r.gap : '—'}</td>
         <td>${r.avgGap != null ? r.avgGap.toFixed(1) : '—'}</td>
@@ -1618,14 +1649,14 @@ function render() {
   const maxPredAll = Math.max(0.0001, ...fp.map(r => r.pred));
   els.tbodyPredict.innerHTML = fp.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name">${r.name}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
       <td class="pred-cell"><div class="pred-bar-bg" style="width:${(r.pred / maxPredAll * 60).toFixed(1)}%"></div><span class="pred-text">${(r.pred * 100).toFixed(1)}%</span></td>
       <td>${(r.freq * 100).toFixed(1)}%</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
       <td>${r.avgGap != null ? r.avgGap.toFixed(1) : '—'}</td>
       <td>${ratioCell(r)}</td>
       <td>${r.gapMult != null ? r.gapMult.toFixed(2) + '×' : '—'}</td>
-      <td>${r.dur != null ? r.dur.toFixed(1) + ' min' : '—'}</td>
+      <td>${r.dur != null ? r.dur.toFixed(1) + ' min' : '~' + DEFAULT_DUR.toFixed(1) + ' min'}</td>
       <td>${r.coolAff != null ? r.coolAff.toFixed(2) + '×' : '—'}</td>
       <td><span class="slot-tag">${SLOT_NAMES[r.bestSlot]}${r.terminalOnly ? ' (closer/encore only)' : ''} (${(r.bestSlotP * 100).toFixed(0)}%)</span></td>
       <td>${r.last}</td>
@@ -1650,10 +1681,11 @@ function render() {
   const maxFreqAll = Math.max(0.0001, ...ff.map(r => r.freq));
   els.tbodyFreq.innerHTML = ff.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name">${r.name}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span></td>
       <td>${r.showsPlayed}</td>
       <td>${r.showsInWindow}</td>
       <td class="freq-cell"><div class="freq-bar-bg" style="width:${(r.freq / maxFreqAll * 60).toFixed(1)}%"></div><span class="freq-text">${(r.freq * 100).toFixed(1)}%</span></td>
+      <td>${r.onceEvery ? r.onceEvery.toFixed(1) + ' shows' : '—'}</td>
       <td>${r.debut}</td>
       <td>${r.last}</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
@@ -1749,6 +1781,52 @@ if (UPCOMING.length) {
     render();
   });
 }
+
+// ---- song detail card: click any song name for its phish.net-style stat sheet ----
+const pnetSlug = name => name.toLowerCase().replace(/['’.]/g, '').replace(/&/g, 'and')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function showSongCard(sid) {
+  const song = SONG_BY_ID.get(sid);
+  if (!song) return;
+  const r = LAST_CTX && LAST_CTX.rows.get(sid);
+  const asOf = LAST_CTX ? LAST_CTX.asOfIdx : SHOWS.length - 1;
+  const idxs = playIdx.get(sid) || [];
+  const hi = upperBound(idxs, asOf);
+  const lastIdx = hi > 0 ? idxs[hi - 1] : null;
+  const gap = lastIdx != null ? asOf - lastIdx : null;
+  const sinceDebut = asOf - (DEBUT_IDX.get(sid) ?? 0) + 1;
+  const lines = [];
+  if (r && r.freq > 0) {
+    lines.push(`Played at <b>${(r.freq * 100).toFixed(1)}%</b> of shows in your stats window &mdash; about once every <b>${(1 / r.freq).toFixed(1)}</b> shows lately.`);
+  } else {
+    lines.push('Not played at all in your current stats window.');
+  }
+  if (lastIdx != null) {
+    const bust = gap >= parseInt(els.bustGap.value, 10) ? ' <span class="badge bust">bustout territory</span>' : '';
+    lines.push(`Last played <b>${SHOW_DATES[lastIdx]}</b> &mdash; <b>${gap}</b> show${gap === 1 ? '' : 's'} ago.${bust}`);
+  }
+  if (hi > 0 && sinceDebut > 0) {
+    lines.push(`Career: <b>${hi}</b> plays across <b>${sinceDebut.toLocaleString()}</b> shows since its debut &mdash; on average once every <b>${(sinceDebut / hi).toFixed(1)}</b> shows.`);
+  }
+  const durTxt = song.dur != null
+    ? `<b>${song.dur.toFixed(1)} min</b>`
+    : `<b>~${DEFAULT_DUR.toFixed(1)} min</b> (no measured recordings &mdash; catalog-median ballpark)`;
+  const slotTxt = (r && r.slotN >= 3) ? ` &middot; Most common slot: <b>${SLOT_NAMES[r.bestSlot]}</b>` : '';
+  lines.push(`Typical length: ${durTxt}${slotTxt}.`);
+  if (r && r.pred > 0) lines.push(`Chance at the show you're predicting: <b>${(r.pred * 100).toFixed(1)}%</b>.`);
+  $('scTitle').innerHTML = `${song.name}${song.cover ? ' <span class="slot-tag">non-original</span>' : ''}`;
+  $('scSub').textContent = `Debuted ${song.debut}`;
+  $('scBody').innerHTML = lines.map(l => `<p class="sc-line">${l}</p>`).join('');
+  $('scLink').href = 'https://phish.net/song/' + pnetSlug(song.name);
+  $('songCardWrap').classList.remove('hidden');
+}
+function hideSongCard() { $('songCardWrap').classList.add('hidden'); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('.songlink');
+  if (t) { showSongCard(+t.dataset.sid); return; }
+  if (e.target.id === 'songCardWrap' || e.target.id === 'scClose') hideSongCard();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideSongCard(); });
 
 // ---- timeframe pills: the one control most visitors ever touch ----
 const TF_PILLS = [['tf2', 2], ['tf5', 5], ['tf10', 10], ['tfAll', 43]];
