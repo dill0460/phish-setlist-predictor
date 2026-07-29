@@ -373,7 +373,7 @@
       </div>
       <div class="explain">
         <p class="lede">Every song gets a probability for the next show, measured from __SHOW_COUNT__ setlists going back to 1983. <b>Realistic</b> rolls the dice on each song at its own probability and lays the result out as a show &mdash; one plausible night, not the likeliest one. <b>Most likely</b> instead ranks every song and shows the arithmetic behind it.</p>
-        <p class="lede-sub">A typical night is ~18 songs out of ~150 in active rotation, so most of the board sits in single digits. But a staple that's genuinely overdue climbs a long way past that &mdash; into the 40s and 50s &mdash; because "overdue" is measured against each song's own rhythm rather than the calendar. Eight shows is a long time for something that usually turns up every four, and nothing at all for something that turns up every twenty.</p>
+        <p class="lede-sub">~150 songs in rotation, ~18 played a night &mdash; so yeah, most of the board sits in single digits. That's normal, not the model whiffing. A song jumps way past that when it's actually due, and "due" means something different for every song: 8 shows without something that's usually back every 4 is a while. 8 shows without something on a 20-show cycle is nothing.</p>
 
         <details><summary>How the probability is calculated</summary>
           <div class="dbody">
@@ -381,7 +381,7 @@
             <p><b>How often</b> &mdash; the share of shows in your window that included the song. A song woven in and out of one night counts once. Recent shows count more than old ones (adjustable half-life), so the number follows where a song is <i>now</i> rather than its career average.</p>
             <p><b>How overdue</b> &mdash; measured from the full history rather than assumed. A song is suppressed the night after it's played (0.45&times;), peaks about 4&ndash;8 shows later (1.12&times;), and drops well below its own average once it's been gone 20+ shows (0.22&times;) &mdash; long-dormant songs come back <i>less</i> often than raw frequency implies, not more. This term does most of the predictive work.</p>
             <p><b>Overdue against its own habit</b> &mdash; the two corrections above work on the calendar, which can't tell a song that plays every four shows from one that plays every twenty. So a further correction is fit on the ratio of a song's current gap to its <i>own</i> average gap. It matters a lot: a staple sitting past twice its usual gap is bumped <b>2.1&times;</b>. Before this was added, exactly the songs you'd swear were due &mdash; big, frequently played, conspicuously absent &mdash; were predicted at 25% and actually turned up 39% of the time. That gap is now closed.</p>
-            <p><b>Corrected against reality</b> &mdash; raw scores are checked against what actually happened in the ~120 shows before your target date, at your current settings, and bent to match. One stretch is held out of that correction: the 2026 90s-themed MSG run and the shows just before it, since the band picked those setlists by a rule the model can't see. Sphere runs, Mexico runs and NYE runs are <i>not</i> themed &mdash; they're ordinary runs, and they stay in. The correction refits whenever you change a setting.</p>
+            <p><b>Corrected against reality</b> &mdash; raw scores are checked against what actually happened in the ~120 shows before your target date, at your current settings, and bent to match. Nothing is held out: a themed run (like the 2026 90s-throwback MSG run) picks its setlist by a rule this model can't see, but it's a handful of shows out of thousands &mdash; it washes out in the average rather than skewing it. We checked: leaving it in versus pulling it out moves any song's number by at most 1.5 points. Not worth a special case. The correction refits whenever you change a setting.</p>
           </div>
         </details>
 
@@ -1066,18 +1066,32 @@ function compute() {
       // calibrated total. Self-scaling: night 2 of a run redistributes a little, night 5 of a
       // run redistributes a lot. Deep-dormant songs are left out — the bustout channel prices
       // them on its own measured budget and must not inherit this boost.
-      let after = 0;
-      for (const r of rows) after += r.pred;
-      const k = after > 0 ? Math.min(6, before / after) : 1;
-      if (k > 1) {
-        for (const r of rows) {
-          if (runMates.has(r.id) || r.offTheme || r.deepDormant) continue;
-          // Ceiling of 0.9: stacking constraints (a themed night deep inside a run) can shrink
-          // the eligible pool far enough that redistribution would print 100% next to a song.
-          // Nothing about a Phish setlist is ever a certainty, and showing one as such is the
-          // fastest way to lose a reader who knows better.
-          r.pred = Math.min(0.9, r.pred * k);
+      //
+      // The redistribution runs in odds-space, not probability-space. A flat multiplier plus a
+      // hard 0.9 ceiling (the old approach) meant several songs could get shoved to the exact
+      // same clipped value the moment redistribution pushed them past it — several songs all
+      // reading identical percentages is the fastest way to tip off a reader that the number
+      // isn't real. Odds (o = p/(1-p)) scaled by one solved lambda and converted back via
+      // p' = lambda*o/(1+lambda*o) approach 1 smoothly instead of clipping, so two songs land on
+      // the same displayed number only if they had the same odds to begin with.
+      let suppressedAfter = 0;
+      const eligible = [];
+      for (const r of rows) {
+        if (runMates.has(r.id) || r.offTheme || r.deepDormant) suppressedAfter += r.pred;
+        else eligible.push(r);
+      }
+      const target = before - suppressedAfter;
+      const eligibleBefore = eligible.reduce((s, r) => s + r.pred, 0);
+      if (eligible.length && target > eligibleBefore) {
+        const odds = eligible.map(r => { const p = Math.min(0.995, Math.max(1e-6, r.pred)); return p / (1 - p); });
+        const sumAt = lambda => odds.reduce((s, o) => s + (lambda * o) / (1 + lambda * o), 0);
+        let lo = 1, hi = 1;
+        while (sumAt(hi) < target && hi < 1e15) hi *= 4;
+        for (let iter = 0; iter < 60; iter++) {
+          const mid = (lo + hi) / 2;
+          if (sumAt(mid) < target) lo = mid; else hi = mid;
         }
+        eligible.forEach((r, i) => { r.pred = Math.min(0.96, (hi * odds[i]) / (1 + hi * odds[i])); });
       }
     }
   }
@@ -1113,8 +1127,12 @@ function compute() {
 
 // ---------- setlist assembly ----------
 function selectPool(rows, total) {
+  // Off-theme and already-played-this-run songs keep a small nonzero pred so the Song Odds
+  // table can still show a number for context, but neither should ever actually land in a
+  // generated setlist — that's the whole point of the theme/run-position controls. Excluded
+  // from every pool-building path (top-N, weighted draw, and the minutes top-up above).
   if (!slModeSample) {
-    return rows.filter(r => r.pred > 0 && !(r.id in BONDED))
+    return rows.filter(r => r.pred > 0 && !(r.id in BONDED) && !r.offTheme && !r.runRepeat)
       .sort((a, b) => b.pred - a.pred).slice(0, total);
   }
   const chosen = [];
@@ -1122,6 +1140,7 @@ function selectPool(rows, total) {
   for (const r of rows) {
     if (r.pred <= 0) continue;
     if (r.id in BONDED) continue;              // dependents ride with their anchor
+    if (r.offTheme || r.runRepeat) continue;
     if (Math.random() < r.pred) chosen.push(r);
   }
   // bonded partners come along at their conditional rates
@@ -1129,7 +1148,7 @@ function selectPool(rows, total) {
   for (const [depId, bond] of Object.entries(BONDED)) {
     if (inPool.has(bond.anchor) && Math.random() < bond.p) {
       const dep = byId.get(+depId);
-      if (dep && !inPool.has(dep.id)) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
+      if (dep && !inPool.has(dep.id) && !dep.offTheme && !dep.runRepeat) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
     }
   }
   const mins = a => a.reduce((s, r) => s + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
@@ -1143,7 +1162,11 @@ function selectPool(rows, total) {
   // Deep-dormant songs never enter through the minutes top-up — their only door is the
   // bustout channel, which is priced and capped separately. Without this, a night that
   // runs short of minutes would quietly fill up with career one-offs nobody's heard of.
-  const spare = rows.filter(r => r.pred > 0 && !inPool.has(r.id) && !(r.id in BONDED) && !r.deepDormant);
+  // Off-theme and already-played-this-run songs are excluded for the same reason: they carry
+  // a tiny but nonzero pred (never fully zeroed, so the probability table can still show a
+  // number), and a low-minutes night would otherwise pull them in through this side door even
+  // though the whole point of the theme/run-repeat control is to keep them off the setlist.
+  const spare = rows.filter(r => r.pred > 0 && !inPool.has(r.id) && !(r.id in BONDED) && !r.deepDormant && !r.offTheme && !r.runRepeat);
   while (mins(chosen) < NEED_MIN && spare.length) {
     const W = spare.reduce((s, r) => s + r.pred, 0);
     let x = Math.random() * W, k = 0;
@@ -1162,14 +1185,14 @@ function applyPairPoolRules(pool, rows, total) {
     if (rule.b in BONDED && slModeSample) continue;   // handled at draw time
     const aIn = inPool.has(rule.a), bIn = inPool.has(rule.b);
     const ra = byId.get(rule.a), rb = byId.get(rule.b);
-    if (aIn && !bIn && rule.pBA >= T && rb && rb.freq > 0) {
+    if (aIn && !bIn && rule.pBA >= T && rb && rb.freq > 0 && !rb.offTheme && !rb.runRepeat) {
       locked.add(rule.a);
       let worst = null;
       for (const r of pool) if (!locked.has(r.id) && !r.locked && (worst === null || r.pred < worst.pred)) worst = r;
       if (worst && pool.length >= total) { pool.splice(pool.indexOf(worst), 1); inPool.delete(worst.id); }
       pool.push(rb); inPool.add(rb.id); locked.add(rb.id);
     } else if (bIn && !aIn && rule.pAB >= T) {
-      if (ra && ra.freq > 0 && ra.pred >= 0.3 * rb.pred) {
+      if (ra && ra.freq > 0 && !ra.offTheme && !ra.runRepeat && ra.pred >= 0.3 * rb.pred) {
         locked.add(rule.b);
         pool.push(ra); inPool.add(ra.id); locked.add(ra.id);
       } else {
@@ -1423,7 +1446,7 @@ function buildSetlist(rows, n1, n2, ne) {
   // Bonded dependents can't sneak in through the minutes top-up either — Weekapaug and
   // Silent in the Morning aren't terminal-only, so without this they could enter here
   // anchorless and burn a slot before the final invariant pass strips them back out.
-  const spare = rows.filter(r => r.pred > 0 && !used.has(r.id) && !pool.includes(r) && !r.terminalOnly && !r.deepDormant && !(r.id in BONDED))
+  const spare = rows.filter(r => r.pred > 0 && !used.has(r.id) && !pool.includes(r) && !r.terminalOnly && !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
     .sort((a, b) => b.pred - a.pred);
   const topUp = (arr, getM, setM, want, preferLong) => {
     while (getM() < want && spare.length) {
@@ -1459,7 +1482,7 @@ function buildSetlist(rows, n1, n2, ne) {
     if (!anchor || placed.some(r => r.id === +depId)) continue;
     if (Math.random() >= bond.p) continue;
     const dep = rows.find(r => r.id === +depId);
-    if (!dep || used.has(dep.id)) continue;
+    if (!dep || used.has(dep.id) || dep.offTheme || dep.runRepeat) continue;
     used.add(dep.id);
     (s1mid.includes(anchor) || s1o.includes(anchor) ? s1mid : s2mid).push(dep);
   }
@@ -1630,7 +1653,7 @@ const PT_POSITIONS = [
 function tourProb(p, n) { return 1 - Math.pow(1 - Math.min(0.999, p), n); }
 
 function gamePicks(rows, type, tourLen) {
-  const cands = rows.filter(r => r.pred > 0.002);
+  const cands = rows.filter(r => r.pred > 0.002 && !r.offTheme && !r.runRepeat);
   if (type === 'fp') {
     // single show: three independent choices, no tour maths
     const best = (fn) => cands.slice().sort((a, b) => fn(b) - fn(a));
@@ -1753,7 +1776,7 @@ function render() {
     + (themePool ? `<br><span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
   els.calSummary.innerHTML = cal.n > 0
-    ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings; themed runs excluded`
+    ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings`
     : `Calibration: static fallback (not enough prior shows at this "as of" date)`;
 
   // ---- Predicted setlist ----
