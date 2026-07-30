@@ -626,6 +626,10 @@ const RUN_REPEAT_MULT = 0.02;
 const GAP_MULT = [null, 0.445, 0.782, 0.935, 1.049, 1.12, 1.116, 1.088, 1.06, 0.972, 0.979,
                   0.892, 0.864, 0.789, 0.733, 0.746, 0.742, 0.666, 0.663, 0.644, 0.222];
 const COOL_AFF = __COOL_JSON__;     // songid -> how much more often it follows a 10+ min jam (set-2 mid)
+// Songs that genuinely reappear inside one night, with the measured placement of the repeat.
+// 2009+: 22% of shows contain one, but 85% of repeats are a same-set sandwich 2-4 slots on.
+const REENTRY = __REENTRY_JSON__;
+const REENTRY_BY_SID = new Map((REENTRY || []).map(r => [r.sid, r]));
 const SET_MIN = __SETMIN_JSON__;    // typical set minutes (s1/s2/e), each with its own measured
                                      // stdev (s1Sd/s2Sd/eSd) and 5th-95th percentile bounds,
                                      // recomputed from 2022+ shows on every build
@@ -970,7 +974,7 @@ function compute() {
         globalN++;
       }
       rows.push({
-        id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
+        id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null, durq: song.durq || null,
         showsPlayed: s.showsPlayed, showsInWindow: s.showsInWindow,
         freq: s.freq, gap: s.gap, gapMult: s.gm, raw: s.raw,
         pred: calibrateWith(cal.pts, s.raw)
@@ -1012,7 +1016,7 @@ function compute() {
     const p = tierMembers[t] > 0 ? BUSTOUT_RATE * BUSTOUT_TIERS[t][1] / tierMembers[t] : 0;
     if (p <= 0) continue;
     rows.push({
-      id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null,
+      id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null, durq: song.durq || null,
       showsPlayed: 0, showsInWindow: 0, freq: 0, gap, gapMult: null, raw: 0,
       pred: p, slotCnt: new Array(7).fill(0), slotN: 0, isBustout: true, deepDormant: true,
       coolAff: COOL_AFF[song.id] || null, cover: song.cover || 0, avgGap: null, onceEvery: null,
@@ -1204,7 +1208,63 @@ function applyPairPoolRules(pool, rows, total) {
   return pool;
 }
 
-function durOf(r) { return r.dur != null ? r.dur : DEFAULT_DUR; }
+// ---------------------------------------------------------------------------
+// Song length: sampled per night, not fixed.
+//
+// Every song used to contribute its median length to the set budget, so a 73-minute
+// set 1 always fitted ~9-10 songs and the real left tail — the 4-6 song second set
+// built out of a 29-minute Drowned — could never be generated. Lengths now come from
+// each song's own measured distribution (p10/p25/p50/p75/p90 from phish.in).
+//
+// The draws are deliberately CORRELATED. Sampling independently, five long songs
+// landing in one set is vanishingly unlikely, so independent draws would still never
+// produce a short set 2. Real nights are jammy or tight as a whole, so one latent
+// "stretch" value per night pulls every song the same direction; NIGHT_STRETCH_W sets
+// how much of each song's draw it accounts for.
+// ---------------------------------------------------------------------------
+const NIGHT_STRETCH_W = 0.4;
+let NIGHT_STRETCH = Math.random();   // re-rolled once per generated night
+let DUR_CACHE = new Map();           // songid -> length drawn for THIS night
+
+function newNightLengths() {
+  NIGHT_STRETCH = Math.random();
+  DUR_CACHE = new Map();
+}
+
+// piecewise-linear inverse CDF over the five-point summary
+function sampleQuantiles(q, u) {
+  const pts = [0.10, 0.25, 0.50, 0.75, 0.90];
+  if (u <= pts[0]) return q[0];
+  if (u >= pts[4]) return q[4];
+  for (let i = 0; i < 4; i++) {
+    if (u <= pts[i + 1]) {
+      const t = (u - pts[i]) / (pts[i + 1] - pts[i]);
+      return q[i] + t * (q[i + 1] - q[i]);
+    }
+  }
+  return q[2];
+}
+
+function durOf(r) {
+  if (!r) return DEFAULT_DUR;
+  const key = r.id != null ? r.id : r.name;
+  if (DUR_CACHE.has(key)) return DUR_CACHE.get(key);
+  let d;
+  if (r.durq && r.durq.length === 5) {
+    // blend a per-song uniform with the night-level one to induce correlation
+    const u = NIGHT_STRETCH_W * NIGHT_STRETCH + (1 - NIGHT_STRETCH_W) * Math.random();
+    d = sampleQuantiles(r.durq, u);
+  } else {
+    d = r.dur != null ? r.dur : DEFAULT_DUR;
+  }
+  DUR_CACHE.set(key, d);
+  return d;
+}
+
+// The odds table and any display surface must keep showing the stable median,
+// never a value that changes on every spin.
+function durMedian(r) { return r && r.dur != null ? r.dur : DEFAULT_DUR; }
+
 function minutesOf(arr) { return arr.reduce((s, r) => s + durOf(r), 0); }
 
 // Insert a breather after a long jam in set 2's back half.
@@ -1238,6 +1298,8 @@ function cooldownOrder(arr) {
 }
 
 function buildSetlist(rows, n1, n2, ne) {
+  // fresh night: new latent stretch factor, and every song re-draws its length
+  newNightLengths();
   rows.forEach(r => { delete r.locked; delete r.cool; });
   const total = n1 + n2 + ne;
   let pool = selectPool(rows, total);
@@ -1627,8 +1689,70 @@ function buildSetlist(rows, n1, n2, ne) {
   // A tagged song can still get relocated to set 1 by the pair-placement pass (Silent in
   // the Morning follows The Horse wherever it lands), and it must not carry the label along.
   for (const r of [...sl.set1, ...sl.encore]) delete r.cool;
+  applyReentry(sl);
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;
+}
+
+// ---------------------------------------------------------------------------
+// Reentrant songs — the Tweezerfest mechanic.
+//
+// A handful of songs get woven in and out of a single night. It is not a general
+// property of the catalog: 2009+, 22% of shows contain a reentry, but the behaviour
+// belongs to a short measured list, and 85% of repeats are a same-set sandwich landing
+// 2-4 slots after the first pass (Hold Your Head Up, Alumni Blues, TMWSIY, Ruby Waves
+// and Harry Hood are 100% sandwich, with no exceptions on record). Tweezer is the only
+// song with real spread, so it is the only one allowed to break the pattern.
+//
+// The repeat is a reprise of a song already placed, so it deliberately does NOT re-roll
+// its own probability — it is conditional on the first pass having happened.
+// ---------------------------------------------------------------------------
+function applyReentry(sl) {
+  if (!REENTRY_BY_SID.size) return;
+  const setKeys = ['set1', 'set2'];
+  // at most one reentrant song per night, matching the measured one-per-show ceiling
+  const cands = [];
+  for (const key of setKeys) {
+    sl[key].forEach((r, i) => {
+      const rule = REENTRY_BY_SID.get(r.id);
+      if (rule) cands.push({ key, i, r, rule });
+    });
+  }
+  if (!cands.length) return;
+  const pick = cands[Math.floor(Math.random() * cands.length)];
+  if (Math.random() > pick.rule.rate) return;      // roll its measured reentry rate
+
+  const pl = pick.rule.place || {};
+  const u = Math.random();
+  let mode = 'sandwich', acc = 0;
+  for (const [k, p] of Object.entries(pl)) {
+    acc += p;
+    if (u <= acc) { mode = k; break; }
+  }
+
+  const arr = sl[pick.key];
+  const copy = Object.assign({}, pick.r, { reentry: true });
+  delete copy.cool;
+
+  if (mode === 'crossset') {
+    // second pass lands in the other set / encore
+    const other = pick.key === 'set1' ? 'set2' : 'set1';
+    if (sl[other].length) {
+      const at = 1 + Math.floor(Math.random() * Math.max(1, sl[other].length - 1));
+      sl[other].splice(at, 0, copy);
+    }
+    return;
+  }
+
+  let offset;
+  if (mode === 'adj') offset = 1;
+  else if (mode === 'far') offset = 5 + Math.floor(Math.random() * 3);
+  else offset = 2 + Math.floor(Math.random() * 3);   // sandwich: 2-4 slots on
+
+  const at = Math.min(pick.i + offset, arr.length);
+  // never displace the set closer — the sandwich resolves before the set ends
+  if (at >= arr.length) arr.splice(Math.max(pick.i + 1, arr.length - 1), 0, copy);
+  else arr.splice(at, 0, copy);
 }
 
 // ---------------------------------------------------------------------------

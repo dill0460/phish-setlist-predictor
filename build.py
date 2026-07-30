@@ -231,7 +231,30 @@ def fetch_durations():
         if len(ds) < 3:
             continue
         ds.sort()
-        out[title] = round(ds[len(ds) // 2] / 60000.0, 1)
+        mins = [d / 60000.0 for d in ds]
+
+        def q(p):
+            """Linear-interpolated quantile."""
+            if len(mins) == 1:
+                return mins[0]
+            i = p * (len(mins) - 1)
+            lo = int(i)
+            hi = min(lo + 1, len(mins) - 1)
+            return mins[lo] + (i - lo) * (mins[hi] - mins[lo])
+
+        med = q(0.5)
+        # Five-point summary drives per-night length sampling in the set builder.
+        # Songs with too few observations get a flat (degenerate) distribution so
+        # they behave exactly like the old fixed-median code path.
+        if len(mins) >= 8:
+            quants = [round(q(p), 1) for p in (0.10, 0.25, 0.50, 0.75, 0.90)]
+        else:
+            quants = [round(med, 1)] * 5
+        out[title] = {
+            "med": round(med, 1),
+            "q": quants,
+            "n": len(mins),
+        }
     print(f"  durations for {len(out)} songs")
     return out
 
@@ -319,7 +342,11 @@ def shape(raw, durations):
         s["shows"] = len(seen[sid])
         d = dnorm.get(s["name"].lower())
         if d is not None:
-            s["dur"] = d
+            # `dur` stays a scalar median: the odds table displays it and cool-down
+            # affinity keys off it. `durq` carries the distribution for the set builder.
+            s["dur"] = d["med"]
+            if d["q"][0] != d["q"][4]:
+                s["durq"] = d["q"]
     for s in shows_list:
         s.pop("tourid", None)
     return shows_list, list(songs.values()), plays
@@ -378,9 +405,72 @@ def mine_pairs(raw):
     return rules
 
 
+def mine_reentry(raw):
+    """Songs that appear more than once in a single night, and where the repeat lands.
+
+    Measured 2009+: ~22% of shows contain a reentrant song, but the behaviour is
+    confined to a short list (Tweezer, Hold Your Head Up, Alumni Blues, TMWSIY,
+    Down with Disease ...) and the placement is overwhelmingly a same-set sandwich
+    2-4 slots after the first pass, not a free-floating second appearance.
+    """
+    shows = defaultdict(list)
+    for r in raw:
+        if r["showdate"] < "2009-01-01":
+            continue
+        shows[r["showdate"]].append(r)
+
+    n_shows = len(shows)
+    appears = Counter()      # shows the song appeared in at all
+    reenters = Counter()     # shows the song reentered in
+    place = defaultdict(Counter)
+    sid_of = {}
+
+    for d, rs in shows.items():
+        rs = sorted(rs, key=lambda r: int(r["position"]))
+        idx = defaultdict(list)
+        for i, r in enumerate(rs):
+            idx[r["song"]].append((i, r["set"]))
+            sid_of[r["song"]] = r["songid"]
+        for nm, occ in idx.items():
+            appears[nm] += 1
+            if len(occ) < 2:
+                continue
+            reenters[nm] += 1
+            for a, b in zip(occ, occ[1:]):
+                gap = b[0] - a[0]
+                same = a[1] == b[1]
+                if gap == 1:
+                    k = "adj"
+                elif same and gap <= 4:
+                    k = "sandwich"
+                elif same:
+                    k = "far"
+                else:
+                    k = "crossset"
+                place[nm][k] += 1
+
+    out = []
+    for nm, n in reenters.items():
+        if n < 2:                      # need a repeated habit, not a one-off
+            continue
+        tot = sum(place[nm].values())
+        out.append({
+            "sid": sid_of.get(nm),
+            "name": nm,
+            # P(reenters | played) — the rate the set builder rolls against
+            "rate": round(n / max(1, appears[nm]), 3),
+            "n": n,
+            "place": {k: round(v / tot, 3) for k, v in place[nm].items()},
+        })
+    out.sort(key=lambda r: -r["n"])
+    print(f"  {len(out)} reentrant songs ({sum(r['n'] for r in out)} events / {n_shows} shows)")
+    return out
+
+
 def mine_cool_affinity(raw, durations):
     """How much more often a song follows a 10+ min jam in a set-2 mid slot."""
-    dnorm = {k.lower(): v for k, v in durations.items()}
+    # durations values are now {"med","q","n"} dicts; this pass only needs the median
+    dnorm = {k.lower(): v["med"] for k, v in durations.items()}
     dur = lambda n: dnorm.get(n.lower())
     seqs = defaultdict(list)
     for r in raw:
@@ -800,6 +890,8 @@ def main():
     runpos = mine_run_position(raw)
     setaff = mine_set_affinity(raw, pairs)
     cool = mine_cool_affinity(raw, durations)
+    print("Mining reentrant songs...")
+    reentry = mine_reentry(raw)
     touropen = mine_tour_openers(raw)
     closer = mine_closers(raw)
     jamrate = mine_jam_rate(raw)
@@ -827,6 +919,7 @@ def main():
         "__PLAYS_JSON__": esc(j(plays)),
         "__PAIRS_JSON__": j(pairs),
         "__COOL_JSON__": j(cool),
+        "__REENTRY_JSON__": j(reentry),
         "__DATELOCK_JSON__": j(locked),
         "__RUNPOS_JSON__": j(runpos),
         "__SETAFF_JSON__": j(setaff),
