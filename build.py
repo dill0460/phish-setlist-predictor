@@ -405,6 +405,19 @@ def mine_pairs(raw):
     return rules
 
 
+def build_stamp(template_text):
+    """UTC timestamp + a short hash of the template source.
+
+    Without this there is no way to tell a freshly deployed index.html from a
+    CDN-cached one: the template filename never changes, so a stale page looks
+    identical to a current one. The hash covers template-only edits, which would
+    not move a timestamp on their own if the data fetch were skipped.
+    """
+    import hashlib
+    h = hashlib.sha256(template_text.encode("utf-8")).hexdigest()[:8]
+    return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()) + " · " + h
+
+
 def mine_setcounts(raw):
     """Empirical distribution of distinct songs per set (2009+).
 
@@ -911,6 +924,21 @@ def main():
         print(f"  ! durations unavailable ({e}) — continuing without them", file=sys.stderr)
         durations = {}
 
+    # Dump the duration distributions to a plain CSV next to index.html. This is a
+    # diagnostic artifact, not an input: it makes the sampled-length tuning inspectable
+    # without needing a local Python install. Safe to delete; the build never reads it.
+    try:
+        import csv as _csv
+        with open("durations.csv", "w", newline="", encoding="utf-8") as fh:
+            w = _csv.writer(fh)
+            w.writerow(["song", "observations", "p10", "p25", "p50", "p75", "p90"])
+            for name in sorted(durations):
+                v = durations[name]
+                w.writerow([name, v["n"]] + list(v["q"]))
+        print(f"  wrote durations.csv ({len(durations)} songs)")
+    except Exception as e:
+        print(f"  ! could not write durations.csv ({e})", file=sys.stderr)
+
     print("Shaping...")
     shows_list, songs, plays = shape(raw, durations)
     assign_run_positions(shows_list)   # every historical show gets its real run position — known, not guessed
@@ -959,6 +987,7 @@ def main():
         "__PLAYS_JSON__": esc(j(plays)),
         "__PAIRS_JSON__": j(pairs),
         "__COOL_JSON__": j(cool),
+        "__BUILD_STAMP__": build_stamp(html),
         "__REENTRY_JSON__": j(reentry),
         "__SETCOUNTS_JSON__": j(setcounts),
         "__DATELOCK_JSON__": j(locked),

@@ -562,6 +562,7 @@
   </div>
 
   <p class="footer">Built by a phan, for phans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
+  <p class="footer" style="margin-top:6px;opacity:.75">Build <code>__BUILD_STAMP__</code></p>
 
 </div>
 
@@ -1256,6 +1257,19 @@ function newNightLengths() {
   DUR_CACHE = new Map();
 }
 
+// Count and length are the SAME phenomenon, not two independent draws. A 7-song set 1 is
+// seven long songs, not seven medium ones — drawing a low count and average lengths
+// independently produced 14-song / 129-minute nights against a real median of 18 / ~164.
+// Once the drawn counts and the minute budgets are both known, the required average song
+// length is determined, so the night's stretch factor is solved for rather than rolled.
+function setNightStretch(reqAvg, typicalAvg) {
+  if (!(reqAvg > 0) || !(typicalAvg > 0)) return;
+  const ratio = reqAvg / typicalAvg;
+  // ratio 1.0 -> median lengths, 1.4 -> ~p90, 0.7 -> ~p10
+  NIGHT_STRETCH = Math.max(0.05, Math.min(0.95, 0.5 + (ratio - 1) * 1.0));
+  DUR_CACHE = new Map();   // re-draw everything against the new factor
+}
+
 // piecewise-linear inverse CDF over the five-point summary
 function sampleQuantiles(q, u) {
   const pts = [0.10, 0.25, 0.50, 0.75, 0.90];
@@ -1493,13 +1507,19 @@ function buildSetlist(rows, n1, n2, ne) {
   // Set 1 carries more songs than set 2 in 81% of shows, and set-2 songs run longer
   // (9.2 min average vs 7.7). Fill toward per-set song targets rather than by minutes alone.
   const wantS1More = Math.random() < 0.81;
-  // Song count is now a HARD CAP, not a steering hint. The loop used to exit on minutes
-  // alone, so an 81-minute budget against a pool averaging 5.4 min/song (which is what the
-  // 1996 theme leaves you) produced a 15-song set 1 — the 98th percentile of real shows.
-  // n1/n2 are drawn from the measured distribution; minutes are now the derived quantity.
   const t1 = n1, t2 = wantS1More ? Math.min(n2, Math.max(4, n1 - 1)) : n2;
   const cap1 = t1 - s1o.length - s1c.length;      // slots left after opener/closer
   const cap2 = t2 - s2o.length - s2c.length;
+  // Solve the stretch factor: these counts have to fill these minute budgets, which fixes
+  // the average length the night needs. Set 1 songs average 7.7 min and set 2 songs 9.2.
+  if (slModeSample && t1 + t2 > 0) {
+    const reqAvg = (budget.s1 + budget.s2) / (t1 + t2);
+    const typicalAvg = (7.7 * t1 + 9.2 * t2) / (t1 + t2);
+    setNightStretch(reqAvg, typicalAvg);
+    // openers/closers were measured under the previous factor — re-measure them
+    m1 = minutesOf(s1o) + minutesOf(s1c);
+    m2 = minutesOf(s2o) + minutesOf(s2c);
+  }
   for (const r of rest) {
     const full1 = s1mid.length >= cap1, full2 = s2mid.length >= cap2;
     if (full1 && full2) break;
