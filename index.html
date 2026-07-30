@@ -95,6 +95,29 @@
   .tf-pills button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .tf-note { font-size: 12px; color: var(--text-muted); margin: 2px 0 10px; }
   .window-summary { font-size: 12.5px; color: var(--text-secondary); margin-top: 8px; }
+  /* Numbered group headings inside the settings drawer. The controls are ordered the way
+     someone actually reasons about them — which show, then which history, then how to weight
+     it, then the special cases, then the one knob that only changes a label. */
+  .grp { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+         color: var(--text-secondary); margin: 30px 0 12px; padding-bottom: 6px;
+         border-bottom: 1px solid var(--border); }
+  .grp:first-of-type { margin-top: 10px; }
+  .dbody .controls-row { margin-bottom: 6px; }
+  .dbody .tf-strip { margin-bottom: 8px; }
+  .dbody .tf-note { margin: 0 0 14px; }
+  #nextDateNote { margin-bottom: 2px; }
+  .dbody #calSummary { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .grp .sub { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); margin-left: 8px; }
+  /* Song-odds tables: the song name is the column people read, so give it the room and take it
+     back off the ten numeric columns, whose headers wrap instead of forcing the table wide. */
+  /* Headers wrap at spaces only — never mid-word. "CALIB / RATE / D / PROB / ABILIT / Y" is
+     what breaking anywhere produces at these widths, so the labels themselves were shortened
+     instead and the break is left to fall between words. */
+  .table-wrap table th { white-space: normal; overflow-wrap: normal; word-break: keep-all; vertical-align: bottom; }
+  #predictHeadRow th:first-child, #freqHeadRow th:first-child { width: 25%; min-width: 170px; }
+  #predictHeadRow th:not(:first-child), #freqHeadRow th:not(:first-child) { font-size: 10.5px; line-height: 1.3; padding-left: 7px; padding-right: 7px; }
+  #tbodyPredict td:first-child, #tbodyFreq td:first-child { width: 25%; min-width: 170px; white-space: normal; line-height: 1.35; }
+  #tbodyPredict td:not(:first-child), #tbodyFreq td:not(:first-child) { padding-left: 7px; padding-right: 7px; }
   .window-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
   /* ---------- tabs ---------- */
@@ -168,7 +191,7 @@
   .freq-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--seq-100); border-radius: 3px; z-index: 0; }
   .pred-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--pred-100); border-radius: 3px; z-index: 0; }
   .freq-text, .pred-text { position: relative; z-index: 1; }
-  .table-wrap { max-height: 560px; overflow-y: auto; }
+  .table-wrap { max-height: 560px; overflow-y: auto; overflow-x: auto; }
   .note { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
   .count-note { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
   .slot-tag { display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-muted); }
@@ -225,67 +248,41 @@
   <div class="hero">
     <h1>The Helping Phriendly Setlist</h1>
     <p class="tagline">What are they gonna play?</p>
-    <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>2,027 shows</b> and <b>967 songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
+    <p class="subtitle" id="heroSubtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>2,027 shows</b> and <b>967 songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
+    <p class="subtitle" id="heroFlags" style="margin-top:-8px"></p>
   </div>
-
-  <div class="tf-strip">
-    <span class="tf-label">Base the odds on:</span>
-    <div class="tf-pills">
-      <button id="tf2">Last 2 years</button>
-      <button id="tf5" class="active">Last 5 years</button>
-      <button id="tf10">Last 10 years</button>
-      <button id="tfAll">Every show since '83</button>
-    </div>
-  </div>
-  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
-  <p class="tf-note">Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
 
   <details id="advWrap">
-    <summary>Advanced settings</summary>
+    <summary>Settings</summary>
     <div class="dbody">
-      <p>Fine-tuning knobs. The defaults are the exact settings this tool's accuracy was tested at, so nothing here needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
-      <div class="controls-row" style="margin-top:4px;">
-        <div class="field hidden" id="upcomingField">
-          <label for="upcoming">Got a real show coming up?
-            <span class="hint" title="Pick a real, already-announced Phish show from the tour schedule. Everything else below (show date, run position) fills itself in.">?</span>
-          </label>
-          <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
-        </div>
+      <p>Every default here is the exact setting this tool's accuracy was tested at, so nothing needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
+
+      <p class="grp">1 &middot; Which show are we predicting?</p>
+      <div class="controls-row">
         <div class="field">
-          <label for="nextDate">Predicting a specific date? <span style="text-transform:none;font-weight:400">(optional)</span>
-            <span class="hint" title="Leave this blank to just predict 'whatever show is next.' Only set it if you want a particular night. If you also move the stats cutoff below into the past, this fills itself in with whatever show really happened next back then &mdash; you can't accidentally predict a date that contradicts your own stats.">?</span>
+          <label for="nextDate">Show date <span style="text-transform:none;font-weight:400">(optional)</span>
+            <span class="hint" title="Leave blank to predict the next scheduled show. Set it to test the model against a night that already happened — move the stats cutoff in section 2 into the past first, and this fills itself in with whatever show really happened next back then, so you can't accidentally predict a date that contradicts your own stats.">?</span>
           </label>
           <input type="date" id="nextDate">
           <div class="note" id="nextDateNote" style="margin-top:2px;"></div>
         </div>
-        <div class="field" id="rollingEndField">
-          <label for="refEnd">Use stats through
-            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to today, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then &mdash; useful for testing it against a show that already happened.">?</span>
-          </label>
-          <input type="date" id="refEnd">
-        </div>
-        <div class="field hidden" id="customEndField">
-          <label for="customEnd">Use stats through</label>
-          <input type="date" id="customEnd">
-        </div>
-        <div class="field" id="runPosField">
-          <label for="runPos">Opening, middle, or closing night? <span style="text-transform:none;font-weight:400">(optional)</span>
-            <span class="hint" title="A multi-night run's opening, middle, and closing shows each tend to favor different songs. Usually filled in for you automatically &mdash; this only matters for a hypothetical date we can't match to a real show.">?</span>
-          </label>
-          <select id="runPos">
-            <option value="none" selected>Don't know / doesn't apply</option>
-            <option value="tour">First show of a tour</option>
-            <option value="open">Opening night of a run</option>
-            <option value="middle">Middle night</option>
-            <option value="close">Closing night</option>
-          </select>
-        </div>
-        <div class="note" id="runPosNote" style="flex-basis:100%; margin-top:-6px;"></div>
       </div>
-      <div class="controls-row" style="margin-top:14px;">
+
+      <p class="grp">2 &middot; Which history counts?<span class="sub">the window the odds are measured over</span></p>
+      <div class="tf-strip">
+        <span class="tf-label">Base the odds on:</span>
+        <div class="tf-pills">
+          <button id="tf2">Last 2 years</button>
+          <button id="tf5" class="active">Last 5 years</button>
+          <button id="tf10">Last 10 years</button>
+          <button id="tfAll">Every show since '83</button>
+        </div>
+      </div>
+      <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
+      <div class="controls-row">
         <div class="field">
-          <label>How far back do the stats look?
-            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. Almost everyone wants Rolling &mdash; the pill buttons at the top of the page set this for you.">?</span>
+          <label>Window type
+            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. The pill buttons above are shortcuts for Rolling.">?</span>
           </label>
           <div class="mode-toggle">
             <button id="modeRolling" class="active">Rolling (years back)</button>
@@ -294,7 +291,7 @@
         </div>
         <div class="field" id="rollingYearsField">
           <label for="yearsBack">Years back
-            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the buttons at the top of the page are shortcuts for this. Testing found this barely changes accuracy either way &mdash; recency weighting matters more.">?</span>
+            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the pills above are shortcuts for this. Testing found this barely changes accuracy either way — recency weighting matters more.">?</span>
           </label>
           <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
         </div>
@@ -302,27 +299,23 @@
           <label for="customStart">Start date</label>
           <input type="date" id="customStart">
         </div>
-        <div class="field">
-          <label for="bustGap">Flag a returning song as a "bustout" after
-            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist &mdash; it doesn't change that song's actual odds of being picked at all.">?</span>
+        <div class="field" id="rollingEndField">
+          <label for="refEnd">Use stats through
+            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to the latest show on record, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then — useful for testing it against a show that already happened.">?</span>
           </label>
-          <select id="bustGap">
-            <option value="50">50+ missed shows</option>
-            <option value="75">75+ missed shows</option>
-            <option value="100" selected>100+ missed shows</option>
-            <option value="150">150+ missed shows</option>
-            <option value="200">200+ missed shows</option>
-          </select>
+          <input type="date" id="refEnd">
         </div>
-        <div class="field">
-          <label for="themeYear">Themed night? Play it like a year
-            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
-          </label>
-          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
+        <div class="field hidden" id="customEndField">
+          <label for="customEnd">Use stats through</label>
+          <input type="date" id="customEnd">
         </div>
+      </div>
+
+      <p class="grp">3 &middot; How much do recent shows count?</p>
+      <div class="controls-row">
         <div class="field">
-          <label for="recency">Weight recent shows...
-            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses &mdash; change it to see how predictions shift, not because it's wrong.">?</span>
+          <label for="recency">Weight recent shows&hellip;
+            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses — change it to see how predictions shift, not because it's wrong.">?</span>
           </label>
           <select id="recency">
             <option value="0">Not at all (every show counts equally)</option>
@@ -332,10 +325,47 @@
           </select>
         </div>
       </div>
+
+      <p class="grp">4 &middot; Special cases</p>
+      <div class="controls-row">
+        <div class="field">
+          <label for="themeYear">Themed night? Play it like a year
+            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
+          </label>
+          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
+        </div>
+      </div>
+
+      <p class="grp">5 &middot; Display only<span class="sub">changes a label, never the odds</span></p>
+      <div class="controls-row">
+        <div class="field">
+          <label for="bustGap">Flag a returning song as a &ldquo;bustout&rdquo; after
+            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist, and which songs appear on the Bustout watch chart — it doesn't change any song's odds of being picked.">?</span>
+          </label>
+          <select id="bustGap">
+            <option value="50">50+ missed shows</option>
+            <option value="75">75+ missed shows</option>
+            <option value="100" selected>100+ missed shows</option>
+            <option value="150">150+ missed shows</option>
+            <option value="200">200+ missed shows</option>
+          </select>
+        </div>
+      </div>
+
       <div class="window-summary" id="calSummary"></div>
     </div>
   </details>
-  <div class="window-summary" id="windowSummary"></div>
+  <!-- Run position is derived from the schedule whenever the date matches a real or announced
+       show, which is nearly always. The manual dropdown that used to sit in Advanced only ever
+       appeared for a made-up date, so it was removed; this hidden field is what syncRunPos()
+       writes the detected value into. -->
+  <select id="runPos" class="hidden" aria-hidden="true" tabindex="-1">
+    <option value="none" selected>none</option>
+    <option value="tour">tour</option>
+    <option value="open">open</option>
+    <option value="middle">middle</option>
+    <option value="close">close</option>
+  </select>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="setlist">Predicted Setlist</button>
@@ -365,7 +395,7 @@
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Song</th><th>Weighted Freq</th><th>Current Gap</th><th>Avg Gap</th><th>Gap vs Avg</th><th>Gap Mult</th><th>Raw Score</th><th>Calibrated Probability</th><th>Most Common Slot</th>
+              <th>#</th><th>Song</th><th>Wtd. freq</th><th>Gap now</th><th>Avg gap</th><th>Gap vs avg</th><th>Gap mult</th><th>Raw score</th><th>Prob.</th><th>Usual slot</th>
             </tr>
           </thead>
           <tbody id="mlBody"></tbody>
@@ -442,8 +472,20 @@
         <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
       </div>
       <div class="card">
-        <p class="chart-title" id="bustTitle">Bustout watch</p>
-        <div id="bustChart"></div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;">
+          <p class="chart-title" id="bustTitle" style="margin:0;">Bustout watch</p>
+          <label for="bustGapLocal" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-secondary);white-space:nowrap;">
+            Flag after
+            <select id="bustGapLocal" style="font-family:inherit;font-size:11.5px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);">
+              <option value="50">50+ missed shows</option>
+              <option value="75">75+ missed shows</option>
+              <option value="100" selected>100+ missed shows</option>
+              <option value="150">150+ missed shows</option>
+              <option value="200">200+ missed shows</option>
+            </select>
+          </label>
+        </div>
+        <div id="bustChart" style="margin-top:10px;"></div>
       </div>
       <div class="card">
         <div class="search-row">
@@ -455,16 +497,16 @@
             <thead>
               <tr id="predictHeadRow">
                 <th data-key="name">Song</th>
-                <th data-key="pred" class="sorted">Calibrated Probability</th>
-                <th data-key="freq">Weighted Freq</th>
-                <th data-key="gap">Current Gap</th>
-                <th data-key="avgGap">Avg Gap</th>
-                <th data-key="gapRatio">Gap vs Avg</th>
-                <th data-key="gapMult">Gap Mult</th>
-                <th data-key="dur">Median Length</th>
-                <th data-key="coolAff">Follows-a-Jam</th>
-                <th data-key="bestSlotP">Most Common Slot</th>
-                <th data-key="last">Last Played</th>
+                <th data-key="pred" class="sorted" title="Calibrated probability">Prob.</th>
+                <th data-key="freq" title="Recency-weighted frequency">Wtd. freq</th>
+                <th data-key="gap" title="Shows since it was last played">Gap now</th>
+                <th data-key="avgGap" title="This song's own average gap">Avg gap</th>
+                <th data-key="gapRatio" title="Current gap divided by its average gap">Gap vs avg</th>
+                <th data-key="gapMult" title="Empirical multiplier applied for that gap">Gap mult</th>
+                <th data-key="dur" title="Median performance length">Length</th>
+                <th data-key="coolAff" title="How much more often it follows a 10+ minute jam">Jam follow</th>
+                <th data-key="bestSlotP" title="The slot it turns up in most often">Usual slot</th>
+                <th data-key="last">Last played</th>
               </tr>
             </thead>
             <tbody id="tbodyPredict"></tbody>
@@ -489,12 +531,12 @@
             <thead>
               <tr id="freqHeadRow">
                 <th data-key="name">Song</th>
-                <th data-key="showsPlayed">Shows Played</th>
-                <th data-key="showsInWindow">Shows in Window</th>
+                <th data-key="showsPlayed">Shows played</th>
+                <th data-key="showsInWindow">Shows in window</th>
                 <th data-key="freq" class="sorted">Frequency</th>
-                <th data-key="onceEvery">Once Every</th>
+                <th data-key="onceEvery">Once every</th>
                 <th data-key="debut">Debut</th>
-                <th data-key="last">Last Played</th>
+                <th data-key="last">Last played</th>
                 <th data-key="gap">Gap</th>
               </tr>
             </thead>
@@ -562,7 +604,7 @@
   </div>
 
   <p class="footer">Built by a phan, for phans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
-  <p class="footer" style="margin-top:6px;opacity:.75">Build <code>2026-07-30 13:21 UTC · d201d6c6</code></p>
+  <p class="footer" style="margin-top:6px;opacity:.75">Build <code>2026-07-30 08:54 MDT · bde85d0d</code></p>
 
 </div>
 
@@ -896,9 +938,9 @@ let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
 const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
- 'customStartField','customEndField','recency','windowSummary','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
+ 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
- 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','runPosField','nextDateNote','themeYear',
+ 'countNotePredict','countNoteFreq','rerollField','nextDateNote','themeYear','bustGapLocal','heroSubtitle','heroFlags',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
 
 els.refEnd.value = LATEST_DATE; els.refEnd.max = LATEST_DATE;
@@ -948,25 +990,17 @@ function syncNextDate() {
 // a show that already happened, or one on the announced schedule. Both carry a real runPos/runN
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
+let RUNPOS_SOURCE = null;
 function syncRunPos() {
   const d = els.nextDate.value;
   let match = null, source = null;
   if (d && UPCOMING_BY_DATE.has(d)) { match = UPCOMING[UPCOMING_BY_DATE.get(d)]; source = 'scheduled'; }
   else if (d && DATE_IDX.has(d)) { match = SHOWS[DATE_IDX.get(d)]; source = 'history'; }
-  if (match && match.runPos && match.runPos !== 'none') {
-    // Known for a fact — no need to show a dropdown for something we're not guessing at.
-    els.runPos.value = match.runPos;
-    els.runPosField.classList.add('hidden');
-    els.runPosNote.textContent = source === 'scheduled'
-      ? `${match.runN} at ${match.venue} — already factored in.`
-      : `This show already happened — ${match.runN} at ${match.venue} — already factored in.`;
-    els.runPosNote.classList.add('auto');
-  } else {
-    if (match) els.runPos.value = 'none';   // a real single-night show — nothing to pick
-    els.runPosField.classList.remove('hidden');
-    els.runPosNote.textContent = '';
-    els.runPosNote.classList.remove('auto');
-  }
+  // Run position is a fact we look up, never a question we ask. The manual dropdown is gone:
+  // it only ever appeared for a date matching no real or scheduled show, and in that case the
+  // honest answer is that we don't know, which is what 'none' means.
+  els.runPos.value = (match && match.runPos) ? match.runPos : 'none';
+  RUNPOS_SOURCE = match ? source : null;
 }
 
 function getSettings() {
@@ -2160,9 +2194,14 @@ function render() {
   const targetLabel = target
     ? `${target.venue}, ${target.city} &mdash; ${target.date}${target.runN && target.runPos && target.runPos !== 'none' ? ` (${target.runN})` : ''}`
     : (d ? d : 'the next show (nothing announced yet)');
-  els.windowSummary.innerHTML = `Predicting: <b>${targetLabel}</b> &nbsp;&bull;&nbsp; using stats from <b>${startDate}</b> to <b>${st.end}</b> (<b>${showsInFullWindow}</b> shows)`
-    + (runMates.size ? `<br><span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
-    + (themePool ? `<br><span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
+  // One status line, in the subtitle, above the fold — not a separate strip repeating it.
+  els.heroSubtitle.innerHTML = `Predicting <b>${targetLabel}</b>, from the <b>${showsInFullWindow}</b> shows between <b>${startDate}</b> and <b>${st.end}</b>. `
+    + `A <b>statistically honest guess</b> at the next Phish setlist, built from all <b>2,027 shows</b> and <b>967 songs</b> since 1983 and refreshed daily from phish.net &mdash; it knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.`;
+  // Conditions that materially change the prediction get their own line, but only while active.
+  els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
+    + (runMates.size && themePool ? '<br>' : '')
+    + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
+  els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
   els.calSummary.innerHTML = cal.n > 0
     ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings`
@@ -2299,7 +2338,8 @@ els.modeCustom.addEventListener('click', () => {
   syncNextDate();
   render();
 });
-[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.bustGap, els.runPos, els.themeYear].forEach(el => el.addEventListener('change', render));
+[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.themeYear].forEach(el => el.addEventListener('change', render));
+els.bustGap.addEventListener('change', () => syncBustGap(els.bustGap));   // mirrors to the copy beside the chart, then renders
 // Themed-year options, newest first — only years the band actually played.
 for (const y of [...SONGS_BY_YEAR.keys()].sort().reverse()) {
   const o = document.createElement('option');
@@ -2361,24 +2401,22 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// Scheduled shows come from phish.net and refresh whenever the site rebuilds. Picking one
-// fills in the date and works out where it sits in its run.
-if (UPCOMING.length) {
-  els.upcomingField.classList.remove('hidden');
-  UPCOMING.forEach((s, i) => {
-    const o = document.createElement('option');
-    o.value = String(i);
-    o.textContent = `${s.date} — ${s.venue}, ${s.city}${s.runPos && s.runPos !== 'none' ? ` (${s.runN})` : ''}`;
-    els.upcoming.appendChild(o);
-  });
-  els.upcoming.addEventListener('change', () => {
-    const s = UPCOMING[+els.upcoming.value];
-    if (!s) return;
-    els.nextDate.value = s.date;
-    syncRunPos();
-    render();
-  });
+// The "pick a scheduled show" dropdown was removed. It could only select a show FURTHER OUT
+// than the next one, and doing that changes almost nothing real: gap is counted in SHOWS, not
+// days, so every song carries the identical gap and the identical probability — all that moves
+// is the run-position multiplier and the date-lock check. That reads like a deeper forecast
+// than it is. The next scheduled show is still filled in automatically by syncNextDate(), which
+// is where the run position ("night 2 of 5") comes from.
+
+// The bustout threshold appears twice — in settings and beside the Bustout watch chart — so the
+// two stay in lockstep. Neither is authoritative; whichever the user touches wins.
+function syncBustGap(from) {
+  const v = from.value;
+  if (els.bustGap.value !== v) els.bustGap.value = v;
+  if (els.bustGapLocal.value !== v) els.bustGapLocal.value = v;
+  render();
 }
+els.bustGapLocal.addEventListener('change', () => syncBustGap(els.bustGapLocal));
 
 // ---- song detail card: click any song name for its phish.net-style stat sheet ----
 const pnetSlug = name => name.toLowerCase().replace(/['’.]/g, '').replace(/&/g, 'and')
