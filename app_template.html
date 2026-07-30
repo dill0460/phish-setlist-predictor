@@ -630,6 +630,23 @@ const COOL_AFF = __COOL_JSON__;     // songid -> how much more often it follows 
 // 2009+: 22% of shows contain one, but 85% of repeats are a same-set sandwich 2-4 slots on.
 const REENTRY = __REENTRY_JSON__;
 const REENTRY_BY_SID = new Map((REENTRY || []).map(r => [r.sid, r]));
+// Measured distribution of distinct songs per set (2009+), as a CDF per set.
+// Set 1 median is 10 and the 98th percentile is 15 — the old code targeted a fixed
+// median and then let the minute budget override it, so a short-song pool overshot badly.
+const SET_COUNTS = __SETCOUNTS_JSON__;
+
+// Draw a song count for one set from its real distribution.
+function sampleSetCount(key, fallback) {
+  const t = SET_COUNTS && SET_COUNTS[key];
+  if (!t || !t.cdf || !t.cdf.length) return fallback;
+  const u = Math.random();
+  for (const [n, p] of t.cdf) if (u <= p) return n;
+  return t.cdf[t.cdf.length - 1][0];
+}
+function medSetCount(key, fallback) {
+  const t = SET_COUNTS && SET_COUNTS[key];
+  return t && t.med ? t.med : fallback;
+}
 const SET_MIN = __SETMIN_JSON__;    // typical set minutes (s1/s2/e), each with its own measured
                                      // stdev (s1Sd/s2Sd/eSd) and 5th-95th percentile bounds,
                                      // recomputed from 2022+ shows on every build
@@ -1121,9 +1138,17 @@ function compute() {
 
   const recent = SHOWS.slice(Math.max(0, asOfIdx - 49), asOfIdx + 1);
   const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? b[Math.floor(b.length / 2)] : 0; };
-  const n1 = med(recent.map(s => s.n1)) || 9;
-  const n2 = med(recent.map(s => s.n2)) || 7;
-  const ne = med(recent.map(s => s.ne)) || 2;
+  // Counts are DRAWN from the measured per-set distribution in realistic mode, so night
+  // length actually varies the way real shows do (set 2 runs 4 songs 1% of the time and 8
+  // songs 22% of the time). The ranked-list mode stays deterministic on the median.
+  // The local median of the last 50 shows is kept as the fallback if the mined table
+  // is missing, and as a sanity floor so a tiny sample can't produce a 1-song set.
+  const n1local = med(recent.map(s => s.n1)) || 9;
+  const n2local = med(recent.map(s => s.n2)) || 7;
+  const nelocal = med(recent.map(s => s.ne)) || 2;
+  const n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
+  const n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
+  const ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
   return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
@@ -1468,10 +1493,16 @@ function buildSetlist(rows, n1, n2, ne) {
   // Set 1 carries more songs than set 2 in 81% of shows, and set-2 songs run longer
   // (9.2 min average vs 7.7). Fill toward per-set song targets rather than by minutes alone.
   const wantS1More = Math.random() < 0.81;
-  const t1 = Math.max(6, Math.round(budget.s1 / 7.7));
-  const t2raw = Math.max(5, Math.round(budget.s2 / 9.2));
-  const t2 = wantS1More ? Math.min(t2raw, t1 - 1) : t2raw;
+  // Song count is now a HARD CAP, not a steering hint. The loop used to exit on minutes
+  // alone, so an 81-minute budget against a pool averaging 5.4 min/song (which is what the
+  // 1996 theme leaves you) produced a 15-song set 1 — the 98th percentile of real shows.
+  // n1/n2 are drawn from the measured distribution; minutes are now the derived quantity.
+  const t1 = n1, t2 = wantS1More ? Math.min(n2, Math.max(4, n1 - 1)) : n2;
+  const cap1 = t1 - s1o.length - s1c.length;      // slots left after opener/closer
+  const cap2 = t2 - s2o.length - s2c.length;
   for (const r of rest) {
+    const full1 = s1mid.length >= cap1, full2 = s2mid.length >= cap2;
+    if (full1 && full2) break;
     if (m1 >= budget.s1 && m2 >= budget.s2) break;
     // Overshoot guard: a set's last draw used to be allowed to blow past the budget by its
     // whole length (a 19-minute YEM landing in a set already at its cap → a 101-minute
@@ -1488,16 +1519,18 @@ function buildSetlist(rows, n1, n2, ne) {
     }
     const gap1 = (budget.s1 - m1) / budget.s1;      // minute deficit as a share of the budget
     const gap2 = (budget.s2 - m2) / budget.s2;
-    const cnt1 = (t1 - 2) - s1mid.length;           // openers/closers already take two slots
-    const cnt2 = (t2 - 2) - s2mid.length;
+    const cnt1 = cap1 - s1mid.length;               // slots remaining, not a soft target
+    const cnt2 = cap2 - s2mid.length;
     const lengthPull = (durOf(r) - 8.4) * -0.05;    // short songs drift to set 1
     let toS1;
     if (gap1 <= 0 && gap2 <= 0) break;
+    else if (full1) toS1 = false;                   // count cap outranks the minute deficit
+    else if (full2) toS1 = true;
     else if (gap1 <= 0) toS1 = false;
     else if (gap2 <= 0) toS1 = true;
     else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) + pull + lengthPull > 0;
-    if (toS1 && !fits1) toS1 = false;
-    if (!toS1 && !fits2) { if (fits1) toS1 = true; else continue; }
+    if (toS1 && (!fits1 || full1)) toS1 = false;
+    if (!toS1 && (!fits2 || full2)) { if (fits1 && !full1) toS1 = true; else continue; }
     // Set 2 carrying more songs than set 1 looks plainly wrong, so it simply can't happen.
     if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0 && fits1;
     if (!toS1 && s2mid.length + 1 > s1mid.length) continue;
@@ -1510,8 +1543,12 @@ function buildSetlist(rows, n1, n2, ne) {
   // anchorless and burn a slot before the final invariant pass strips them back out.
   const spare = rows.filter(r => r.pred > 0 && !used.has(r.id) && !pool.includes(r) && !r.terminalOnly && !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
     .sort((a, b) => b.pred - a.pred);
-  const topUp = (arr, getM, setM, want, preferLong) => {
-    while (getM() < want && spare.length) {
+  // `cap` is the drawn song count for the set. The top-up exists to stop a set finishing
+  // absurdly short on minutes, but it must never breach the count — that was the second
+  // door the 15-song set 1 came through. Once the set is at its drawn count the pass stops,
+  // even if the minute floor hasn't been reached: a short set of long jams is a real night.
+  const topUp = (arr, getM, setM, want, preferLong, cap) => {
+    while (getM() < want && spare.length && (cap == null || arr.length < cap)) {
       // Prefer a song that lands the set near its target instead of one that blasts past
       // it; if nothing fits, take the shortest available to minimise the overshoot.
       const room = want - getM() + 6;
@@ -1532,9 +1569,9 @@ function buildSetlist(rows, n1, n2, ne) {
       arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
     }
   };
-  topUp(s1mid, () => m1, v => { m1 = v; }, Math.max(60, budget.s1 * 0.92), false);
-  topUp(s2mid, () => m2, v => { m2 = v; }, Math.max(56, budget.s2 * 0.92), true);
-  while (s2mid.length > s1mid.length && spare.length) { const r = spare.shift(); s1mid.push(r); used.add(r.id); m1 += durOf(r); }
+  topUp(s1mid, () => m1, v => { m1 = v; }, Math.max(60, budget.s1 * 0.92), false, cap1);
+  topUp(s2mid, () => m2, v => { m2 = v; }, Math.max(56, budget.s2 * 0.92), true, cap2);
+  while (s2mid.length > s1mid.length && spare.length && s1mid.length < cap1) { const r = spare.shift(); s1mid.push(r); used.add(r.id); m1 += durOf(r); }
 
   // Bonds survive every top-up: an anchor that slipped in late still brings its partner.
   // Mike's Song plays without Weekapaug Groove in only 4% of shows since 1990.

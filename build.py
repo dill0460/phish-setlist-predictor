@@ -405,6 +405,44 @@ def mine_pairs(raw):
     return rules
 
 
+def mine_setcounts(raw):
+    """Empirical distribution of distinct songs per set (2009+).
+
+    The generator previously targeted the MEDIAN of the last 50 shows — a fixed
+    10/8/2 with no variance — and then ignored it anyway, filling each set to a
+    minute budget instead. With a short-song pool (a 1996-themed night) that
+    produced 15-song first sets, which sit at the 98th percentile of reality.
+    Sampling from this table instead gives the real spread, including the short
+    jam-heavy second sets the old code could never generate.
+    """
+    shows = defaultdict(lambda: defaultdict(set))
+    for r in raw:
+        if r["showdate"] < "2009-01-01":
+            continue
+        st = r["set"]
+        key = "e" if st in ("e", "E") else ("s%s" % st if st in ("1", "2") else None)
+        if key:
+            shows[r["showdate"]][key].add(r["songid"])
+
+    out = {}
+    for key in ("s1", "s2", "e"):
+        c = Counter()
+        for d, sets in shows.items():
+            n = len(sets.get(key, ()))
+            if n:
+                c[n] += 1
+        tot = sum(c.values()) or 1
+        # cumulative CDF as [count, cumulative_probability] pairs
+        cdf, acc = [], 0.0
+        for n in sorted(c):
+            acc += c[n] / tot
+            cdf.append([n, round(acc, 5)])
+        med = sorted(c.elements())[tot // 2] if tot else 0
+        out[key] = {"cdf": cdf, "med": med, "n": tot}
+        print(f"  {key}: median {med}, {len(cdf)} distinct counts, n={tot}")
+    return out
+
+
 def mine_reentry(raw):
     """Songs that appear more than once in a single night, and where the repeat lands.
 
@@ -892,6 +930,8 @@ def main():
     cool = mine_cool_affinity(raw, durations)
     print("Mining reentrant songs...")
     reentry = mine_reentry(raw)
+    print("Mining set-count distributions...")
+    setcounts = mine_setcounts(raw)
     touropen = mine_tour_openers(raw)
     closer = mine_closers(raw)
     jamrate = mine_jam_rate(raw)
@@ -920,6 +960,7 @@ def main():
         "__PAIRS_JSON__": j(pairs),
         "__COOL_JSON__": j(cool),
         "__REENTRY_JSON__": j(reentry),
+        "__SETCOUNTS_JSON__": j(setcounts),
         "__DATELOCK_JSON__": j(locked),
         "__RUNPOS_JSON__": j(runpos),
         "__SETAFF_JSON__": j(setaff),
