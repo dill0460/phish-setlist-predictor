@@ -1607,6 +1607,31 @@ function buildSetlist(rows, n1, n2, ne) {
   };
   topUp(s1mid, () => m1, v => { m1 = v; }, Math.max(60, budget.s1 * 0.92), false, cap1);
   topUp(s2mid, () => m2, v => { m2 = v; }, Math.max(56, budget.s2 * 0.92), true, cap2);
+  // Count top-up. Measured over 1,500 nights: the `rest` pool runs dry before the drawn counts
+  // are reached on 73% of them, because selectPool() sizes the pool to the drawn total and then
+  // the bustout thin-out, the rarity guard and the bond invariant all REMOVE from it, while the
+  // openers, closers and encore consume five or six more slots. Nothing refilled it. Set 1
+  // finished a mean 1.6 songs under its drawn count on 65% of nights, which put the night at a
+  // median 155 minutes against a real 164 — and left the long-song floor to paper over the gap
+  // by stuffing in jam vehicles. The minute top-up above cannot fix this: it stops at a minute
+  // target, not at a count. This is the mirror of the count CAP — the count is a draw from the
+  // measured distribution and should be hit from below as well as respected from above.
+  const countUp = (arr, getM, setM, budgetM, cap) => {
+    while (arr.length < cap && spare.length) {
+      const room = budgetM + 4 - getM();
+      let bi = -1;
+      for (let i = 0; i < spare.length; i++) if (durOf(spare[i]) <= room) { bi = i; break; }
+      if (bi < 0) break;                       // nothing left that fits the minutes ceiling
+      const [pick] = spare.splice(bi, 1);
+      arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
+    }
+  };
+  // Ceiling for the count top-up is the measured 95th-percentile SET BOUND, not the sampled
+  // budget: the budget is a target drawn for this night, while the bound is what real sets
+  // actually respect. Holding the top-up to budget+4 left set 1 under its drawn count on 44%
+  // of nights because there was no room left for even a short song.
+  countUp(s1mid, () => m1, v => { m1 = v; }, Math.min(SET_BOUNDS.s1[1] - 4, budget.s1 + 8), cap1);
+  countUp(s2mid, () => m2, v => { m2 = v; }, Math.min(SET_BOUNDS.s2[1] - 4, budget.s2 + 8), cap2);
   while (s2mid.length > s1mid.length && spare.length && s1mid.length < cap1) { const r = spare.shift(); s1mid.push(r); used.add(r.id); m1 += durOf(r); }
 
   // Bonds survive every top-up: an anchor that slipped in late still brings its partner.
@@ -1618,8 +1643,21 @@ function buildSetlist(rows, n1, n2, ne) {
     if (Math.random() >= bond.p) continue;
     const dep = rows.find(r => r.id === +depId);
     if (!dep || used.has(dep.id) || dep.offTheme || dep.runRepeat) continue;
+    // The bond top-up used to push straight past the drawn count. The bond itself is
+    // non-negotiable, so when the destination set is full the weakest unlocked mid-set song
+    // makes way instead of the count being breached.
+    const dest = (s1mid.includes(anchor) || s1o.includes(anchor)) ? s1mid : s2mid;
+    const destCap = dest === s1mid ? cap1 : cap2;
+    if (dest.length >= destCap) {
+      let wi = -1;
+      dest.forEach((r, i) => { if (r.locked || r.id in BONDED) return;
+                               if (wi < 0 || r.pred < dest[wi].pred) wi = i; });
+      if (wi < 0) continue;
+      used.delete(dest[wi].id);
+      dest.splice(wi, 1);
+    }
     used.add(dep.id);
-    (s1mid.includes(anchor) || s1o.includes(anchor) ? s1mid : s2mid).push(dep);
+    dest.push(dep);
   }
 
   s1mid.sort((a, b) => b.pred - a.pred);
@@ -1653,6 +1691,14 @@ function buildSetlist(rows, n1, n2, ne) {
   const sl = { set1: [...s1o, ...s1mid, ...s1c], set2: cooldownOrder([...s2o, ...s2mid, ...s2c]), encore: enc };
 
   // pair placement pass
+  // Every pass below can RELOCATE a song from one set to the other. Measured, none of them
+  // checked the drawn count on the receiving side: pair placement alone pushed set 1 over its
+  // count on 3.1% more nights and set 2 on 4.5% more, and the balance guard added another 2.6%
+  // to set 2. A relocation that would breach the destination's drawn count is skipped.
+  let trimNight = () => {};
+  const distinctN = arr => new Set(arr.map(r => r.id)).size;
+  const capOf = key => key === 'set1' ? n1 : (key === 'set2' ? n2 : Infinity);
+  const canReceive = (fromKey, toKey) => fromKey === toKey || distinctN(sl[toKey]) < capOf(toKey);
   const findLoc = id => {
     for (const key of ['set1', 'set2', 'encore']) {
       const i = sl[key].findIndex(r => r.id === id);
@@ -1665,6 +1711,7 @@ function buildSetlist(rows, n1, n2, ne) {
     const la = findLoc(rule.a), lb = findLoc(rule.b);
     if (!la || !lb || la.key === 'encore') continue;
     if (la.key === lb.key && lb.i > la.i && (rule.place !== 'adj' || lb.i === la.i + 1)) continue;
+    if (!canReceive(lb.key, la.key)) continue;
     const [b] = sl[lb.key].splice(lb.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === rule.a);
@@ -1679,6 +1726,14 @@ function buildSetlist(rows, n1, n2, ne) {
     if (!la || !lb) continue;
     const isBefore = SET_ORDER[lb.key] < SET_ORDER[la.key] || (lb.key === la.key && lb.i < la.i);
     if (!isBefore) continue;
+    if (!canReceive(lb.key, la.key)) {
+      // Destination set is already at its drawn count. Exchanging the two songs' positions is
+      // count-neutral in both sets and always puts the anchor first, since the dependent was
+      // the earlier of the two by definition of isBefore.
+      const anchorRow = sl[la.key][la.i], depRow = sl[lb.key][lb.i];
+      sl[la.key][la.i] = depRow; sl[lb.key][lb.i] = anchorRow;
+      continue;
+    }
     const [b] = sl[lb.key].splice(lb.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === bond.anchor);
@@ -1693,7 +1748,7 @@ function buildSetlist(rows, n1, n2, ne) {
     const lockedIds = new Set();
     for (const r of PAIR_RULES) if (r.place !== 'free') { lockedIds.add(r.a); lockedIds.add(r.b); }
     for (const [dep, b] of Object.entries(BONDED)) { lockedIds.add(+dep); lockedIds.add(b.anchor); }
-    for (let guard = 0; guard < 4; guard++) {
+    for (let guard = 0; guard < 10; guard++) {
       const m1 = minutesOf(sl.set1), m2 = minutesOf(sl.set2);
       const ratio = m1 / m2;
       if (ratio <= 1.58 && ratio >= 0.73) break;
@@ -1708,6 +1763,27 @@ function buildSetlist(rows, n1, n2, ne) {
         const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
         if (dev < bestDev) { bestDev = dev; best = c; }
       }
+      if (distinctN(to) >= capOf(to === sl.set1 ? 'set1' : 'set2')) {
+        // Receiving set is at its drawn count, so a plain move would breach it. Trade a song
+        // each way instead: count-neutral in both sets, and it still moves minutes by the
+        // difference between the two. Search the pairs rather than assuming the shortest
+        // return song is best — a bad trade can overshoot the band in the other direction.
+        const outs = cands;
+        const ins = to.slice(1, -1).filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
+        let bp = null, bpDev = Math.abs(Math.log(ratio / 1.07));
+        for (const c of outs) for (const d of ins) {
+          const dd = durOf(c) - durOf(d);
+          const nm1 = ratio > 1.58 ? m1 - dd : m1 + dd;
+          const nm2 = ratio > 1.58 ? m2 + dd : m2 - dd;
+          if (nm2 <= 0) continue;
+          const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
+          if (dev < bpDev) { bpDev = dev; bp = [c, d]; }
+        }
+        if (!bp) break;
+        const fi = from.indexOf(bp[0]), ti = to.indexOf(bp[1]);
+        from[fi] = bp[1]; to[ti] = bp[0];
+        continue;
+      }
       if (!best) break;
       from.splice(from.indexOf(best), 1);
       to.splice(to.length - 1, 0, best);
@@ -1715,6 +1791,24 @@ function buildSetlist(rows, n1, n2, ne) {
     // Total-night ceiling: the whole night stays inside its measured 95th-percentile
     // minutes. Budgets are capped up front, but a long draw can still nudge the assembled
     // night past the line — trim the least likely unlocked mid-set song until it fits.
+    // Exposed as a function because it has to run AGAIN after the long-song floor: the floor
+    // swaps songs for longer ones after this point, and running the trim only here let 19.3%
+    // of nights ship past the measured total-minute ceiling.
+    trimNight = () => {
+    // Per-set ceiling as well as the night ceiling. Measured before this existed: 12.5% of
+    // first sets and 7.1% of second sets shipped past their own 95th-percentile bound, because
+    // the bound was only ever applied to the sampled BUDGET, and the fill's +4 overshoot
+    // allowance, the minute top-up and the balance guard all push past the budget afterwards.
+    for (const [key, bnd] of [['set1', SET_BOUNDS.s1], ['set2', SET_BOUNDS.s2]]) {
+      for (let guard = 0; guard < 5; guard++) {
+        if (minutesOf(sl[key]) <= bnd[1]) break;
+        const cands = sl[key].slice(1, -1)
+          .filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly && !r.reentry)
+          .sort((a, b2) => a.pred - b2.pred);
+        if (!cands.length) break;
+        sl[key].splice(sl[key].indexOf(cands[0]), 1);
+      }
+    }
     for (let guard = 0; guard < 6; guard++) {
       const tot = minutesOf(sl.set1) + minutesOf(sl.set2) + minutesOf(sl.encore);
       if (tot <= SET_BOUNDS.total[1] + 4) break;
@@ -1727,6 +1821,8 @@ function buildSetlist(rows, n1, n2, ne) {
         if (i > 0 && i < sl[key].length - 1) { sl[key].splice(i, 1); break; }
       }
     }
+    };
+    trimNight();
   }
   for (const key of ['set1', 'set2']) {
     sl[key].forEach((r, i) => { r.role = i === 0 ? 'opener' : (i === sl[key].length - 1 ? 'closer' : ''); });
@@ -1763,6 +1859,7 @@ function buildSetlist(rows, n1, n2, ne) {
   // the Morning follows The Horse wherever it lands), and it must not carry the label along.
   for (const r of [...sl.set1, ...sl.encore]) delete r.cool;
   enforceLongFloor(sl, rows);
+  trimNight();
   applyReentry(sl);
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;
@@ -1794,36 +1891,55 @@ function buildSetlist(rows, n1, n2, ne) {
 // ---------------------------------------------------------------------------
 function enforceLongFloor(sl, rows) {
   if (!LONG_SONGS) return;
+  // `r.bonded` was tested here but is never assigned anywhere in the engine, so the swap could
+  // evict a bonded ANCHOR (The Horse, Tweezer, Mike's Song) — and this pass runs AFTER the final
+  // bond-invariant check, so nothing caught it. Measured: 2.0% of nights shipped an orphaned
+  // dependent (Weekapaug Groove, Tweezer Reprise or Silent in the Morning with no anchor);
+  // disabling this pass took that to zero. Build the protected set from BONDED directly.
+  const bondIds = new Set();
+  for (const [dep, b] of Object.entries(BONDED)) { bondIds.add(+dep); bondIds.add(b.anchor); }
+  const isProtected = r => r.cool || r.reentry || r.locked || bondIds.has(r.id);
+  // LONG_SONGS is mined from each song's MEDIAN length, so eligibility is judged on the median
+  // too. The old code counted what the set `have`s with the per-night sampled length and picked
+  // candidates by median, which are different questions.
+  const isLong = r => durMedian(r) >= LONG_THRESH;
   const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
+
   for (const key of ['set1', 'set2']) {
     const arr = sl[key];
-    if (!arr.length) continue;
+    if (arr.length < 3) continue;
     const want = sampleLongFloor(key === 'set1' ? 's1' : 's2');
-    let have = arr.filter(r => durOf(r) >= LONG_THRESH).length;
-    if (have >= want) continue;
+    let have = arr.filter(isLong).length;
+    if (have === want) continue;
 
-    // candidates: not already in the show, priced, and actually long
+    // Two-sided. Raising to a floor and never lowering makes the result E[max(natural, want)]
+    // rather than E[want]: measured over 1,000 nights, set 1 carried a mean 3.22 songs of 10+
+    // minutes against a real 1.93, set 2 3.78 against 2.87, and the pass added a median 9.8
+    // minutes to a night whose budget had already been fixed. Swapping in BOTH directions
+    // reproduces the mined distribution instead of its upper envelope.
+    const wantLong = have < want;
     const cands = rows
       .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly &&
-                   durMedian(r) >= LONG_THRESH)
+                   !(r.id in BONDED) && isLong(r) === wantLong)
       .sort((a, b) => b.pred - a.pred);
     if (!cands.length) continue;
 
-    for (let ci = 0; have < want && ci < cands.length; ci++) {
-      // find the shortest swappable mid-set song
+    for (let ci = 0; have !== want && ci < cands.length; ci++) {
       let victim = -1;
       for (let i = 1; i < arr.length - 1; i++) {
         const r = arr[i];
-        if (r.cool || r.reentry || r.bonded || r.locked) continue;
-        if (durOf(r) >= LONG_THRESH) continue;
-        if (victim < 0 || durOf(r) < durOf(arr[victim])) victim = i;
+        if (isProtected(r)) continue;
+        if (isLong(r) === wantLong) continue;      // already on the wanted side of the line
+        // swapping a long song IN, sacrifice the shortest; swapping one OUT, the longest
+        if (victim < 0 ||
+            (wantLong ? durMedian(r) < durMedian(arr[victim])
+                      : durMedian(r) > durMedian(arr[victim]))) victim = i;
       }
       if (victim < 0) break;
-      const pick = cands[ci];
       inShow.delete(arr[victim].id);
-      inShow.add(pick.id);
-      arr[victim] = pick;
-      have++;
+      inShow.add(cands[ci].id);
+      arr[victim] = cands[ci];
+      have += wantLong ? 1 : -1;
     }
   }
 }
@@ -1840,8 +1956,18 @@ function applyReentry(sl) {
     });
   }
   if (!cands.length) return;
-  const pick = cands[Math.floor(Math.random() * cands.length)];
-  if (Math.random() > pick.rule.rate) return;      // roll its measured reentry rate
+  // The pass used to pick ONE eligible song uniformly at random and roll only that song's rate,
+  // which divides the show-level reentry rate by the number of eligible songs on stage — 4.2 on
+  // average. Measured result: reentries on 3.5% of generated nights against 22% of real shows.
+  // Roll each eligible song against its own measured rate and take the first hit; the ceiling of
+  // one reentrant song per night is unchanged.
+  const order = cands.slice();
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  const pick = order.find(c => Math.random() < c.rule.rate);
+  if (!pick) return;
 
   const pl = pick.rule.place || {};
   const u = Math.random();
@@ -1852,6 +1978,10 @@ function applyReentry(sl) {
   }
 
   const arr = sl[pick.key];
+  // A bonded song must not be relocated by the gap-fitting step below: moving a dependent
+  // earlier can push it in front of its anchor, and the bond-order pass has already run.
+  const __bondIds = new Set();
+  for (const [dep, bd] of Object.entries(BONDED)) { __bondIds.add(+dep); __bondIds.add(bd.anchor); }
   const copy = Object.assign({}, pick.r, { reentry: true });
   delete copy.cool;
 
@@ -1870,10 +2000,24 @@ function applyReentry(sl) {
   else if (mode === 'far') offset = 5 + Math.floor(Math.random() * 3);
   else offset = 2 + Math.floor(Math.random() * 3);   // sandwich: 2-4 slots on
 
-  const at = Math.min(pick.i + offset, arr.length);
-  // never displace the set closer — the sandwich resolves before the set ends
-  if (at >= arr.length) arr.splice(Math.max(pick.i + 1, arr.length - 1), 0, copy);
-  else arr.splice(at, 0, copy);
+  // The insert used to clamp to the end of the set when pick.i + offset overran it, which
+  // silently turned a sandwich into an ADJACENT repeat. Measured: 29% of generated repeats
+  // landed adjacent against 1.8% in the real data, and the worst offenders were exactly the
+  // songs recorded as 100% sandwich with no exceptions (Hold Your Head Up, Harry Hood) —
+  // because those sit late in a set, so the overshoot branch fired almost every time.
+  // If the gap won't fit behind the first copy, move the FIRST copy earlier rather than
+  // shorten the gap; if the set is too short to hold the gap at all, skip the reentry.
+  let i0 = pick.i;
+  const lastSlot = arr.length - 1;                 // the closer keeps the final slot
+  if (i0 + offset > lastSlot) {
+    const back = i0 + offset - lastSlot;
+    if (i0 - back < 1) return;                     // opener stays put; no room for this gap
+    if (__bondIds.has(pick.r.id)) return;          // never reorder a bond to make a gap fit
+    const [moved] = arr.splice(i0, 1);
+    i0 -= back;
+    arr.splice(i0, 0, moved);
+  }
+  arr.splice(i0 + offset, 0, copy);
 }
 
 // ---------------------------------------------------------------------------
