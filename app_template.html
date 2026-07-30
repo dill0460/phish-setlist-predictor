@@ -198,6 +198,43 @@
   .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
   .badge.bust { background: var(--pred-100); color: var(--series-2); }
   .badge.cool { background: var(--seq-100); color: var(--seq-650); }
+  /* Probability tiers — bands of the CALIBRATED probability, so the words mean something:
+     a "lock" really has hit ~2 nights in 3 historically. */
+  .tier { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:1px 6px;
+          border-radius:9px; margin-left:7px; vertical-align:1px; text-transform:uppercase; }
+  .tier.lock { background: var(--good-100, #e7f5ec); color: var(--good, #1a7f4b); }
+  .tier.likely { background: var(--seq-100); color: var(--seq-650); }
+  .tier.bubble { background: var(--pred-100); color: var(--series-2); }
+  .tier.long { background: var(--surface-2, #f0ece4); color: var(--text-muted); }
+  /* Track record table */
+  .tr-headline { display:flex; flex-wrap:wrap; gap:26px; margin:2px 0 14px; }
+  .tr-headline .stat b { font-size:22px; display:block; font-variant-numeric:tabular-nums; }
+  .tr-headline .stat span { font-size:11.5px; color: var(--text-muted); }
+  tr.bf td { opacity:.62; }
+  .bf-divider td { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+                   color: var(--text-muted); padding-top:16px; border-bottom:none; }
+  /* Venue names run long ("Highland Festival Grounds at Kentucky Expo Center"); without a
+     width cap and a wrap they push the metric columns off the right edge of the card. */
+  #trTable { table-layout: fixed; min-width: 620px; }   /* below this the wrap scrolls instead of crushing Venue to 0 */
+  /* tbody td is nowrap globally, which the detail row inherits — one long provenance line was
+     forcing the whole table 100px wider than its card. */
+  .tr-detail td, .tr-detail p, .tr-detail li { white-space: normal; }
+  #trTable th:nth-child(1), #trTable td:nth-child(1) { width: 90px; }
+  #trTable th:nth-child(2), #trTable td:nth-child(2) { width: auto; white-space: normal; line-height: 1.35; }
+  #trTable th:nth-child(n+3), #trTable td:nth-child(n+3) { width: 92px; padding-left: 7px; padding-right: 7px; font-size: 11.5px; }
+  #trTable th:last-child, #trTable td:last-child { width: 24px; padding-left: 0; }
+  #trTable td.tr-detailcell { width: auto; font-size: inherit; }
+  tr.tr-row { cursor: pointer; }
+  tr.tr-row:hover td { background: var(--surface-2, rgba(0,0,0,.03)); }
+  .tr-detail td { background: var(--page); padding: 0 10px 14px; }
+  .tr-detail .cols { display:grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap:18px; padding-top:10px; }
+  .tr-detail h4 { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-secondary);
+                  margin:0 0 6px; font-weight:700; }
+  .tr-detail li { list-style:none; font-size:12px; line-height:1.75; white-space:normal; }
+  .tr-detail ul { margin:0; padding:0; }
+  .hit { color: var(--good, #1a7f4b); font-weight:600; }
+  .miss { color: var(--text-muted); }
+  .prov { font-size:11px; color:var(--text-muted); margin-top:10px; }
 
   /* ---------- explainer blocks ---------- */
   .explain { margin-top: 18px; border-top: 1px solid var(--gridline); padding-top: 14px; }
@@ -371,6 +408,7 @@
     <button class="tab-btn active" data-tab="setlist">Predicted Setlist</button>
     <button class="tab-btn" data-tab="odds">Song Odds</button>
     <button class="tab-btn" data-tab="game">Phantasy Tour Picks</button>
+    <button class="tab-btn" data-tab="track">Track Record</button>
   </div>
 
   <div id="panel-setlist" class="tabpanel active">
@@ -547,6 +585,34 @@
     </div>
   </div>
 
+  <div id="panel-track" class="tabpanel">
+    <div class="card">
+      <p class="chart-title" id="trOfficialTitle">The official call</p>
+      <p class="lede" id="trOfficialLede"></p>
+      <div class="setlist-grid" id="trOfficialGrid"></div>
+      <p class="note">This is the committed prediction: a consensus of 500 generator runs at default
+        settings &mdash; the songs that turned up most often, assembled under the same structural rules
+        every drawn night obeys &mdash; snapshotted by the daily build before the show and never
+        re-rolled. Grading happens on the first build after the show, and a graded row is never touched
+        again &mdash; that's what makes the table below resistant to after-the-fact fiddling.</p>
+    </div>
+    <div class="card">
+      <p class="chart-title">Show by show</p>
+      <div class="tr-headline" id="trHeadline"></div>
+      <div class="table-wrap">
+        <table id="trTable">
+          <thead><tr><th>Date</th><th>Venue</th><th title="Songs from the committed 20-song official call that were played">Official call</th><th title="Songs from the ranked top 20 that were played">Top-20</th><th title="Share of the songs actually played that we had in the top 20 — recall, not precision">Of setlist</th><th title="Nailed = we named the right opener. Top 5 = the real opener was among our five ranked opener candidates.">Opener</th><th></th></tr></thead>
+          <tbody id="trBody"></tbody>
+        </table>
+      </div>
+      <p class="note">Click any graded row to see the actual songs &mdash; what we called and hit, what we called and missed, and what they played that we never had. <b>Of setlist</b> is recall (share of the played setlist we had in our top 20); <b>Top-20</b> is precision out of 20 picks. The two move in opposite directions when a show runs long, so both are shown rather than one headline number.</p>
+      <p class="note" id="trNote">Live rows are graded against the exact prediction committed before the show.
+        <b>Backfill</b> rows (greyed) were computed retroactively over past shows by the identical method &mdash;
+        same code, same default settings, stats cut to the day before each show &mdash; but they can't be verified
+        the way a live row can, so they're counted separately and will never mix with the live average.</p>
+    </div>
+  </div>
+
   <div id="panel-game" class="tabpanel">
     <div class="card">
       <p class="lede" style="margin-bottom:14px;"><b>Playing a setlist prediction game?</b> This turns the probabilities into the highest-expected-value entry &mdash; FantasyPhish's 13 picks for a single show, or Phantasy Tour's 10-song Tour Tournament team. Copy the picks straight into your entry form.</p>
@@ -718,6 +784,11 @@ const JAM_RATE = __JAMRATE_JSON__;      // share of performances flagged as a no
 // exactly like Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint.
 const BREATHERS = new Set(__BREATHERS_JSON__);
 const UPCOMING = __UPCOMING_JSON__;     // scheduled shows from phish.net, refreshed on each build
+// The public track record. Written by snapshot.js in the Action, never by hand: each upcoming
+// show gets ONE committed official call (consensus of 500 seeded draws at default settings),
+// graded on the first build after the show, never re-rolled and never re-graded. Backfill
+// entries were computed retroactively by the identical method and are labeled as such.
+const PRED_LOG = __PREDLOG_JSON__;
 // Sets are held to their measured 5th-95th percentile range (2022+ shows), not a fixed guess.
 // Set 1 runs longer and carries more songs than set 2 in 81% of shows; set-2 songs average
 // 9.2 min against 7.7 in set 1.
@@ -2167,6 +2238,13 @@ function sortRows(rows, key, dir) {
   });
 }
 function pct(p) { return p < 0.01 ? (p * 100).toFixed(1) : (p * 100).toFixed(0); }
+
+// Tier bands over the CALIBRATED probability. The cut points are round numbers, not fitted:
+// >=60% has historically meant "hit two nights in three," which is as lock as Phish gets.
+function tierOf(p) {
+  return p >= 0.60 ? ['lock', 'lock'] : p >= 0.30 ? ['likely', 'likely'] : p >= 0.10 ? ['bubble', 'bubble'] : ['long', 'longshot'];
+}
+const tierChip = p => { const [cls, label] = tierOf(p); return `<span class="tier ${cls}">${label}</span>`; };
 // current gap vs the song's own average gap: >1 means it is overdue, <1 means recently played
 function ratioCell(r) {
   if (r.gap == null || !r.avgGap) return '—';
@@ -2279,7 +2357,7 @@ function render() {
   const maxPredAll = Math.max(0.0001, ...fp.map(r => r.pred));
   els.tbodyPredict.innerHTML = fp.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${tierChip(r.pred)}</td>
       <td class="pred-cell"><div class="pred-bar-bg" style="width:${(r.pred / maxPredAll * 60).toFixed(1)}%"></div><span class="pred-text">${(r.pred * 100).toFixed(1)}%</span></td>
       <td>${(r.freq * 100).toFixed(1)}%</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
@@ -2417,6 +2495,109 @@ function syncBustGap(from) {
   render();
 }
 els.bustGapLocal.addEventListener('change', () => syncBustGap(els.bustGapLocal));
+
+// ---- Track Record tab: rendered once — PRED_LOG is baked at build time and never changes
+// client-side. Ids resolve through SONG_BY_ID so the log file stays small.
+function renderTrackRecord() {
+  const log = (PRED_LOG && PRED_LOG.entries) || [];
+  const nameOf = id => { const s = SONG_BY_ID.get(id); return s ? s.name : '?'; };
+  const live = log.filter(e => !e.backfill), bf = log.filter(e => e.backfill);
+  const gradedLive = live.filter(e => e.graded && e.res), gradedBf = bf.filter(e => e.graded && e.res);
+
+  // --- the official call for the next ungraded show, if one is committed
+  const pending = live.find(e => !e.graded);
+  const t = $('trOfficialTitle'), l = $('trOfficialLede'), g = $('trOfficialGrid');
+  if (pending) {
+    t.textContent = `The official call — ${pending.venue} · ${pending.date}`;
+    l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b>. This exact list is what gets graded after the show.`;
+    const block = (title, ids) => `
+      <div class="set-block"><h3>${title}</h3>
+        ${ids.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOf(id)}</span></span></div>`).join('')}
+      </div>`;
+    g.innerHTML = block('Set 1', pending.official.s1) + block('Set 2', pending.official.s2) + block('Encore', pending.official.e);
+  } else {
+    t.textContent = 'The official call';
+    l.textContent = 'No upcoming show has a committed prediction yet — the next daily build after a show is announced will commit one automatically.';
+    g.innerHTML = '';
+  }
+
+  // --- headline numbers: live and backfill NEVER mix
+  const mean = (arr, f) => arr.length ? arr.reduce((a, e) => a + f(e), 0) / arr.length : null;
+  const fmt = (v, d) => v == null ? '\u2014' : v.toFixed(d == null ? 1 : d);
+  const openPct = arr => { const g = arr.filter(e => e.res.open); return g.length ? 100 * g.filter(e => e.res.open !== 'miss').length / g.length : null; };
+  // "Of setlist" is RECALL — the share of what they actually played that we had in our top 20.
+  // It moves opposite to precision when a show runs long, so both are reported, never blended.
+  const recall = arr => arr.length ? 100 * arr.reduce((a, e) => a + e.res.hit20 / Math.max(1, e.res.played), 0) / arr.length : null;
+  $('trHeadline').innerHTML = `
+    <div class="stat"><b>${gradedLive.length}</b><span>shows graded live</span></div>
+    <div class="stat"><b>${fmt(mean(gradedLive, e => e.res.hitOf))}</b><span>official-call hits / show (live)</span></div>
+    <div class="stat"><b>${fmt(mean(gradedLive, e => e.res.hit20))}</b><span>top-20 hits / show (live)</span></div>
+    <div class="stat"><b>${fmt(recall(gradedLive), 0)}${recall(gradedLive) == null ? '' : '%'}</b><span>of setlist (live)</span></div>
+    <div class="stat"><b>${fmt(openPct(gradedLive), 0)}${openPct(gradedLive) == null ? '' : '%'}</b><span>opener in top 5 (live)</span></div>
+    <div class="stat" style="opacity:.7"><b>${fmt(mean(gradedBf, e => e.res.hitOf))} \u00b7 ${fmt(mean(gradedBf, e => e.res.hit20))} \u00b7 ${fmt(recall(gradedBf), 0)}% \u00b7 ${fmt(openPct(gradedBf), 0)}%</b><span>backfill (${gradedBf.length} shows): official \u00b7 top-20 \u00b7 of setlist \u00b7 opener</span></div>`;
+
+  // --- the actual setlist of a past show, rebuilt from PLAYS. Kept out of the log entirely:
+  // the page already ships every play, so storing them again would only bloat the commit.
+  const PLAYED_BY_DATE = new Map();
+  for (const p of PLAYS) {
+    if (!PLAYED_BY_DATE.has(p.date)) PLAYED_BY_DATE.set(p.date, []);
+    PLAYED_BY_DATE.get(p.date).push(p);
+  }
+
+  const OPEN_MARK = { nailed: '<span class="hit" title="we named the right opener">\u25cf nailed</span>',
+                      close: '<span title="real opener was in our top 5">\u25cb top 5</span>',
+                      miss: '<span class="miss">\u2014</span>' };
+
+  // --- table: live rows newest-first, then the labeled backfill block
+  const row = (e, cls, i) => {
+    const g = e.graded && e.res;
+    const rec = g ? Math.round(100 * e.res.hit20 / Math.max(1, e.res.played)) + '%' : '\u2014';
+    return `
+    <tr class="tr-row ${cls}" data-tr="${i}">
+      <td>${e.date}</td><td>${e.venue}${e.city ? ', ' + e.city : ''}${e.runN ? ` <span class="miss">(${e.runN})</span>` : ''}</td>
+      <td>${g ? `<b>${e.res.hitOf}</b> / ${e.res.nOf}` : 'awaiting show'}</td>
+      <td>${g ? `<b>${e.res.hit20}</b> / 20` : '\u2014'}</td>
+      <td>${rec}</td>
+      <td>${g ? (OPEN_MARK[e.res.open] || '\u2014') : '\u2014'}</td>
+      <td class="miss">${g ? '\u25be' : ''}</td>
+    </tr>`;
+  };
+
+  // Detail: what we called and hit, what we called and missed, and what they played that we
+  // never had. The third column is the one no scoreboard shows and the most informative.
+  const detail = (e, i) => {
+    if (!e.graded || !e.res) return '';
+    const rows = PLAYED_BY_DATE.get(e.date) || [];
+    const played = new Set(rows.map(p => p.sid));
+    const call = [...e.official.s1, ...e.official.s2, ...e.official.e];
+    const li = (id, hit) => `<li class="${hit ? 'hit' : 'miss'}">${hit ? '\u2713' : '\u00b7'} ${nameOf(id)}</li>`;
+    const missedByUs = [...played].filter(id => !call.includes(id) && !e.top20.includes(id));
+    const realOpen = e.res.realOpen;
+    return `
+    <tr class="tr-detail ${e.backfill ? 'bf' : ''}" id="trd${i}" style="display:none"><td class="tr-detailcell" colspan="7">
+      <div class="cols">
+        <div><h4>Official call (${e.res.hitOf}/${call.length})</h4><ul>${call.map(id => li(id, played.has(id))).join('')}</ul></div>
+        <div><h4>Ranked top 20 (${e.res.hit20}/20)</h4><ul>${e.top20.map(id => li(id, played.has(id))).join('')}</ul></div>
+        <div><h4>They played, we never had (${missedByUs.length})</h4><ul>${missedByUs.map(id => `<li class="miss">${nameOf(id)}</li>`).join('') || '<li class="miss">nothing \u2014 every song was on one of our lists</li>'}</ul></div>
+      </div>
+      <p class="prov">Opener: they opened with <b>${realOpen != null ? nameOf(realOpen) : '\u2014'}</b>; we called <b>${nameOf(e.official.s1[0])}</b>${(e.open5 || []).length ? `, with ${e.open5.map(nameOf).join(', ')} as the five candidates` : ''}.
+        ${e.backfill ? 'Computed retroactively on ' : 'Committed by the build on '}<b>${e.snapAt}</b>${e.backfill ? '' : ' \u2014 the commit that added this row is in the repo\u2019s git history, timestamped before the show'}.</p>
+    </td></tr>`;
+  };
+
+  const ordered = [...live.slice().reverse(), ...(bf.length ? [null] : []), ...bf.slice().reverse()];
+  $('trBody').innerHTML = ordered.map((e, i) => e === null
+    ? `<tr class="bf-divider"><td colspan="7">Backfill \u2014 computed retroactively, same method (${bf.length} shows)</td></tr>`
+    : row(e, e.backfill ? 'bf' : '', i) + detail(e, i)).join('');
+
+  $('trBody').addEventListener('click', ev => {
+    const tr = ev.target.closest('tr.tr-row');
+    if (!tr) return;
+    const d = $('trd' + tr.getAttribute('data-tr'));
+    if (d) d.style.display = d.style.display === 'none' ? '' : 'none';
+  });
+}
+renderTrackRecord();
 
 // ---- song detail card: click any song name for its phish.net-style stat sheet ----
 const pnetSlug = name => name.toLowerCase().replace(/['’.]/g, '').replace(/&/g, 'and')

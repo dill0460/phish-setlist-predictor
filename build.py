@@ -1088,6 +1088,19 @@ def main():
         with open(os.path.join(CACHE, f"{name}.json"), "w") as f:
             json.dump(obj, f, separators=(",", ":"))
 
+    # The public track record. This file is OWNED by snapshot.js (run by the Action right
+    # after this script): build.py only reads whatever is committed and bakes it into the
+    # page. Missing file -> empty log, page shows the "nothing committed yet" state.
+    predlog = {"v": 1, "entries": []}
+    try:
+        with open(os.path.join(HERE, "data", "predictions_log.json"), encoding="utf-8") as f:
+            predlog = json.load(f)
+        print(f"  predictions log: {len(predlog.get('entries', []))} entries")
+    except FileNotFoundError:
+        print("  predictions log: none yet (data/predictions_log.json)")
+    except Exception as e:
+        sys.exit(f"data/predictions_log.json is unreadable ({e}) — fix or delete it; refusing to build without the committed track record.")
+
     print("Rendering index.html...")
     esc = lambda s: s.replace("</", "<\\/")
     j = lambda o: json.dumps(o, separators=(",", ":"))
@@ -1110,6 +1123,7 @@ def main():
         "__JAMRATE_JSON__": j(jamrate),
         "__BREATHERS_JSON__": j(breathers),
         "__UPCOMING_JSON__": j(upcoming),
+        "__PREDLOG_JSON__": j(predlog),
         "__SETMIN_JSON__": j(minutes),
         "__STATIC_CAL_JSON__": j(cal),
         "__LATEST_DATE__": shows_list[-1]["date"],
