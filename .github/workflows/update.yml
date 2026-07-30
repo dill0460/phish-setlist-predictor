@@ -2,6 +2,8 @@ name: Refresh setlist data
 
 on:
   schedule:
+    # 09:00 UTC = 3am MDT / 2am MST. Phish shows finish well before this in Mountain time,
+    # which is what build.py's corpus cutoff keys off — see claude/v17-ui-and-mountain-time.md.
     - cron: "0 9 * * *"
   workflow_dispatch: {}
 
@@ -22,10 +24,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      # snapshot.js is plain CommonJS with no npm dependencies, but pinning the Node version
+      # keeps the build reproducible instead of tracking whatever the runner image ships.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Rebuild from the latest setlists
         env:
           PHISHNET_API_KEY: ${{ secrets.PHISHNET_API_KEY }}
         run: python build.py
+
+      # Must run AFTER build.py and BEFORE the commit: it reads the freshly built index.html,
+      # grades any show that has now happened, commits the official call for the next one, and
+      # patches index.html so the page ships exactly the log that gets committed. Idempotent —
+      # a re-run grades nothing twice and never re-rolls a call that is already committed.
+      - name: Snapshot and grade predictions
+        run: node snapshot.js
 
       - name: Commit if anything changed
         run: |
@@ -35,6 +50,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No new shows — nothing to commit."
           else
-            git commit -m "Refresh setlist data ($(date -u +%Y-%m-%d))"
+            git commit -m "Refresh setlist data ($(TZ=America/Denver date +%Y-%m-%d))"
             git push
           fi
