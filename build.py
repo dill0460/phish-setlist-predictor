@@ -88,25 +88,46 @@ def in_excluded_range(d):
 
 
 # ----------------------------------------------------------------------------
+# Everything in this build is stamped and cut in MOUNTAIN time.
+#
+# Not vanity: a Phish show on calendar date D — anywhere in North America — starts and ends
+# inside date D in Mountain time. An 8pm ET show ends around 11:30pm ET, which is 9:30pm MT,
+# still D. A 10pm PT show ends around 12:30am PT, which is 1:30am MT on D+1, and the daily
+# build runs at 3am MT, hours later either way. So "shows dated before today in Mountain
+# time" is exactly "shows that have finished", with no hour-of-day special-casing.
+# ----------------------------------------------------------------------------
+TZ_NAME = "America/Denver"
+
+try:
+    from zoneinfo import ZoneInfo
+    _TZ = ZoneInfo(TZ_NAME)
+except Exception:                       # no tzdata on the runner — fall back to fixed MST
+    _TZ = timezone(timedelta(hours=-7))
+    print(f"  ! {TZ_NAME} unavailable; falling back to fixed UTC-7", file=sys.stderr)
+
+
+def now_mt():
+    return datetime.now(timezone.utc).astimezone(_TZ)
+
+
+# ----------------------------------------------------------------------------
 # The corpus cutoff: which shows count as HISTORY.
 #
-# phish.net posts a setlist live, song by song, while the show is still going. The daily
-# Action runs at 03:00 UTC, which is 23:00 US/Eastern the SAME evening — mid-show. So on
-# a show night the build ingested a partial setlist for a show that had not finished, put
-# it inside the stats window, and then double-suppressed every song already played that
-# night: the gap multiplier knocked them to 0.445x AND the run-repeat rule to 0.02x. The
-# header read "97 songs already played" against 86 across the four prior nights. Silent,
-# and it recurs every show night.
+# phish.net posts a setlist live, song by song, while the show is still going. The build
+# used to run at 03:00 UTC — 23:00 US/Eastern the SAME evening, mid-show — so on a show
+# night it ingested a partial setlist for a show that had not finished, put it inside the
+# stats window, and then double-suppressed every song already played that night: the gap
+# multiplier knocked them to 0.445x AND the run-repeat rule to 0.02x. The header read
+# "97 songs already played" against 86 across the four prior nights. Silent, and it
+# recurred every show night.
 #
-# A plain `showdate < date.today()` does not fix it: at 03:00 UTC on the 30th, today IS
-# the 30th, so a show played the evening of the 29th still passes. Backing the cutoff off
-# by a whole day is worse — it would drop LAST night's show on a run night, which is
-# exactly the data the 0.02x run-repeat multiplier needs.
+# Using the MOUNTAIN date removes the problem by construction (see the note above): a show
+# dated D has finished well before D+1 begins in MT, so "< today in MT" is exactly
+# "finished shows only", and last night's show is in the corpus for this morning's build —
+# which is what the 0.02x run-repeat rule needs on a multi-night run.
 #
-# A show on Eastern date D is over by ~04:00 UTC on D+1. Before 08:00 UTC, therefore,
-# "yesterday" is not yet safely history; from 08:00 UTC on, it is. One constant, used by
-# BOTH the history filter and the upcoming filter — if they disagree, a show in progress
-# falls out of both lists and vanishes from the site entirely.
+# One constant, used by BOTH the history filter and the upcoming filter — if they disagree,
+# a show in progress falls out of both lists and vanishes from the site entirely.
 #
 # CORPUS_CUTOFF in the environment overrides it (an ISO date), which replaces the manual
 # "set the stats cutoff to the prior day" workaround.
@@ -115,9 +136,7 @@ def _cutoff():
     override = os.environ.get("CORPUS_CUTOFF", "").strip()
     if override:
         return override
-    now = datetime.now(timezone.utc)
-    d = now.date() if now.hour >= 8 else now.date() - timedelta(days=1)
-    return d.isoformat()
+    return now_mt().date().isoformat()
 
 
 CUTOFF = _cutoff()
@@ -146,7 +165,7 @@ def fetch_setlists():
     if not PHISHNET_KEY:
         sys.exit("PHISHNET_API_KEY is not set. Get a key at https://phish.net/api/keys")
     rows = []
-    this_year = date.today().year
+    this_year = now_mt().year
     for year in range(FIRST_YEAR, this_year + 1):
         url = f"https://api.phish.net/v5/setlists/showyear/{year}.json?apikey={PHISHNET_KEY}"
         try:
@@ -200,7 +219,7 @@ def fetch_upcoming(recent_shows=None):
     # from the stats window AND still present as the prediction target — using two different
     # notions of "today" here would drop it from both.
     today = CUTOFF
-    this_year = date.today().year
+    this_year = now_mt().year
     raw = []
     for year in (this_year, this_year + 1):
         url = f"https://api.phish.net/v5/shows/showyear/{year}.json?apikey={PHISHNET_KEY}&order_by=showdate"
@@ -504,7 +523,8 @@ def build_stamp(template_text):
     """
     import hashlib
     h = hashlib.sha256(template_text.encode("utf-8")).hexdigest()[:8]
-    return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime()) + " · " + h
+    n = now_mt()
+    return n.strftime("%Y-%m-%d %H:%M ") + n.strftime("%Z") + " · " + h
 
 
 def mine_setcounts(raw):
