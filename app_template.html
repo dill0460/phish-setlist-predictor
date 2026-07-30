@@ -1265,9 +1265,20 @@ function compute() {
   const n1local = med(recent.map(s => s.n1)) || 9;
   const n2local = med(recent.map(s => s.n2)) || 7;
   const nelocal = med(recent.map(s => s.ne)) || 2;
-  const n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
-  const n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
-  const ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
+  // Per-set counts are drawn from their own marginal distributions, which says nothing about
+  // the TOTAL. Two independent low draws can land a 16-song night with a 4-song second set —
+  // a combination real shows essentially do not produce. Measured over 680 modern shows the
+  // total runs 10 at the extreme low end but only 1% fall below 14 and 2% below 15, so the
+  // night is redrawn (bounded, never looped indefinitely) until it clears a floor. Set floors
+  // of 6 and 4 stay as the per-set backstop; this is the joint constraint they cannot express.
+  const TOTAL_FLOOR = 15;               // real 2nd percentile; p05 is 16, median 20
+  let n1, n2, ne;
+  for (let attempt = 0; ; attempt++) {
+    n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
+    n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
+    ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
+    if (!slModeSample || n1 + n2 + ne >= TOTAL_FLOOR || attempt >= 12) break;
+  }
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
   return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
@@ -1503,6 +1514,20 @@ function buildSetlist(rows, n1, n2, ne) {
     const k = cap / tot;
     budget.s1 *= k; budget.s2 *= k; budget.e *= k;
   }
+  // Minutes and song count are NOT independent draws, and treating them as if they were is
+  // the deepest structural error left in the builder. A 4-song set 2 physically cannot fill a
+  // 67-minute budget: that is 16.75 min/song, against a real 95th percentile of 11.78. The
+  // budget came from the set-minutes distribution and the count from the set-count
+  // distribution with nothing reconciling them, so whenever a short count was drawn the set
+  // fell far under budget and the OTHER set kept its full allocation and carried the whole
+  // night. Measured over 2,000 nights: when the drawn set-2 count was <= 5, 26.5% of nights
+  // blew the measured 0.73-1.58 set-length band (ratios up to 3.2x) against 2.1% when it was
+  // >= 6. Clamping each budget to what its own drawn count can actually hold removes the
+  // contradiction at the source. Bounds are the real 5th-95th percentile of minutes-per-song,
+  // measured over 2022+ shows: set 1 6.94-9.80, set 2 7.98-11.78.
+  const PER_SONG = { s1: [6.94, 9.80], s2: [7.98, 11.78] };
+  budget.s1 = clamp(budget.s1, [n1 * PER_SONG.s1[0], n1 * PER_SONG.s1[1]]);
+  budget.s2 = clamp(budget.s2, [n2 * PER_SONG.s2[0], n2 * PER_SONG.s2[1]]);
 
   // Bustouts: never more than one a night, and most nights none at all.
   // Measured at the 100-show threshold: 68% of real shows have zero, ~20% exactly one.
@@ -1804,6 +1829,25 @@ function buildSetlist(rows, n1, n2, ne) {
   const distinctN = arr => new Set(arr.map(r => r.id)).size;
   const capOf = key => key === 'set1' ? n1 : (key === 'set2' ? n2 : Infinity);
   const canReceive = (fromKey, toKey) => fromKey === toKey || distinctN(sl[toKey]) < capOf(toKey);
+  // Songs that must not be evicted to make room for a pair move.
+  const pairLocked = new Set();
+  for (const r of PAIR_RULES) if (r.place !== 'free') { pairLocked.add(r.a); pairLocked.add(r.b); }
+  for (const [dep, bd] of Object.entries(BONDED)) { pairLocked.add(+dep); pairLocked.add(bd.anchor); }
+  // Move `mover` into `toKey` even though that set is at its drawn count, by sending the
+  // weakest ordinary mid-set song back the other way. Returns false if nothing can be spared.
+  const makeRoom = (toKey, fromKey) => {
+    const dest = sl[toKey], donor = sl[fromKey];
+    let wi = -1;
+    dest.forEach((r, i) => {
+      if (i === 0 || i === dest.length - 1) return;        // opener and closer stay put
+      if (r.cool || r.reentry || r.locked || pairLocked.has(r.id)) return;
+      if (wi < 0 || r.pred < dest[wi].pred) wi = i;
+    });
+    if (wi < 0) return false;
+    const [out] = dest.splice(wi, 1);
+    donor.splice(Math.max(1, donor.length - 1), 0, out);
+    return true;
+  };
   const findLoc = id => {
     for (const key of ['set1', 'set2', 'encore']) {
       const i = sl[key].findIndex(r => r.id === id);
@@ -1816,11 +1860,41 @@ function buildSetlist(rows, n1, n2, ne) {
     const la = findLoc(rule.a), lb = findLoc(rule.b);
     if (!la || !lb || la.key === 'encore') continue;
     if (la.key === lb.key && lb.i > la.i && (rule.place !== 'adj' || lb.i === la.i + 1)) continue;
-    if (!canReceive(lb.key, la.key)) continue;
-    const [b] = sl[lb.key].splice(lb.i, 1);
+    // Skipping when the destination is full was wrong. Measured over all 2,015 shows:
+    // Mike's Song and Weekapaug Groove share a set 98.4% of the time (505/513), and when
+    // I Am Hydrogen is played all three share a set 99.7% of the time. Letting an off-by-one
+    // count cap veto a 98.4% structural rule is how a Mike's Song in set 1 shipped with its
+    // Weekapaug opening set 2 and a stranded I Am Hydrogen behind it. Trade a song back the
+    // other way instead: both counts hold AND the pair lands together.
+    if (!canReceive(lb.key, la.key) && !makeRoom(la.key, lb.key)) continue;
+    const lb2 = findLoc(rule.b);                 // makeRoom may have shifted indices
+    if (!lb2) continue;
+    const [b] = sl[lb2.key].splice(lb2.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === rule.a);
+    if (aIdx < 0) { sl[lb2.key].splice(lb2.i, 0, b); continue; }   // anchor moved out from under us
     arr.splice(rule.place === 'adj' ? aIdx + 1 : Math.min(aIdx + 2, arr.length), 0, b);
+  }
+  // Final same-set invariant for the canonical trios, by name. The mined `sameset` placement
+  // above is a preference the passes can lose; this is the guarantee. A Weekapaug in a
+  // different set from its Mike's is a setlist real Phish does not play, so the orphan is
+  // dropped rather than shipped in the wrong place.
+  for (const [ancNm, ...deps] of [["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove'],
+                                  ['Tweezer', 'Tweezer Reprise'],
+                                  ['The Horse', 'Silent in the Morning']]) {
+    const anc = SONG_ID_BY_NAME.get(ancNm);
+    const la = anc != null && findLoc(anc);
+    if (!la) continue;
+    for (const depNm of deps) {
+      const dep = SONG_ID_BY_NAME.get(depNm);
+      const lb = dep != null && findLoc(dep);
+      if (!lb || lb.key === la.key) continue;
+      const [depRow] = sl[lb.key].splice(lb.i, 1);
+      if (canReceive(lb.key, la.key) || makeRoom(la.key, lb.key)) {
+        const arr = sl[la.key], ai = arr.findIndex(r => r.id === anc);
+        arr.splice(ai < 0 ? arr.length : Math.min(ai + 1, arr.length), 0, depRow);
+      }   // else: nowhere to put it, so it is dropped rather than shipped in the wrong set
+    }
   }
   // A bonded dependent (Tweezer Reprise, Weekapaug Groove...) can never come before its anchor,
   // even under a "free" placement pattern that doesn't otherwise pin down where it lands.
@@ -1856,7 +1930,15 @@ function buildSetlist(rows, n1, n2, ne) {
     for (let guard = 0; guard < 10; guard++) {
       const m1 = minutesOf(sl.set1), m2 = minutesOf(sl.set2);
       const ratio = m1 / m2;
-      if (ratio <= 1.58 && ratio >= 0.73) break;
+      // The 0.73-1.58 band is measured across ALL shows, so it already averages over the
+      // counts. A night that drew 10 songs for set 1 and 4 for set 2 really does run about
+      // 2x longer in set 1 — that combination is 1.2% of real shows, not an error — and
+      // forcing it back inside the all-shows band would be correcting the draw with a
+      // statistic that does not apply to it. Widen the band to whatever the drawn counts
+      // imply, at their median minutes-per-song.
+      const cImplied = (n1 * 8.17) / Math.max(1e-9, n2 * 9.85);
+      const loR = Math.min(0.73, cImplied * 0.85), hiR = Math.max(1.58, cImplied * 1.15);
+      if (ratio <= hiR && ratio >= loR) break;
       const from = ratio > 1.58 ? sl.set1 : sl.set2;
       const to = ratio > 1.58 ? sl.set2 : sl.set1;
       if (from.length <= 5) break;
@@ -1963,6 +2045,29 @@ function buildSetlist(rows, n1, n2, ne) {
   // A tagged song can still get relocated to set 1 by the pair-placement pass (Silent in
   // the Morning follows The Horse wherever it lands), and it must not carry the label along.
   for (const r of [...sl.set1, ...sl.encore]) delete r.cool;
+  // Night floor, on the ASSEMBLED show rather than the drawn counts. Drawing n1+n2+ne above a
+  // floor is not enough: both sets can still finish under their drawn counts (the pool thins
+  // as bustouts, rarities and bond orphans are removed), and the night lands short anyway.
+  // Measured: only ~1% of real shows carry fewer than 14 distinct songs and 2% fewer than 15.
+  // Top the show back up from the best remaining eligible songs, into whichever set is
+  // furthest below its own drawn count.
+  {
+    const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
+    if (inShow.size < 15) {
+      const pool = rows.filter(r => r.pred > 0 && !inShow.has(r.id) && !r.terminalOnly &&
+          !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
+        .sort((a, b) => b.pred - a.pred);
+      let si = 0;
+      while (inShow.size < 15 && si < pool.length) {
+        const pick = pool[si++];
+        const short1 = n1 - new Set(sl.set1.map(r => r.id)).size;
+        const short2 = n2 - new Set(sl.set2.map(r => r.id)).size;
+        const arr = short1 >= short2 ? sl.set1 : sl.set2;
+        arr.splice(Math.max(1, arr.length - 1), 0, pick);   // never displace the set closer
+        inShow.add(pick.id);
+      }
+    }
+  }
   enforceLongFloor(sl, rows);
   trimNight();
   applyReentry(sl);
