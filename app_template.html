@@ -635,6 +635,19 @@ const REENTRY_BY_SID = new Map((REENTRY || []).map(r => [r.sid, r]));
 // Set 1 median is 10 and the 98th percentile is 15 — the old code targeted a fixed
 // median and then let the minute budget override it, so a short-song pool overshot badly.
 const SET_COUNTS = __SETCOUNTS_JSON__;
+// Measured count of 10+ minute songs per set. Only 9.4% of real first sets and 2.7% of
+// second sets contain none, so "at least one long jam per set" is very close to a rule.
+const LONG_SONGS = __LONGSONGS_JSON__;
+const LONG_THRESH = (LONG_SONGS && LONG_SONGS.thresh) || 10;
+
+// How many long songs this set should contain, drawn from the measured distribution.
+function sampleLongFloor(key) {
+  const t = LONG_SONGS && LONG_SONGS[key];
+  if (!t || !t.cdf || !t.cdf.length) return 1;
+  const u = Math.random();
+  for (const [n, p] of t.cdf) if (u <= p) return n;
+  return t.cdf[t.cdf.length - 1][0];
+}
 
 // Draw a song count for one set from its real distribution.
 function sampleSetCount(key, fallback) {
@@ -1265,8 +1278,11 @@ function newNightLengths() {
 function setNightStretch(reqAvg, typicalAvg) {
   if (!(reqAvg > 0) || !(typicalAvg > 0)) return;
   const ratio = reqAvg / typicalAvg;
-  // ratio 1.0 -> median lengths, 1.4 -> ~p90, 0.7 -> ~p10
-  NIGHT_STRETCH = Math.max(0.05, Math.min(0.95, 0.5 + (ratio - 1) * 1.0));
+  // Slope measured against the real 274 distributions: u=0.5 gives 1.00x average length,
+  // u=0.95 only reaches 1.34x and u=0.05 only drops to 0.81x. du/dratio averages ~1.8,
+  // NOT the 1.0 originally guessed here. Note the ceiling: stretching alone cannot make a
+  // short set long enough — the LONG_FLOOR pass below has to put real jam vehicles in it.
+  NIGHT_STRETCH = Math.max(0.05, Math.min(0.95, 0.5 + (ratio - 1) * 1.8));
   DUR_CACHE = new Map();   // re-draw everything against the new factor
 }
 
@@ -1746,6 +1762,7 @@ function buildSetlist(rows, n1, n2, ne) {
   // A tagged song can still get relocated to set 1 by the pair-placement pass (Silent in
   // the Morning follows The Horse wherever it lands), and it must not carry the label along.
   for (const r of [...sl.set1, ...sl.encore]) delete r.cool;
+  enforceLongFloor(sl, rows);
   applyReentry(sl);
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;
@@ -1764,6 +1781,53 @@ function buildSetlist(rows, n1, n2, ne) {
 // The repeat is a reprise of a song already placed, so it deliberately does NOT re-roll
 // its own probability — it is conditional on the first pass having happened.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Long-song floor. A real set is built around a couple of long jams; only 9.4% of first
+// sets and 2.7% of second sets contain no song of 10+ minutes. The builder had no such
+// notion, so a low drawn song count came out as medium-length filler instead of the few
+// big vehicles a genuinely short set is made of.
+//
+// This SWAPS rather than ADDS — the song count was already drawn from its own measured
+// distribution and must not be breached. Anything structural (opener, closer, bonded
+// pair, cool-down, reentry) is left alone; only ordinary mid-set songs are exchanged,
+// and only for a long candidate that was eligible anyway.
+// ---------------------------------------------------------------------------
+function enforceLongFloor(sl, rows) {
+  if (!LONG_SONGS) return;
+  const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
+  for (const key of ['set1', 'set2']) {
+    const arr = sl[key];
+    if (!arr.length) continue;
+    const want = sampleLongFloor(key === 'set1' ? 's1' : 's2');
+    let have = arr.filter(r => durOf(r) >= LONG_THRESH).length;
+    if (have >= want) continue;
+
+    // candidates: not already in the show, priced, and actually long
+    const cands = rows
+      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly &&
+                   durMedian(r) >= LONG_THRESH)
+      .sort((a, b) => b.pred - a.pred);
+    if (!cands.length) continue;
+
+    for (let ci = 0; have < want && ci < cands.length; ci++) {
+      // find the shortest swappable mid-set song
+      let victim = -1;
+      for (let i = 1; i < arr.length - 1; i++) {
+        const r = arr[i];
+        if (r.cool || r.reentry || r.bonded || r.locked) continue;
+        if (durOf(r) >= LONG_THRESH) continue;
+        if (victim < 0 || durOf(r) < durOf(arr[victim])) victim = i;
+      }
+      if (victim < 0) break;
+      const pick = cands[ci];
+      inShow.delete(arr[victim].id);
+      inShow.add(pick.id);
+      arr[victim] = pick;
+      have++;
+    }
+  }
+}
+
 function applyReentry(sl) {
   if (!REENTRY_BY_SID.size) return;
   const setKeys = ['set1', 'set2'];

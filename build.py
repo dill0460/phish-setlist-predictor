@@ -405,6 +405,49 @@ def mine_pairs(raw):
     return rules
 
 
+def mine_longsongs(raw, durations, thresh=10.0):
+    """How many 10+ minute songs each set actually contains.
+
+    Measured 2009+: only 9.4% of first sets and 2.7% of second sets contain NO song
+    with a median length of 10 minutes or more. The modal first set has two and the
+    modal second set has three. The generator had no notion of this at all, which is
+    why a low drawn song count produced a set of medium-length filler instead of the
+    handful of long jams a short real set is actually made of.
+
+    Sampling length can't fix that on its own: across the real distributions the
+    achievable swing in average length is only about 0.81x to 1.34x, so a 7-song set
+    needing 10.4 min/song cannot be reached by stretching an average pool. The songs
+    themselves have to be the long ones, which is what this floor forces.
+    """
+    dnorm = {k.lower(): v["med"] for k, v in durations.items()}
+    shows = defaultdict(lambda: defaultdict(list))
+    for r in raw:
+        if r["showdate"] < "2009-01-01":
+            continue
+        st = r["set"]
+        key = "e" if st in ("e", "E") else ("s%s" % st if st in ("1", "2") else None)
+        if key:
+            shows[r["showdate"]][key].append(r["song"])
+
+    out = {}
+    for key in ("s1", "s2"):
+        c = Counter()
+        for d, sets in shows.items():
+            ss = sets.get(key)
+            if not ss:
+                continue
+            c[sum(1 for nm in ss if (dnorm.get(nm.lower()) or 0) >= thresh)] += 1
+        tot = sum(c.values()) or 1
+        cdf, acc = [], 0.0
+        for n in sorted(c):
+            acc += c[n] / tot
+            cdf.append([n, round(acc, 5)])
+        out[key] = {"cdf": cdf, "zero": round(c[0] / tot, 4), "n": tot}
+        print(f"  {key}: {100 * c[0] / tot:.1f}% of sets have no {thresh:.0f}+ min song")
+    out["thresh"] = thresh
+    return out
+
+
 def build_stamp(template_text):
     """UTC timestamp + a short hash of the template source.
 
@@ -960,6 +1003,8 @@ def main():
     reentry = mine_reentry(raw)
     print("Mining set-count distributions...")
     setcounts = mine_setcounts(raw)
+    print("Mining long-song floors...")
+    longsongs = mine_longsongs(raw, durations)
     touropen = mine_tour_openers(raw)
     closer = mine_closers(raw)
     jamrate = mine_jam_rate(raw)
@@ -990,6 +1035,7 @@ def main():
         "__BUILD_STAMP__": build_stamp(html),
         "__REENTRY_JSON__": j(reentry),
         "__SETCOUNTS_JSON__": j(setcounts),
+        "__LONGSONGS_JSON__": j(longsongs),
         "__DATELOCK_JSON__": j(locked),
         "__RUNPOS_JSON__": j(runpos),
         "__SETAFF_JSON__": j(setaff),
