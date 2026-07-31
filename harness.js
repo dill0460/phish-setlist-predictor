@@ -36,7 +36,6 @@ function extractJsonTables(indexHtml) {
     __CLOSER_JSON__: 'CLOSER', __JAMRATE_JSON__: 'JAM_RATE',
     __BREATHERS_JSON__: 'BREATHERS', __UPCOMING_JSON__: 'UPCOMING',
     __SETMIN_JSON__: 'SET_MIN', __STATIC_CAL_JSON__: 'STATIC_CAL',
-    __PREDLOG_JSON__: 'PRED_LOG',
   };
   // A table can legitimately be absent: index.html may predate a table the template
   // introduced. Substituting null lets the engine load anyway (the guarded code paths
@@ -97,22 +96,7 @@ function buildEngine(templatePath, indexPath) {
          .replace(/const els = \{\};[\s\S]*?\.forEach\(id => els\[id\] = \$\(id\)\);/, '');
 
   // the engine reads its settings off `els`; stub the 14 fields it actually touches
-  //
-  // Math is shadowed with a seeded PRNG. Every finding in this project is a RATE
-  // ("14.5% of nights exceed the set-1 minute bound"), so an unseeded suite makes two
-  // runs incomparable: a fix and a lucky seed look identical. mulberry32 is 4 lines and
-  // exact; seed 1 is the default so a bare `node test_ui.js` is reproducible.
   const stub = `
-    const Math = Object.create(globalThis.Math);
-    let __seed = 1 >>> 0;
-    Math.random = function () {
-      __seed = (__seed + 0x6D2B79F5) >>> 0;
-      let t = __seed;
-      t = Math.imul(t ^ (t >>> 15), t | 1);
-      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-    function setSeed(s) { __seed = s >>> 0; }
     const __vals = {
       yearsBack:'5', customStart:'', customEnd:'', refEnd:'', recency:'100',
       runPos:'', themeYear:'', nextDate:'', bustGap:'100', upcoming:'',
@@ -136,7 +120,7 @@ function buildEngine(templatePath, indexPath) {
   `;
 
   const mod = new Function(stub + js + `
-    ;return { compute, buildSetlist, setSetting, getSetting, setSeed,
+    ;return { compute, buildSetlist, setSetting, getSetting,
               durOf, durMedian, sampleQuantiles, sampleSetCount, sampleLongFloor,
               setNightStretch, newNightLengths, enforceLongFloor, applyReentry,
               SET_COUNTS, LONG_SONGS, LONG_THRESH, REENTRY, REENTRY_BY_SID,
