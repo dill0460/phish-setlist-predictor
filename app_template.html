@@ -95,6 +95,29 @@
   .tf-pills button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .tf-note { font-size: 12px; color: var(--text-muted); margin: 2px 0 10px; }
   .window-summary { font-size: 12.5px; color: var(--text-secondary); margin-top: 8px; }
+  /* Numbered group headings inside the settings drawer. The controls are ordered the way
+     someone actually reasons about them — which show, then which history, then how to weight
+     it, then the special cases, then the one knob that only changes a label. */
+  .grp { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+         color: var(--text-secondary); margin: 30px 0 12px; padding-bottom: 6px;
+         border-bottom: 1px solid var(--border); }
+  .grp:first-of-type { margin-top: 10px; }
+  .dbody .controls-row { margin-bottom: 6px; }
+  .dbody .tf-strip { margin-bottom: 8px; }
+  .dbody .tf-note { margin: 0 0 14px; }
+  #nextDateNote { margin-bottom: 2px; }
+  .dbody #calSummary { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .grp .sub { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); margin-left: 8px; }
+  /* Song-odds tables: the song name is the column people read, so give it the room and take it
+     back off the ten numeric columns, whose headers wrap instead of forcing the table wide. */
+  /* Headers wrap at spaces only — never mid-word. "CALIB / RATE / D / PROB / ABILIT / Y" is
+     what breaking anywhere produces at these widths, so the labels themselves were shortened
+     instead and the break is left to fall between words. */
+  .table-wrap table th { white-space: normal; overflow-wrap: normal; word-break: keep-all; vertical-align: bottom; }
+  #predictHeadRow th:first-child, #freqHeadRow th:first-child { width: 25%; min-width: 170px; }
+  #predictHeadRow th:not(:first-child), #freqHeadRow th:not(:first-child) { font-size: 10.5px; line-height: 1.3; padding-left: 7px; padding-right: 7px; }
+  #tbodyPredict td:first-child, #tbodyFreq td:first-child { width: 25%; min-width: 170px; white-space: normal; line-height: 1.35; }
+  #tbodyPredict td:not(:first-child), #tbodyFreq td:not(:first-child) { padding-left: 7px; padding-right: 7px; }
   .window-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
   /* ---------- tabs ---------- */
@@ -168,13 +191,50 @@
   .freq-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--seq-100); border-radius: 3px; z-index: 0; }
   .pred-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--pred-100); border-radius: 3px; z-index: 0; }
   .freq-text, .pred-text { position: relative; z-index: 1; }
-  .table-wrap { max-height: 560px; overflow-y: auto; }
+  .table-wrap { max-height: 560px; overflow-y: auto; overflow-x: auto; }
   .note { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
   .count-note { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
   .slot-tag { display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-muted); }
   .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
   .badge.bust { background: var(--pred-100); color: var(--series-2); }
   .badge.cool { background: var(--seq-100); color: var(--seq-650); }
+  /* Probability tiers — bands of the CALIBRATED probability, so the words mean something:
+     a "lock" really has hit ~2 nights in 3 historically. */
+  .tier { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:1px 6px;
+          border-radius:9px; margin-left:7px; vertical-align:1px; text-transform:uppercase; }
+  .tier.lock { background: var(--good-100, #e7f5ec); color: var(--good, #1a7f4b); }
+  .tier.likely { background: var(--seq-100); color: var(--seq-650); }
+  .tier.bubble { background: var(--pred-100); color: var(--series-2); }
+  .tier.long { background: var(--surface-2, #f0ece4); color: var(--text-muted); }
+  /* Track record table */
+  .tr-headline { display:flex; flex-wrap:wrap; gap:26px; margin:2px 0 14px; }
+  .tr-headline .stat b { font-size:22px; display:block; font-variant-numeric:tabular-nums; }
+  .tr-headline .stat span { font-size:11.5px; color: var(--text-muted); }
+  tr.bf td { opacity:.62; }
+  .bf-divider td { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+                   color: var(--text-muted); padding-top:16px; border-bottom:none; }
+  /* Venue names run long ("Highland Festival Grounds at Kentucky Expo Center"); without a
+     width cap and a wrap they push the metric columns off the right edge of the card. */
+  #trTable { table-layout: fixed; min-width: 620px; }   /* below this the wrap scrolls instead of crushing Venue to 0 */
+  /* tbody td is nowrap globally, which the detail row inherits — one long provenance line was
+     forcing the whole table 100px wider than its card. */
+  .tr-detail td, .tr-detail p, .tr-detail li { white-space: normal; }
+  #trTable th:nth-child(1), #trTable td:nth-child(1) { width: 90px; }
+  #trTable th:nth-child(2), #trTable td:nth-child(2) { width: auto; white-space: normal; line-height: 1.35; }
+  #trTable th:nth-child(n+3), #trTable td:nth-child(n+3) { width: 92px; padding-left: 7px; padding-right: 7px; font-size: 11.5px; }
+  #trTable th:last-child, #trTable td:last-child { width: 24px; padding-left: 0; }
+  #trTable td.tr-detailcell { width: auto; font-size: inherit; }
+  tr.tr-row { cursor: pointer; }
+  tr.tr-row:hover td { background: var(--surface-2, rgba(0,0,0,.03)); }
+  .tr-detail td { background: var(--page); padding: 0 10px 14px; }
+  .tr-detail .cols { display:grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap:18px; padding-top:10px; }
+  .tr-detail h4 { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-secondary);
+                  margin:0 0 6px; font-weight:700; }
+  .tr-detail li { list-style:none; font-size:12px; line-height:1.75; white-space:normal; }
+  .tr-detail ul { margin:0; padding:0; }
+  .hit { color: var(--good, #1a7f4b); font-weight:600; }
+  .miss { color: var(--text-muted); }
+  .prov { font-size:11px; color:var(--text-muted); margin-top:10px; }
 
   /* ---------- explainer blocks ---------- */
   .explain { margin-top: 18px; border-top: 1px solid var(--gridline); padding-top: 14px; }
@@ -225,67 +285,41 @@
   <div class="hero">
     <h1>The Helping Phriendly Setlist</h1>
     <p class="tagline">What are they gonna play?</p>
-    <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
+    <p class="subtitle" id="heroSubtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
+    <p class="subtitle" id="heroFlags" style="margin-top:-8px"></p>
   </div>
-
-  <div class="tf-strip">
-    <span class="tf-label">Base the odds on:</span>
-    <div class="tf-pills">
-      <button id="tf2">Last 2 years</button>
-      <button id="tf5" class="active">Last 5 years</button>
-      <button id="tf10">Last 10 years</button>
-      <button id="tfAll">Every show since '83</button>
-    </div>
-  </div>
-  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
-  <p class="tf-note">Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
 
   <details id="advWrap">
-    <summary>Advanced settings</summary>
+    <summary>Settings</summary>
     <div class="dbody">
-      <p>Fine-tuning knobs. The defaults are the exact settings this tool's accuracy was tested at, so nothing here needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
-      <div class="controls-row" style="margin-top:4px;">
-        <div class="field hidden" id="upcomingField">
-          <label for="upcoming">Got a real show coming up?
-            <span class="hint" title="Pick a real, already-announced Phish show from the tour schedule. Everything else below (show date, run position) fills itself in.">?</span>
-          </label>
-          <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
-        </div>
+      <p>Every default here is the exact setting this tool's accuracy was tested at, so nothing needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
+
+      <p class="grp">1 &middot; Which show are we predicting?</p>
+      <div class="controls-row">
         <div class="field">
-          <label for="nextDate">Predicting a specific date? <span style="text-transform:none;font-weight:400">(optional)</span>
-            <span class="hint" title="Leave this blank to just predict 'whatever show is next.' Only set it if you want a particular night. If you also move the stats cutoff below into the past, this fills itself in with whatever show really happened next back then &mdash; you can't accidentally predict a date that contradicts your own stats.">?</span>
+          <label for="nextDate">Show date <span style="text-transform:none;font-weight:400">(optional)</span>
+            <span class="hint" title="Leave blank to predict the next scheduled show. Set it to test the model against a night that already happened — move the stats cutoff in section 2 into the past first, and this fills itself in with whatever show really happened next back then, so you can't accidentally predict a date that contradicts your own stats.">?</span>
           </label>
           <input type="date" id="nextDate">
           <div class="note" id="nextDateNote" style="margin-top:2px;"></div>
         </div>
-        <div class="field" id="rollingEndField">
-          <label for="refEnd">Use stats through
-            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to today, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then &mdash; useful for testing it against a show that already happened.">?</span>
-          </label>
-          <input type="date" id="refEnd">
-        </div>
-        <div class="field hidden" id="customEndField">
-          <label for="customEnd">Use stats through</label>
-          <input type="date" id="customEnd">
-        </div>
-        <div class="field" id="runPosField">
-          <label for="runPos">Opening, middle, or closing night? <span style="text-transform:none;font-weight:400">(optional)</span>
-            <span class="hint" title="A multi-night run's opening, middle, and closing shows each tend to favor different songs. Usually filled in for you automatically &mdash; this only matters for a hypothetical date we can't match to a real show.">?</span>
-          </label>
-          <select id="runPos">
-            <option value="none" selected>Don't know / doesn't apply</option>
-            <option value="tour">First show of a tour</option>
-            <option value="open">Opening night of a run</option>
-            <option value="middle">Middle night</option>
-            <option value="close">Closing night</option>
-          </select>
-        </div>
-        <div class="note" id="runPosNote" style="flex-basis:100%; margin-top:-6px;"></div>
       </div>
-      <div class="controls-row" style="margin-top:14px;">
+
+      <p class="grp">2 &middot; Which history counts?<span class="sub">the window the odds are measured over</span></p>
+      <div class="tf-strip">
+        <span class="tf-label">Base the odds on:</span>
+        <div class="tf-pills">
+          <button id="tf2">Last 2 years</button>
+          <button id="tf5" class="active">Last 5 years</button>
+          <button id="tf10">Last 10 years</button>
+          <button id="tfAll">Every show since '83</button>
+        </div>
+      </div>
+      <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
+      <div class="controls-row">
         <div class="field">
-          <label>How far back do the stats look?
-            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. Almost everyone wants Rolling &mdash; the pill buttons at the top of the page set this for you.">?</span>
+          <label>Window type
+            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. The pill buttons above are shortcuts for Rolling.">?</span>
           </label>
           <div class="mode-toggle">
             <button id="modeRolling" class="active">Rolling (years back)</button>
@@ -294,7 +328,7 @@
         </div>
         <div class="field" id="rollingYearsField">
           <label for="yearsBack">Years back
-            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the buttons at the top of the page are shortcuts for this. Testing found this barely changes accuracy either way &mdash; recency weighting matters more.">?</span>
+            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the pills above are shortcuts for this. Testing found this barely changes accuracy either way — recency weighting matters more.">?</span>
           </label>
           <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
         </div>
@@ -302,27 +336,23 @@
           <label for="customStart">Start date</label>
           <input type="date" id="customStart">
         </div>
-        <div class="field">
-          <label for="bustGap">Flag a returning song as a "bustout" after
-            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist &mdash; it doesn't change that song's actual odds of being picked at all.">?</span>
+        <div class="field" id="rollingEndField">
+          <label for="refEnd">Use stats through
+            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to the latest show on record, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then — useful for testing it against a show that already happened.">?</span>
           </label>
-          <select id="bustGap">
-            <option value="50">50+ missed shows</option>
-            <option value="75">75+ missed shows</option>
-            <option value="100" selected>100+ missed shows</option>
-            <option value="150">150+ missed shows</option>
-            <option value="200">200+ missed shows</option>
-          </select>
+          <input type="date" id="refEnd">
         </div>
-        <div class="field">
-          <label for="themeYear">Themed night? Play it like a year
-            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
-          </label>
-          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
+        <div class="field hidden" id="customEndField">
+          <label for="customEnd">Use stats through</label>
+          <input type="date" id="customEnd">
         </div>
+      </div>
+
+      <p class="grp">3 &middot; How much do recent shows count?</p>
+      <div class="controls-row">
         <div class="field">
-          <label for="recency">Weight recent shows...
-            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses &mdash; change it to see how predictions shift, not because it's wrong.">?</span>
+          <label for="recency">Weight recent shows&hellip;
+            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses — change it to see how predictions shift, not because it's wrong.">?</span>
           </label>
           <select id="recency">
             <option value="0">Not at all (every show counts equally)</option>
@@ -332,15 +362,53 @@
           </select>
         </div>
       </div>
+
+      <p class="grp">4 &middot; Special cases</p>
+      <div class="controls-row">
+        <div class="field">
+          <label for="themeYear">Themed night? Play it like a year
+            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
+          </label>
+          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
+        </div>
+      </div>
+
+      <p class="grp">5 &middot; Display only<span class="sub">changes a label, never the odds</span></p>
+      <div class="controls-row">
+        <div class="field">
+          <label for="bustGap">Flag a returning song as a &ldquo;bustout&rdquo; after
+            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist, and which songs appear on the Bustout watch chart — it doesn't change any song's odds of being picked.">?</span>
+          </label>
+          <select id="bustGap">
+            <option value="50">50+ missed shows</option>
+            <option value="75">75+ missed shows</option>
+            <option value="100" selected>100+ missed shows</option>
+            <option value="150">150+ missed shows</option>
+            <option value="200">200+ missed shows</option>
+          </select>
+        </div>
+      </div>
+
       <div class="window-summary" id="calSummary"></div>
     </div>
   </details>
-  <div class="window-summary" id="windowSummary"></div>
+  <!-- Run position is derived from the schedule whenever the date matches a real or announced
+       show, which is nearly always. The manual dropdown that used to sit in Advanced only ever
+       appeared for a made-up date, so it was removed; this hidden field is what syncRunPos()
+       writes the detected value into. -->
+  <select id="runPos" class="hidden" aria-hidden="true" tabindex="-1">
+    <option value="none" selected>none</option>
+    <option value="tour">tour</option>
+    <option value="open">open</option>
+    <option value="middle">middle</option>
+    <option value="close">close</option>
+  </select>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="setlist">Predicted Setlist</button>
     <button class="tab-btn" data-tab="odds">Song Odds</button>
     <button class="tab-btn" data-tab="game">Phantasy Tour Picks</button>
+    <button class="tab-btn" data-tab="track">Track Record</button>
   </div>
 
   <div id="panel-setlist" class="tabpanel active">
@@ -365,7 +433,7 @@
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Song</th><th>Weighted Freq</th><th>Current Gap</th><th>Avg Gap</th><th>Gap vs Avg</th><th>Gap Mult</th><th>Raw Score</th><th>Calibrated Probability</th><th>Most Common Slot</th>
+              <th>#</th><th>Song</th><th>Wtd. freq</th><th>Gap now</th><th>Avg gap</th><th>Gap vs avg</th><th>Gap mult</th><th>Raw score</th><th>Prob.</th><th>Usual slot</th>
             </tr>
           </thead>
           <tbody id="mlBody"></tbody>
@@ -442,8 +510,20 @@
         <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
       </div>
       <div class="card">
-        <p class="chart-title" id="bustTitle">Bustout watch</p>
-        <div id="bustChart"></div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;">
+          <p class="chart-title" id="bustTitle" style="margin:0;">Bustout watch</p>
+          <label for="bustGapLocal" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-secondary);white-space:nowrap;">
+            Flag after
+            <select id="bustGapLocal" style="font-family:inherit;font-size:11.5px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);">
+              <option value="50">50+ missed shows</option>
+              <option value="75">75+ missed shows</option>
+              <option value="100" selected>100+ missed shows</option>
+              <option value="150">150+ missed shows</option>
+              <option value="200">200+ missed shows</option>
+            </select>
+          </label>
+        </div>
+        <div id="bustChart" style="margin-top:10px;"></div>
       </div>
       <div class="card">
         <div class="search-row">
@@ -455,16 +535,16 @@
             <thead>
               <tr id="predictHeadRow">
                 <th data-key="name">Song</th>
-                <th data-key="pred" class="sorted">Calibrated Probability</th>
-                <th data-key="freq">Weighted Freq</th>
-                <th data-key="gap">Current Gap</th>
-                <th data-key="avgGap">Avg Gap</th>
-                <th data-key="gapRatio">Gap vs Avg</th>
-                <th data-key="gapMult">Gap Mult</th>
-                <th data-key="dur">Median Length</th>
-                <th data-key="coolAff">Follows-a-Jam</th>
-                <th data-key="bestSlotP">Most Common Slot</th>
-                <th data-key="last">Last Played</th>
+                <th data-key="pred" class="sorted" title="Calibrated probability">Prob.</th>
+                <th data-key="freq" title="Recency-weighted frequency">Wtd. freq</th>
+                <th data-key="gap" title="Shows since it was last played">Gap now</th>
+                <th data-key="avgGap" title="This song's own average gap">Avg gap</th>
+                <th data-key="gapRatio" title="Current gap divided by its average gap">Gap vs avg</th>
+                <th data-key="gapMult" title="Empirical multiplier applied for that gap">Gap mult</th>
+                <th data-key="dur" title="Median performance length">Length</th>
+                <th data-key="coolAff" title="How much more often it follows a 10+ minute jam">Jam follow</th>
+                <th data-key="bestSlotP" title="The slot it turns up in most often">Usual slot</th>
+                <th data-key="last">Last played</th>
               </tr>
             </thead>
             <tbody id="tbodyPredict"></tbody>
@@ -489,12 +569,12 @@
             <thead>
               <tr id="freqHeadRow">
                 <th data-key="name">Song</th>
-                <th data-key="showsPlayed">Shows Played</th>
-                <th data-key="showsInWindow">Shows in Window</th>
+                <th data-key="showsPlayed">Shows played</th>
+                <th data-key="showsInWindow">Shows in window</th>
                 <th data-key="freq" class="sorted">Frequency</th>
-                <th data-key="onceEvery">Once Every</th>
+                <th data-key="onceEvery">Once every</th>
                 <th data-key="debut">Debut</th>
-                <th data-key="last">Last Played</th>
+                <th data-key="last">Last played</th>
                 <th data-key="gap">Gap</th>
               </tr>
             </thead>
@@ -502,6 +582,34 @@
           </table>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="panel-track" class="tabpanel">
+    <div class="card">
+      <p class="chart-title" id="trOfficialTitle">The official call</p>
+      <p class="lede" id="trOfficialLede"></p>
+      <div class="setlist-grid" id="trOfficialGrid"></div>
+      <p class="note">This is the committed prediction: a consensus of 500 generator runs at default
+        settings &mdash; the songs that turned up most often, assembled under the same structural rules
+        every drawn night obeys &mdash; snapshotted by the daily build before the show and never
+        re-rolled. Grading happens on the first build after the show, and a graded row is never touched
+        again &mdash; that's what makes the table below resistant to after-the-fact fiddling.</p>
+    </div>
+    <div class="card">
+      <p class="chart-title">Show by show</p>
+      <div class="tr-headline" id="trHeadline"></div>
+      <div class="table-wrap">
+        <table id="trTable">
+          <thead><tr><th>Date</th><th>Venue</th><th title="Songs from the committed 20-song official call that were played">Official call</th><th title="Songs from the ranked top 20 that were played">Top-20</th><th title="Share of the songs actually played that we had in the top 20 — recall, not precision">Of setlist</th><th title="Nailed = we named the right opener. Top 5 = the real opener was among our five ranked opener candidates.">Opener</th><th></th></tr></thead>
+          <tbody id="trBody"></tbody>
+        </table>
+      </div>
+      <p class="note">Click any graded row to see the actual songs &mdash; what we called and hit, what we called and missed, and what they played that we never had. <b>Of setlist</b> is recall (share of the played setlist we had in our top 20); <b>Top-20</b> is precision out of 20 picks. The two move in opposite directions when a show runs long, so both are shown rather than one headline number.</p>
+      <p class="note" id="trNote">Live rows are graded against the exact prediction committed before the show.
+        <b>Backfill</b> rows (greyed) were computed retroactively over past shows by the identical method &mdash;
+        same code, same default settings, stats cut to the day before each show &mdash; but they can't be verified
+        the way a live row can, so they're counted separately and will never mix with the live average.</p>
     </div>
   </div>
 
@@ -676,6 +784,11 @@ const JAM_RATE = __JAMRATE_JSON__;      // share of performances flagged as a no
 // exactly like Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint.
 const BREATHERS = new Set(__BREATHERS_JSON__);
 const UPCOMING = __UPCOMING_JSON__;     // scheduled shows from phish.net, refreshed on each build
+// The public track record. Written by snapshot.js in the Action, never by hand: each upcoming
+// show gets ONE committed official call (consensus of 500 seeded draws at default settings),
+// graded on the first build after the show, never re-rolled and never re-graded. Backfill
+// entries were computed retroactively by the identical method and are labeled as such.
+const PRED_LOG = __PREDLOG_JSON__;
 // Sets are held to their measured 5th-95th percentile range (2022+ shows), not a fixed guess.
 // Set 1 runs longer and carries more songs than set 2 in 81% of shows; set-2 songs average
 // 9.2 min against 7.7 in set 1.
@@ -896,9 +1009,9 @@ let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
 const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
- 'customStartField','customEndField','recency','windowSummary','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
+ 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
- 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','runPosField','nextDateNote','themeYear',
+ 'countNotePredict','countNoteFreq','rerollField','nextDateNote','themeYear','bustGapLocal','heroSubtitle','heroFlags',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
 
 els.refEnd.value = LATEST_DATE; els.refEnd.max = LATEST_DATE;
@@ -948,25 +1061,17 @@ function syncNextDate() {
 // a show that already happened, or one on the announced schedule. Both carry a real runPos/runN
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
+let RUNPOS_SOURCE = null;
 function syncRunPos() {
   const d = els.nextDate.value;
   let match = null, source = null;
   if (d && UPCOMING_BY_DATE.has(d)) { match = UPCOMING[UPCOMING_BY_DATE.get(d)]; source = 'scheduled'; }
   else if (d && DATE_IDX.has(d)) { match = SHOWS[DATE_IDX.get(d)]; source = 'history'; }
-  if (match && match.runPos && match.runPos !== 'none') {
-    // Known for a fact — no need to show a dropdown for something we're not guessing at.
-    els.runPos.value = match.runPos;
-    els.runPosField.classList.add('hidden');
-    els.runPosNote.textContent = source === 'scheduled'
-      ? `${match.runN} at ${match.venue} — already factored in.`
-      : `This show already happened — ${match.runN} at ${match.venue} — already factored in.`;
-    els.runPosNote.classList.add('auto');
-  } else {
-    if (match) els.runPos.value = 'none';   // a real single-night show — nothing to pick
-    els.runPosField.classList.remove('hidden');
-    els.runPosNote.textContent = '';
-    els.runPosNote.classList.remove('auto');
-  }
+  // Run position is a fact we look up, never a question we ask. The manual dropdown is gone:
+  // it only ever appeared for a date matching no real or scheduled show, and in that case the
+  // honest answer is that we don't know, which is what 'none' means.
+  els.runPos.value = (match && match.runPos) ? match.runPos : 'none';
+  RUNPOS_SOURCE = match ? source : null;
 }
 
 function getSettings() {
@@ -1160,9 +1265,20 @@ function compute() {
   const n1local = med(recent.map(s => s.n1)) || 9;
   const n2local = med(recent.map(s => s.n2)) || 7;
   const nelocal = med(recent.map(s => s.ne)) || 2;
-  const n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
-  const n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
-  const ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
+  // Per-set counts are drawn from their own marginal distributions, which says nothing about
+  // the TOTAL. Two independent low draws can land a 16-song night with a 4-song second set —
+  // a combination real shows essentially do not produce. Measured over 680 modern shows the
+  // total runs 10 at the extreme low end but only 1% fall below 14 and 2% below 15, so the
+  // night is redrawn (bounded, never looped indefinitely) until it clears a floor. Set floors
+  // of 6 and 4 stay as the per-set backstop; this is the joint constraint they cannot express.
+  const TOTAL_FLOOR = 15;               // real 2nd percentile; p05 is 16, median 20
+  let n1, n2, ne;
+  for (let attempt = 0; ; attempt++) {
+    n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
+    n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
+    ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
+    if (!slModeSample || n1 + n2 + ne >= TOTAL_FLOOR || attempt >= 12) break;
+  }
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
   return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
@@ -1398,6 +1514,20 @@ function buildSetlist(rows, n1, n2, ne) {
     const k = cap / tot;
     budget.s1 *= k; budget.s2 *= k; budget.e *= k;
   }
+  // Minutes and song count are NOT independent draws, and treating them as if they were is
+  // the deepest structural error left in the builder. A 4-song set 2 physically cannot fill a
+  // 67-minute budget: that is 16.75 min/song, against a real 95th percentile of 11.78. The
+  // budget came from the set-minutes distribution and the count from the set-count
+  // distribution with nothing reconciling them, so whenever a short count was drawn the set
+  // fell far under budget and the OTHER set kept its full allocation and carried the whole
+  // night. Measured over 2,000 nights: when the drawn set-2 count was <= 5, 26.5% of nights
+  // blew the measured 0.73-1.58 set-length band (ratios up to 3.2x) against 2.1% when it was
+  // >= 6. Clamping each budget to what its own drawn count can actually hold removes the
+  // contradiction at the source. Bounds are the real 5th-95th percentile of minutes-per-song,
+  // measured over 2022+ shows: set 1 6.94-9.80, set 2 7.98-11.78.
+  const PER_SONG = { s1: [6.94, 9.80], s2: [7.98, 11.78] };
+  budget.s1 = clamp(budget.s1, [n1 * PER_SONG.s1[0], n1 * PER_SONG.s1[1]]);
+  budget.s2 = clamp(budget.s2, [n2 * PER_SONG.s2[0], n2 * PER_SONG.s2[1]]);
 
   // Bustouts: never more than one a night, and most nights none at all.
   // Measured at the 100-show threshold: 68% of real shows have zero, ~20% exactly one.
@@ -1607,6 +1737,31 @@ function buildSetlist(rows, n1, n2, ne) {
   };
   topUp(s1mid, () => m1, v => { m1 = v; }, Math.max(60, budget.s1 * 0.92), false, cap1);
   topUp(s2mid, () => m2, v => { m2 = v; }, Math.max(56, budget.s2 * 0.92), true, cap2);
+  // Count top-up. Measured over 1,500 nights: the `rest` pool runs dry before the drawn counts
+  // are reached on 73% of them, because selectPool() sizes the pool to the drawn total and then
+  // the bustout thin-out, the rarity guard and the bond invariant all REMOVE from it, while the
+  // openers, closers and encore consume five or six more slots. Nothing refilled it. Set 1
+  // finished a mean 1.6 songs under its drawn count on 65% of nights, which put the night at a
+  // median 155 minutes against a real 164 — and left the long-song floor to paper over the gap
+  // by stuffing in jam vehicles. The minute top-up above cannot fix this: it stops at a minute
+  // target, not at a count. This is the mirror of the count CAP — the count is a draw from the
+  // measured distribution and should be hit from below as well as respected from above.
+  const countUp = (arr, getM, setM, budgetM, cap) => {
+    while (arr.length < cap && spare.length) {
+      const room = budgetM + 4 - getM();
+      let bi = -1;
+      for (let i = 0; i < spare.length; i++) if (durOf(spare[i]) <= room) { bi = i; break; }
+      if (bi < 0) break;                       // nothing left that fits the minutes ceiling
+      const [pick] = spare.splice(bi, 1);
+      arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
+    }
+  };
+  // Ceiling for the count top-up is the measured 95th-percentile SET BOUND, not the sampled
+  // budget: the budget is a target drawn for this night, while the bound is what real sets
+  // actually respect. Holding the top-up to budget+4 left set 1 under its drawn count on 44%
+  // of nights because there was no room left for even a short song.
+  countUp(s1mid, () => m1, v => { m1 = v; }, Math.min(SET_BOUNDS.s1[1] - 4, budget.s1 + 8), cap1);
+  countUp(s2mid, () => m2, v => { m2 = v; }, Math.min(SET_BOUNDS.s2[1] - 4, budget.s2 + 8), cap2);
   while (s2mid.length > s1mid.length && spare.length && s1mid.length < cap1) { const r = spare.shift(); s1mid.push(r); used.add(r.id); m1 += durOf(r); }
 
   // Bonds survive every top-up: an anchor that slipped in late still brings its partner.
@@ -1618,8 +1773,21 @@ function buildSetlist(rows, n1, n2, ne) {
     if (Math.random() >= bond.p) continue;
     const dep = rows.find(r => r.id === +depId);
     if (!dep || used.has(dep.id) || dep.offTheme || dep.runRepeat) continue;
+    // The bond top-up used to push straight past the drawn count. The bond itself is
+    // non-negotiable, so when the destination set is full the weakest unlocked mid-set song
+    // makes way instead of the count being breached.
+    const dest = (s1mid.includes(anchor) || s1o.includes(anchor)) ? s1mid : s2mid;
+    const destCap = dest === s1mid ? cap1 : cap2;
+    if (dest.length >= destCap) {
+      let wi = -1;
+      dest.forEach((r, i) => { if (r.locked || r.id in BONDED) return;
+                               if (wi < 0 || r.pred < dest[wi].pred) wi = i; });
+      if (wi < 0) continue;
+      used.delete(dest[wi].id);
+      dest.splice(wi, 1);
+    }
     used.add(dep.id);
-    (s1mid.includes(anchor) || s1o.includes(anchor) ? s1mid : s2mid).push(dep);
+    dest.push(dep);
   }
 
   s1mid.sort((a, b) => b.pred - a.pred);
@@ -1653,6 +1821,33 @@ function buildSetlist(rows, n1, n2, ne) {
   const sl = { set1: [...s1o, ...s1mid, ...s1c], set2: cooldownOrder([...s2o, ...s2mid, ...s2c]), encore: enc };
 
   // pair placement pass
+  // Every pass below can RELOCATE a song from one set to the other. Measured, none of them
+  // checked the drawn count on the receiving side: pair placement alone pushed set 1 over its
+  // count on 3.1% more nights and set 2 on 4.5% more, and the balance guard added another 2.6%
+  // to set 2. A relocation that would breach the destination's drawn count is skipped.
+  let trimNight = () => {};
+  const distinctN = arr => new Set(arr.map(r => r.id)).size;
+  const capOf = key => key === 'set1' ? n1 : (key === 'set2' ? n2 : Infinity);
+  const canReceive = (fromKey, toKey) => fromKey === toKey || distinctN(sl[toKey]) < capOf(toKey);
+  // Songs that must not be evicted to make room for a pair move.
+  const pairLocked = new Set();
+  for (const r of PAIR_RULES) if (r.place !== 'free') { pairLocked.add(r.a); pairLocked.add(r.b); }
+  for (const [dep, bd] of Object.entries(BONDED)) { pairLocked.add(+dep); pairLocked.add(bd.anchor); }
+  // Move `mover` into `toKey` even though that set is at its drawn count, by sending the
+  // weakest ordinary mid-set song back the other way. Returns false if nothing can be spared.
+  const makeRoom = (toKey, fromKey) => {
+    const dest = sl[toKey], donor = sl[fromKey];
+    let wi = -1;
+    dest.forEach((r, i) => {
+      if (i === 0 || i === dest.length - 1) return;        // opener and closer stay put
+      if (r.cool || r.reentry || r.locked || pairLocked.has(r.id)) return;
+      if (wi < 0 || r.pred < dest[wi].pred) wi = i;
+    });
+    if (wi < 0) return false;
+    const [out] = dest.splice(wi, 1);
+    donor.splice(Math.max(1, donor.length - 1), 0, out);
+    return true;
+  };
   const findLoc = id => {
     for (const key of ['set1', 'set2', 'encore']) {
       const i = sl[key].findIndex(r => r.id === id);
@@ -1665,10 +1860,41 @@ function buildSetlist(rows, n1, n2, ne) {
     const la = findLoc(rule.a), lb = findLoc(rule.b);
     if (!la || !lb || la.key === 'encore') continue;
     if (la.key === lb.key && lb.i > la.i && (rule.place !== 'adj' || lb.i === la.i + 1)) continue;
-    const [b] = sl[lb.key].splice(lb.i, 1);
+    // Skipping when the destination is full was wrong. Measured over all 2,015 shows:
+    // Mike's Song and Weekapaug Groove share a set 98.4% of the time (505/513), and when
+    // I Am Hydrogen is played all three share a set 99.7% of the time. Letting an off-by-one
+    // count cap veto a 98.4% structural rule is how a Mike's Song in set 1 shipped with its
+    // Weekapaug opening set 2 and a stranded I Am Hydrogen behind it. Trade a song back the
+    // other way instead: both counts hold AND the pair lands together.
+    if (!canReceive(lb.key, la.key) && !makeRoom(la.key, lb.key)) continue;
+    const lb2 = findLoc(rule.b);                 // makeRoom may have shifted indices
+    if (!lb2) continue;
+    const [b] = sl[lb2.key].splice(lb2.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === rule.a);
+    if (aIdx < 0) { sl[lb2.key].splice(lb2.i, 0, b); continue; }   // anchor moved out from under us
     arr.splice(rule.place === 'adj' ? aIdx + 1 : Math.min(aIdx + 2, arr.length), 0, b);
+  }
+  // Final same-set invariant for the canonical trios, by name. The mined `sameset` placement
+  // above is a preference the passes can lose; this is the guarantee. A Weekapaug in a
+  // different set from its Mike's is a setlist real Phish does not play, so the orphan is
+  // dropped rather than shipped in the wrong place.
+  for (const [ancNm, ...deps] of [["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove'],
+                                  ['Tweezer', 'Tweezer Reprise'],
+                                  ['The Horse', 'Silent in the Morning']]) {
+    const anc = SONG_ID_BY_NAME.get(ancNm);
+    const la = anc != null && findLoc(anc);
+    if (!la) continue;
+    for (const depNm of deps) {
+      const dep = SONG_ID_BY_NAME.get(depNm);
+      const lb = dep != null && findLoc(dep);
+      if (!lb || lb.key === la.key) continue;
+      const [depRow] = sl[lb.key].splice(lb.i, 1);
+      if (canReceive(lb.key, la.key) || makeRoom(la.key, lb.key)) {
+        const arr = sl[la.key], ai = arr.findIndex(r => r.id === anc);
+        arr.splice(ai < 0 ? arr.length : Math.min(ai + 1, arr.length), 0, depRow);
+      }   // else: nowhere to put it, so it is dropped rather than shipped in the wrong set
+    }
   }
   // A bonded dependent (Tweezer Reprise, Weekapaug Groove...) can never come before its anchor,
   // even under a "free" placement pattern that doesn't otherwise pin down where it lands.
@@ -1679,6 +1905,14 @@ function buildSetlist(rows, n1, n2, ne) {
     if (!la || !lb) continue;
     const isBefore = SET_ORDER[lb.key] < SET_ORDER[la.key] || (lb.key === la.key && lb.i < la.i);
     if (!isBefore) continue;
+    if (!canReceive(lb.key, la.key)) {
+      // Destination set is already at its drawn count. Exchanging the two songs' positions is
+      // count-neutral in both sets and always puts the anchor first, since the dependent was
+      // the earlier of the two by definition of isBefore.
+      const anchorRow = sl[la.key][la.i], depRow = sl[lb.key][lb.i];
+      sl[la.key][la.i] = depRow; sl[lb.key][lb.i] = anchorRow;
+      continue;
+    }
     const [b] = sl[lb.key].splice(lb.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === bond.anchor);
@@ -1693,10 +1927,18 @@ function buildSetlist(rows, n1, n2, ne) {
     const lockedIds = new Set();
     for (const r of PAIR_RULES) if (r.place !== 'free') { lockedIds.add(r.a); lockedIds.add(r.b); }
     for (const [dep, b] of Object.entries(BONDED)) { lockedIds.add(+dep); lockedIds.add(b.anchor); }
-    for (let guard = 0; guard < 4; guard++) {
+    for (let guard = 0; guard < 10; guard++) {
       const m1 = minutesOf(sl.set1), m2 = minutesOf(sl.set2);
       const ratio = m1 / m2;
-      if (ratio <= 1.58 && ratio >= 0.73) break;
+      // The 0.73-1.58 band is measured across ALL shows, so it already averages over the
+      // counts. A night that drew 10 songs for set 1 and 4 for set 2 really does run about
+      // 2x longer in set 1 — that combination is 1.2% of real shows, not an error — and
+      // forcing it back inside the all-shows band would be correcting the draw with a
+      // statistic that does not apply to it. Widen the band to whatever the drawn counts
+      // imply, at their median minutes-per-song.
+      const cImplied = (n1 * 8.17) / Math.max(1e-9, n2 * 9.85);
+      const loR = Math.min(0.73, cImplied * 0.85), hiR = Math.max(1.58, cImplied * 1.15);
+      if (ratio <= hiR && ratio >= loR) break;
       const from = ratio > 1.58 ? sl.set1 : sl.set2;
       const to = ratio > 1.58 ? sl.set2 : sl.set1;
       if (from.length <= 5) break;
@@ -1708,6 +1950,27 @@ function buildSetlist(rows, n1, n2, ne) {
         const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
         if (dev < bestDev) { bestDev = dev; best = c; }
       }
+      if (distinctN(to) >= capOf(to === sl.set1 ? 'set1' : 'set2')) {
+        // Receiving set is at its drawn count, so a plain move would breach it. Trade a song
+        // each way instead: count-neutral in both sets, and it still moves minutes by the
+        // difference between the two. Search the pairs rather than assuming the shortest
+        // return song is best — a bad trade can overshoot the band in the other direction.
+        const outs = cands;
+        const ins = to.slice(1, -1).filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
+        let bp = null, bpDev = Math.abs(Math.log(ratio / 1.07));
+        for (const c of outs) for (const d of ins) {
+          const dd = durOf(c) - durOf(d);
+          const nm1 = ratio > 1.58 ? m1 - dd : m1 + dd;
+          const nm2 = ratio > 1.58 ? m2 + dd : m2 - dd;
+          if (nm2 <= 0) continue;
+          const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
+          if (dev < bpDev) { bpDev = dev; bp = [c, d]; }
+        }
+        if (!bp) break;
+        const fi = from.indexOf(bp[0]), ti = to.indexOf(bp[1]);
+        from[fi] = bp[1]; to[ti] = bp[0];
+        continue;
+      }
       if (!best) break;
       from.splice(from.indexOf(best), 1);
       to.splice(to.length - 1, 0, best);
@@ -1715,6 +1978,24 @@ function buildSetlist(rows, n1, n2, ne) {
     // Total-night ceiling: the whole night stays inside its measured 95th-percentile
     // minutes. Budgets are capped up front, but a long draw can still nudge the assembled
     // night past the line — trim the least likely unlocked mid-set song until it fits.
+    // Exposed as a function because it has to run AGAIN after the long-song floor: the floor
+    // swaps songs for longer ones after this point, and running the trim only here let 19.3%
+    // of nights ship past the measured total-minute ceiling.
+    trimNight = () => {
+    // Per-set ceiling as well as the night ceiling. Measured before this existed: 12.5% of
+    // first sets and 7.1% of second sets shipped past their own 95th-percentile bound, because
+    // the bound was only ever applied to the sampled BUDGET, and the fill's +4 overshoot
+    // allowance, the minute top-up and the balance guard all push past the budget afterwards.
+    for (const [key, bnd] of [['set1', SET_BOUNDS.s1], ['set2', SET_BOUNDS.s2]]) {
+      for (let guard = 0; guard < 5; guard++) {
+        if (minutesOf(sl[key]) <= bnd[1]) break;
+        const cands = sl[key].slice(1, -1)
+          .filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly && !r.reentry)
+          .sort((a, b2) => a.pred - b2.pred);
+        if (!cands.length) break;
+        sl[key].splice(sl[key].indexOf(cands[0]), 1);
+      }
+    }
     for (let guard = 0; guard < 6; guard++) {
       const tot = minutesOf(sl.set1) + minutesOf(sl.set2) + minutesOf(sl.encore);
       if (tot <= SET_BOUNDS.total[1] + 4) break;
@@ -1727,6 +2008,8 @@ function buildSetlist(rows, n1, n2, ne) {
         if (i > 0 && i < sl[key].length - 1) { sl[key].splice(i, 1); break; }
       }
     }
+    };
+    trimNight();
   }
   for (const key of ['set1', 'set2']) {
     sl[key].forEach((r, i) => { r.role = i === 0 ? 'opener' : (i === sl[key].length - 1 ? 'closer' : ''); });
@@ -1753,25 +2036,6 @@ function buildSetlist(rows, n1, n2, ne) {
   // set 2, and the encore each fill from a competitive weighted draw, so an anchor can lose out
   // on a slot even after its dependent won one. A reprise without its song is a state the real
   // setlist can't produce, so drop the dependent rather than ship the impossible pairing.
-  // The fill loop respects the drawn song count, but the passes that run after it —
-  // pair placement, the bond re-check, the set-balance rebalance — move songs between
-  // sets and could push one over. Enforce the count here, after every mover has run,
-  // the same way bond orphans are handled. Trims the least likely unlocked mid-set song
-  // and never touches an opener, closer, bond, cool-down or reentry.
-  for (const [key, capN] of [['set1', t1], ['set2', t2]]) {
-    const arr = sl[key];
-    while (arr.length > capN) {
-      let victim = -1;
-      for (let i = 1; i < arr.length - 1; i++) {
-        const r = arr[i];
-        if (r.cool || r.reentry || r.bonded || r.locked) continue;
-        if (BONDED[r.id] || Object.values(BONDED).some(b => b.anchor === r.id)) continue;
-        if (victim < 0 || (r.pred || 0) < (arr[victim].pred || 0)) victim = i;
-      }
-      if (victim < 0) break;          // nothing safe to remove; leave it rather than break a bond
-      arr.splice(victim, 1);
-    }
-  }
   for (const [depId, bond] of Object.entries(BONDED)) {
     const lb = findLoc(+depId);
     if (!lb) continue;
@@ -1781,7 +2045,31 @@ function buildSetlist(rows, n1, n2, ne) {
   // A tagged song can still get relocated to set 1 by the pair-placement pass (Silent in
   // the Morning follows The Horse wherever it lands), and it must not carry the label along.
   for (const r of [...sl.set1, ...sl.encore]) delete r.cool;
+  // Night floor, on the ASSEMBLED show rather than the drawn counts. Drawing n1+n2+ne above a
+  // floor is not enough: both sets can still finish under their drawn counts (the pool thins
+  // as bustouts, rarities and bond orphans are removed), and the night lands short anyway.
+  // Measured: only ~1% of real shows carry fewer than 14 distinct songs and 2% fewer than 15.
+  // Top the show back up from the best remaining eligible songs, into whichever set is
+  // furthest below its own drawn count.
+  {
+    const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
+    if (inShow.size < 15) {
+      const pool = rows.filter(r => r.pred > 0 && !inShow.has(r.id) && !r.terminalOnly &&
+          !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
+        .sort((a, b) => b.pred - a.pred);
+      let si = 0;
+      while (inShow.size < 15 && si < pool.length) {
+        const pick = pool[si++];
+        const short1 = n1 - new Set(sl.set1.map(r => r.id)).size;
+        const short2 = n2 - new Set(sl.set2.map(r => r.id)).size;
+        const arr = short1 >= short2 ? sl.set1 : sl.set2;
+        arr.splice(Math.max(1, arr.length - 1), 0, pick);   // never displace the set closer
+        inShow.add(pick.id);
+      }
+    }
+  }
   enforceLongFloor(sl, rows);
+  trimNight();
   applyReentry(sl);
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;
@@ -1813,38 +2101,55 @@ function buildSetlist(rows, n1, n2, ne) {
 // ---------------------------------------------------------------------------
 function enforceLongFloor(sl, rows) {
   if (!LONG_SONGS) return;
+  // `r.bonded` was tested here but is never assigned anywhere in the engine, so the swap could
+  // evict a bonded ANCHOR (The Horse, Tweezer, Mike's Song) — and this pass runs AFTER the final
+  // bond-invariant check, so nothing caught it. Measured: 2.0% of nights shipped an orphaned
+  // dependent (Weekapaug Groove, Tweezer Reprise or Silent in the Morning with no anchor);
+  // disabling this pass took that to zero. Build the protected set from BONDED directly.
+  const bondIds = new Set();
+  for (const [dep, b] of Object.entries(BONDED)) { bondIds.add(+dep); bondIds.add(b.anchor); }
+  const isProtected = r => r.cool || r.reentry || r.locked || bondIds.has(r.id);
+  // LONG_SONGS is mined from each song's MEDIAN length, so eligibility is judged on the median
+  // too. The old code counted what the set `have`s with the per-night sampled length and picked
+  // candidates by median, which are different questions.
+  const isLong = r => durMedian(r) >= LONG_THRESH;
   const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
+
   for (const key of ['set1', 'set2']) {
     const arr = sl[key];
-    if (!arr.length) continue;
+    if (arr.length < 3) continue;
     const want = sampleLongFloor(key === 'set1' ? 's1' : 's2');
-    let have = arr.filter(r => durOf(r) >= LONG_THRESH).length;
-    if (have >= want) continue;
+    let have = arr.filter(isLong).length;
+    if (have === want) continue;
 
-    // candidates: not already in the show, priced, and actually long
-    // Bustouts are excluded: they run on their own measured one-per-night budget, and
-    // letting this pass pull one in could put a second bustout in the same show.
+    // Two-sided. Raising to a floor and never lowering makes the result E[max(natural, want)]
+    // rather than E[want]: measured over 1,000 nights, set 1 carried a mean 3.22 songs of 10+
+    // minutes against a real 1.93, set 2 3.78 against 2.87, and the pass added a median 9.8
+    // minutes to a night whose budget had already been fixed. Swapping in BOTH directions
+    // reproduces the mined distribution instead of its upper envelope.
+    const wantLong = have < want;
     const cands = rows
-      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly && !r.isBustout &&
-                   durMedian(r) >= LONG_THRESH)
+      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly &&
+                   !(r.id in BONDED) && isLong(r) === wantLong)
       .sort((a, b) => b.pred - a.pred);
     if (!cands.length) continue;
 
-    for (let ci = 0; have < want && ci < cands.length; ci++) {
-      // find the shortest swappable mid-set song
+    for (let ci = 0; have !== want && ci < cands.length; ci++) {
       let victim = -1;
       for (let i = 1; i < arr.length - 1; i++) {
         const r = arr[i];
-        if (r.cool || r.reentry || r.bonded || r.locked) continue;
-        if (durOf(r) >= LONG_THRESH) continue;
-        if (victim < 0 || durOf(r) < durOf(arr[victim])) victim = i;
+        if (isProtected(r)) continue;
+        if (isLong(r) === wantLong) continue;      // already on the wanted side of the line
+        // swapping a long song IN, sacrifice the shortest; swapping one OUT, the longest
+        if (victim < 0 ||
+            (wantLong ? durMedian(r) < durMedian(arr[victim])
+                      : durMedian(r) > durMedian(arr[victim]))) victim = i;
       }
       if (victim < 0) break;
-      const pick = cands[ci];
       inShow.delete(arr[victim].id);
-      inShow.add(pick.id);
-      arr[victim] = pick;
-      have++;
+      inShow.add(cands[ci].id);
+      arr[victim] = cands[ci];
+      have += wantLong ? 1 : -1;
     }
   }
 }
@@ -1856,16 +2161,23 @@ function applyReentry(sl) {
   const cands = [];
   for (const key of setKeys) {
     sl[key].forEach((r, i) => {
-      // The set closer can't be the first half of a sandwich — there is nothing after it
-      // to sandwich around, and picking it made the set end on the repeat.
-      if (i >= sl[key].length - 1) return;
       const rule = REENTRY_BY_SID.get(r.id);
       if (rule) cands.push({ key, i, r, rule });
     });
   }
   if (!cands.length) return;
-  const pick = cands[Math.floor(Math.random() * cands.length)];
-  if (Math.random() > pick.rule.rate) return;      // roll its measured reentry rate
+  // The pass used to pick ONE eligible song uniformly at random and roll only that song's rate,
+  // which divides the show-level reentry rate by the number of eligible songs on stage — 4.2 on
+  // average. Measured result: reentries on 3.5% of generated nights against 22% of real shows.
+  // Roll each eligible song against its own measured rate and take the first hit; the ceiling of
+  // one reentrant song per night is unchanged.
+  const order = cands.slice();
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  const pick = order.find(c => Math.random() < c.rule.rate);
+  if (!pick) return;
 
   const pl = pick.rule.place || {};
   const u = Math.random();
@@ -1876,6 +2188,10 @@ function applyReentry(sl) {
   }
 
   const arr = sl[pick.key];
+  // A bonded song must not be relocated by the gap-fitting step below: moving a dependent
+  // earlier can push it in front of its anchor, and the bond-order pass has already run.
+  const __bondIds = new Set();
+  for (const [dep, bd] of Object.entries(BONDED)) { __bondIds.add(+dep); __bondIds.add(bd.anchor); }
   const copy = Object.assign({}, pick.r, { reentry: true });
   delete copy.cool;
 
@@ -1894,10 +2210,24 @@ function applyReentry(sl) {
   else if (mode === 'far') offset = 5 + Math.floor(Math.random() * 3);
   else offset = 2 + Math.floor(Math.random() * 3);   // sandwich: 2-4 slots on
 
-  const at = Math.min(pick.i + offset, arr.length);
-  // never displace the set closer — the sandwich resolves before the set ends
-  if (at >= arr.length) arr.splice(Math.max(pick.i + 1, arr.length - 1), 0, copy);
-  else arr.splice(at, 0, copy);
+  // The insert used to clamp to the end of the set when pick.i + offset overran it, which
+  // silently turned a sandwich into an ADJACENT repeat. Measured: 29% of generated repeats
+  // landed adjacent against 1.8% in the real data, and the worst offenders were exactly the
+  // songs recorded as 100% sandwich with no exceptions (Hold Your Head Up, Harry Hood) —
+  // because those sit late in a set, so the overshoot branch fired almost every time.
+  // If the gap won't fit behind the first copy, move the FIRST copy earlier rather than
+  // shorten the gap; if the set is too short to hold the gap at all, skip the reentry.
+  let i0 = pick.i;
+  const lastSlot = arr.length - 1;                 // the closer keeps the final slot
+  if (i0 + offset > lastSlot) {
+    const back = i0 + offset - lastSlot;
+    if (i0 - back < 1) return;                     // opener stays put; no room for this gap
+    if (__bondIds.has(pick.r.id)) return;          // never reorder a bond to make a gap fit
+    const [moved] = arr.splice(i0, 1);
+    i0 -= back;
+    arr.splice(i0, 0, moved);
+  }
+  arr.splice(i0 + offset, 0, copy);
 }
 
 // ---------------------------------------------------------------------------
@@ -2013,6 +2343,13 @@ function sortRows(rows, key, dir) {
   });
 }
 function pct(p) { return p < 0.01 ? (p * 100).toFixed(1) : (p * 100).toFixed(0); }
+
+// Tier bands over the CALIBRATED probability. The cut points are round numbers, not fitted:
+// >=60% has historically meant "hit two nights in three," which is as lock as Phish gets.
+function tierOf(p) {
+  return p >= 0.60 ? ['lock', 'lock'] : p >= 0.30 ? ['likely', 'likely'] : p >= 0.10 ? ['bubble', 'bubble'] : ['long', 'longshot'];
+}
+const tierChip = p => { const [cls, label] = tierOf(p); return `<span class="tier ${cls}">${label}</span>`; };
 // current gap vs the song's own average gap: >1 means it is overdue, <1 means recently played
 function ratioCell(r) {
   if (r.gap == null || !r.avgGap) return '—';
@@ -2040,9 +2377,14 @@ function render() {
   const targetLabel = target
     ? `${target.venue}, ${target.city} &mdash; ${target.date}${target.runN && target.runPos && target.runPos !== 'none' ? ` (${target.runN})` : ''}`
     : (d ? d : 'the next show (nothing announced yet)');
-  els.windowSummary.innerHTML = `Predicting: <b>${targetLabel}</b> &nbsp;&bull;&nbsp; using stats from <b>${startDate}</b> to <b>${st.end}</b> (<b>${showsInFullWindow}</b> shows)`
-    + (runMates.size ? `<br><span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
-    + (themePool ? `<br><span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
+  // One status line, in the subtitle, above the fold — not a separate strip repeating it.
+  els.heroSubtitle.innerHTML = `Predicting <b>${targetLabel}</b>, from the <b>${showsInFullWindow}</b> shows between <b>${startDate}</b> and <b>${st.end}</b>. `
+    + `A <b>statistically honest guess</b> at the next Phish setlist, built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983 and refreshed daily from phish.net &mdash; it knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.`;
+  // Conditions that materially change the prediction get their own line, but only while active.
+  els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
+    + (runMates.size && themePool ? '<br>' : '')
+    + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
+  els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
   els.calSummary.innerHTML = cal.n > 0
     ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings`
@@ -2120,7 +2462,7 @@ function render() {
   const maxPredAll = Math.max(0.0001, ...fp.map(r => r.pred));
   els.tbodyPredict.innerHTML = fp.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${tierChip(r.pred)}</td>
       <td class="pred-cell"><div class="pred-bar-bg" style="width:${(r.pred / maxPredAll * 60).toFixed(1)}%"></div><span class="pred-text">${(r.pred * 100).toFixed(1)}%</span></td>
       <td>${(r.freq * 100).toFixed(1)}%</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
@@ -2179,7 +2521,8 @@ els.modeCustom.addEventListener('click', () => {
   syncNextDate();
   render();
 });
-[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.bustGap, els.runPos, els.themeYear].forEach(el => el.addEventListener('change', render));
+[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.themeYear].forEach(el => el.addEventListener('change', render));
+els.bustGap.addEventListener('change', () => syncBustGap(els.bustGap));   // mirrors to the copy beside the chart, then renders
 // Themed-year options, newest first — only years the band actually played.
 for (const y of [...SONGS_BY_YEAR.keys()].sort().reverse()) {
   const o = document.createElement('option');
@@ -2241,24 +2584,125 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// Scheduled shows come from phish.net and refresh whenever the site rebuilds. Picking one
-// fills in the date and works out where it sits in its run.
-if (UPCOMING.length) {
-  els.upcomingField.classList.remove('hidden');
-  UPCOMING.forEach((s, i) => {
-    const o = document.createElement('option');
-    o.value = String(i);
-    o.textContent = `${s.date} — ${s.venue}, ${s.city}${s.runPos && s.runPos !== 'none' ? ` (${s.runN})` : ''}`;
-    els.upcoming.appendChild(o);
-  });
-  els.upcoming.addEventListener('change', () => {
-    const s = UPCOMING[+els.upcoming.value];
-    if (!s) return;
-    els.nextDate.value = s.date;
-    syncRunPos();
-    render();
+// The "pick a scheduled show" dropdown was removed. It could only select a show FURTHER OUT
+// than the next one, and doing that changes almost nothing real: gap is counted in SHOWS, not
+// days, so every song carries the identical gap and the identical probability — all that moves
+// is the run-position multiplier and the date-lock check. That reads like a deeper forecast
+// than it is. The next scheduled show is still filled in automatically by syncNextDate(), which
+// is where the run position ("night 2 of 5") comes from.
+
+// The bustout threshold appears twice — in settings and beside the Bustout watch chart — so the
+// two stay in lockstep. Neither is authoritative; whichever the user touches wins.
+function syncBustGap(from) {
+  const v = from.value;
+  if (els.bustGap.value !== v) els.bustGap.value = v;
+  if (els.bustGapLocal.value !== v) els.bustGapLocal.value = v;
+  render();
+}
+els.bustGapLocal.addEventListener('change', () => syncBustGap(els.bustGapLocal));
+
+// ---- Track Record tab: rendered once — PRED_LOG is baked at build time and never changes
+// client-side. Ids resolve through SONG_BY_ID so the log file stays small.
+function renderTrackRecord() {
+  const log = (PRED_LOG && PRED_LOG.entries) || [];
+  const nameOf = id => { const s = SONG_BY_ID.get(id); return s ? s.name : '?'; };
+  const live = log.filter(e => !e.backfill), bf = log.filter(e => e.backfill);
+  const gradedLive = live.filter(e => e.graded && e.res), gradedBf = bf.filter(e => e.graded && e.res);
+
+  // --- the official call for the next ungraded show, if one is committed
+  const pending = live.find(e => !e.graded);
+  const t = $('trOfficialTitle'), l = $('trOfficialLede'), g = $('trOfficialGrid');
+  if (pending) {
+    t.textContent = `The official call — ${pending.venue} · ${pending.date}`;
+    l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b>. This exact list is what gets graded after the show.`;
+    const block = (title, ids) => `
+      <div class="set-block"><h3>${title}</h3>
+        ${ids.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOf(id)}</span></span></div>`).join('')}
+      </div>`;
+    g.innerHTML = block('Set 1', pending.official.s1) + block('Set 2', pending.official.s2) + block('Encore', pending.official.e);
+  } else {
+    t.textContent = 'The official call';
+    l.textContent = 'No upcoming show has a committed prediction yet — the next daily build after a show is announced will commit one automatically.';
+    g.innerHTML = '';
+  }
+
+  // --- headline numbers: live and backfill NEVER mix
+  const mean = (arr, f) => arr.length ? arr.reduce((a, e) => a + f(e), 0) / arr.length : null;
+  const fmt = (v, d) => v == null ? '\u2014' : v.toFixed(d == null ? 1 : d);
+  const openPct = arr => { const g = arr.filter(e => e.res.open); return g.length ? 100 * g.filter(e => e.res.open !== 'miss').length / g.length : null; };
+  // "Of setlist" is RECALL — the share of what they actually played that we had in our top 20.
+  // It moves opposite to precision when a show runs long, so both are reported, never blended.
+  const recall = arr => arr.length ? 100 * arr.reduce((a, e) => a + e.res.hit20 / Math.max(1, e.res.played), 0) / arr.length : null;
+  $('trHeadline').innerHTML = `
+    <div class="stat"><b>${gradedLive.length}</b><span>shows graded live</span></div>
+    <div class="stat"><b>${fmt(mean(gradedLive, e => e.res.hitOf))}</b><span>official-call hits / show (live)</span></div>
+    <div class="stat"><b>${fmt(mean(gradedLive, e => e.res.hit20))}</b><span>top-20 hits / show (live)</span></div>
+    <div class="stat"><b>${fmt(recall(gradedLive), 0)}${recall(gradedLive) == null ? '' : '%'}</b><span>of setlist (live)</span></div>
+    <div class="stat"><b>${fmt(openPct(gradedLive), 0)}${openPct(gradedLive) == null ? '' : '%'}</b><span>opener in top 5 (live)</span></div>
+    <div class="stat" style="opacity:.7"><b>${fmt(mean(gradedBf, e => e.res.hitOf))} \u00b7 ${fmt(mean(gradedBf, e => e.res.hit20))} \u00b7 ${fmt(recall(gradedBf), 0)}% \u00b7 ${fmt(openPct(gradedBf), 0)}%</b><span>backfill (${gradedBf.length} shows): official \u00b7 top-20 \u00b7 of setlist \u00b7 opener</span></div>`;
+
+  // --- the actual setlist of a past show, rebuilt from PLAYS. Kept out of the log entirely:
+  // the page already ships every play, so storing them again would only bloat the commit.
+  const PLAYED_BY_DATE = new Map();
+  for (const p of PLAYS) {
+    if (!PLAYED_BY_DATE.has(p.date)) PLAYED_BY_DATE.set(p.date, []);
+    PLAYED_BY_DATE.get(p.date).push(p);
+  }
+
+  const OPEN_MARK = { nailed: '<span class="hit" title="we named the right opener">\u25cf nailed</span>',
+                      close: '<span title="real opener was in our top 5">\u25cb top 5</span>',
+                      miss: '<span class="miss">\u2014</span>' };
+
+  // --- table: live rows newest-first, then the labeled backfill block
+  const row = (e, cls, i) => {
+    const g = e.graded && e.res;
+    const rec = g ? Math.round(100 * e.res.hit20 / Math.max(1, e.res.played)) + '%' : '\u2014';
+    return `
+    <tr class="tr-row ${cls}" data-tr="${i}">
+      <td>${e.date}</td><td>${e.venue}${e.city ? ', ' + e.city : ''}${e.runN ? ` <span class="miss">(${e.runN})</span>` : ''}</td>
+      <td>${g ? `<b>${e.res.hitOf}</b> / ${e.res.nOf}` : 'awaiting show'}</td>
+      <td>${g ? `<b>${e.res.hit20}</b> / 20` : '\u2014'}</td>
+      <td>${rec}</td>
+      <td>${g ? (OPEN_MARK[e.res.open] || '\u2014') : '\u2014'}</td>
+      <td class="miss">${g ? '\u25be' : ''}</td>
+    </tr>`;
+  };
+
+  // Detail: what we called and hit, what we called and missed, and what they played that we
+  // never had. The third column is the one no scoreboard shows and the most informative.
+  const detail = (e, i) => {
+    if (!e.graded || !e.res) return '';
+    const rows = PLAYED_BY_DATE.get(e.date) || [];
+    const played = new Set(rows.map(p => p.sid));
+    const call = [...e.official.s1, ...e.official.s2, ...e.official.e];
+    const li = (id, hit) => `<li class="${hit ? 'hit' : 'miss'}">${hit ? '\u2713' : '\u00b7'} ${nameOf(id)}</li>`;
+    const missedByUs = [...played].filter(id => !call.includes(id) && !e.top20.includes(id));
+    const realOpen = e.res.realOpen;
+    return `
+    <tr class="tr-detail ${e.backfill ? 'bf' : ''}" id="trd${i}" style="display:none"><td class="tr-detailcell" colspan="7">
+      <div class="cols">
+        <div><h4>Official call (${e.res.hitOf}/${call.length})</h4><ul>${call.map(id => li(id, played.has(id))).join('')}</ul></div>
+        <div><h4>Ranked top 20 (${e.res.hit20}/20)</h4><ul>${e.top20.map(id => li(id, played.has(id))).join('')}</ul></div>
+        <div><h4>They played, we never had (${missedByUs.length})</h4><ul>${missedByUs.map(id => `<li class="miss">${nameOf(id)}</li>`).join('') || '<li class="miss">nothing \u2014 every song was on one of our lists</li>'}</ul></div>
+      </div>
+      <p class="prov">Opener: they opened with <b>${realOpen != null ? nameOf(realOpen) : '\u2014'}</b>; we called <b>${nameOf(e.official.s1[0])}</b>${(e.open5 || []).length ? `, with ${e.open5.map(nameOf).join(', ')} as the five candidates` : ''}.
+        ${e.backfill ? 'Computed retroactively on ' : 'Committed by the build on '}<b>${e.snapAt}</b>${e.backfill ? '' : ' \u2014 the commit that added this row is in the repo\u2019s git history, timestamped before the show'}.</p>
+    </td></tr>`;
+  };
+
+  const ordered = [...live.slice().reverse(), ...(bf.length ? [null] : []), ...bf.slice().reverse()];
+  $('trBody').innerHTML = ordered.map((e, i) => e === null
+    ? `<tr class="bf-divider"><td colspan="7">Backfill \u2014 computed retroactively, same method (${bf.length} shows)</td></tr>`
+    : row(e, e.backfill ? 'bf' : '', i) + detail(e, i)).join('');
+
+  $('trBody').addEventListener('click', ev => {
+    const tr = ev.target.closest('tr.tr-row');
+    if (!tr) return;
+    const d = $('trd' + tr.getAttribute('data-tr'));
+    if (d) d.style.display = d.style.display === 'none' ? '' : 'none';
   });
 }
+renderTrackRecord();
 
 // ---- song detail card: click any song name for its phish.net-style stat sheet ----
 const pnetSlug = name => name.toLowerCase().replace(/['’.]/g, '').replace(/&/g, 'and')
