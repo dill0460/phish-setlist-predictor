@@ -95,29 +95,6 @@
   .tf-pills button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .tf-note { font-size: 12px; color: var(--text-muted); margin: 2px 0 10px; }
   .window-summary { font-size: 12.5px; color: var(--text-secondary); margin-top: 8px; }
-  /* Numbered group headings inside the settings drawer. The controls are ordered the way
-     someone actually reasons about them — which show, then which history, then how to weight
-     it, then the special cases, then the one knob that only changes a label. */
-  .grp { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-         color: var(--text-secondary); margin: 30px 0 12px; padding-bottom: 6px;
-         border-bottom: 1px solid var(--border); }
-  .grp:first-of-type { margin-top: 10px; }
-  .dbody .controls-row { margin-bottom: 6px; }
-  .dbody .tf-strip { margin-bottom: 8px; }
-  .dbody .tf-note { margin: 0 0 14px; }
-  #nextDateNote { margin-bottom: 2px; }
-  .dbody #calSummary { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .grp .sub { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-muted); margin-left: 8px; }
-  /* Song-odds tables: the song name is the column people read, so give it the room and take it
-     back off the ten numeric columns, whose headers wrap instead of forcing the table wide. */
-  /* Headers wrap at spaces only — never mid-word. "CALIB / RATE / D / PROB / ABILIT / Y" is
-     what breaking anywhere produces at these widths, so the labels themselves were shortened
-     instead and the break is left to fall between words. */
-  .table-wrap table th { white-space: normal; overflow-wrap: normal; word-break: keep-all; vertical-align: bottom; }
-  #predictHeadRow th:first-child, #freqHeadRow th:first-child { width: 25%; min-width: 170px; }
-  #predictHeadRow th:not(:first-child), #freqHeadRow th:not(:first-child) { font-size: 10.5px; line-height: 1.3; padding-left: 7px; padding-right: 7px; }
-  #tbodyPredict td:first-child, #tbodyFreq td:first-child { width: 25%; min-width: 170px; white-space: normal; line-height: 1.35; }
-  #tbodyPredict td:not(:first-child), #tbodyFreq td:not(:first-child) { padding-left: 7px; padding-right: 7px; }
   .window-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
   /* ---------- tabs ---------- */
@@ -191,50 +168,13 @@
   .freq-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--seq-100); border-radius: 3px; z-index: 0; }
   .pred-bar-bg { position: absolute; left: 10px; top: 4px; bottom: 4px; background: var(--pred-100); border-radius: 3px; z-index: 0; }
   .freq-text, .pred-text { position: relative; z-index: 1; }
-  .table-wrap { max-height: 560px; overflow-y: auto; overflow-x: auto; }
+  .table-wrap { max-height: 560px; overflow-y: auto; }
   .note { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; line-height: 1.5; }
   .count-note { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
   .slot-tag { display: inline-block; font-size: 10.5px; font-weight: 600; color: var(--text-muted); }
   .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
   .badge.bust { background: var(--pred-100); color: var(--series-2); }
   .badge.cool { background: var(--seq-100); color: var(--seq-650); }
-  /* Probability tiers — bands of the CALIBRATED probability, so the words mean something:
-     a "lock" really has hit ~2 nights in 3 historically. */
-  .tier { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:1px 6px;
-          border-radius:9px; margin-left:7px; vertical-align:1px; text-transform:uppercase; }
-  .tier.lock { background: var(--good-100, #e7f5ec); color: var(--good, #1a7f4b); }
-  .tier.likely { background: var(--seq-100); color: var(--seq-650); }
-  .tier.bubble { background: var(--pred-100); color: var(--series-2); }
-  .tier.long { background: var(--surface-2, #f0ece4); color: var(--text-muted); }
-  /* Track record table */
-  .tr-headline { display:flex; flex-wrap:wrap; gap:26px; margin:2px 0 14px; }
-  .tr-headline .stat b { font-size:22px; display:block; font-variant-numeric:tabular-nums; }
-  .tr-headline .stat span { font-size:11.5px; color: var(--text-muted); }
-  tr.bf td { opacity:.62; }
-  .bf-divider td { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-                   color: var(--text-muted); padding-top:16px; border-bottom:none; }
-  /* Venue names run long ("Highland Festival Grounds at Kentucky Expo Center"); without a
-     width cap and a wrap they push the metric columns off the right edge of the card. */
-  #trTable { table-layout: fixed; min-width: 620px; }   /* below this the wrap scrolls instead of crushing Venue to 0 */
-  /* tbody td is nowrap globally, which the detail row inherits — one long provenance line was
-     forcing the whole table 100px wider than its card. */
-  .tr-detail td, .tr-detail p, .tr-detail li { white-space: normal; }
-  #trTable th:nth-child(1), #trTable td:nth-child(1) { width: 90px; }
-  #trTable th:nth-child(2), #trTable td:nth-child(2) { width: auto; white-space: normal; line-height: 1.35; }
-  #trTable th:nth-child(n+3), #trTable td:nth-child(n+3) { width: 92px; padding-left: 7px; padding-right: 7px; font-size: 11.5px; }
-  #trTable th:last-child, #trTable td:last-child { width: 24px; padding-left: 0; }
-  #trTable td.tr-detailcell { width: auto; font-size: inherit; }
-  tr.tr-row { cursor: pointer; }
-  tr.tr-row:hover td { background: var(--surface-2, rgba(0,0,0,.03)); }
-  .tr-detail td { background: var(--page); padding: 0 10px 14px; }
-  .tr-detail .cols { display:grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap:18px; padding-top:10px; }
-  .tr-detail h4 { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--text-secondary);
-                  margin:0 0 6px; font-weight:700; }
-  .tr-detail li { list-style:none; font-size:12px; line-height:1.75; white-space:normal; }
-  .tr-detail ul { margin:0; padding:0; }
-  .hit { color: var(--good, #1a7f4b); font-weight:600; }
-  .miss { color: var(--text-muted); }
-  .prov { font-size:11px; color:var(--text-muted); margin-top:10px; }
 
   /* ---------- explainer blocks ---------- */
   .explain { margin-top: 18px; border-top: 1px solid var(--gridline); padding-top: 14px; }
@@ -285,41 +225,67 @@
   <div class="hero">
     <h1>The Helping Phriendly Setlist</h1>
     <p class="tagline">What are they gonna play?</p>
-    <p class="subtitle" id="heroSubtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>2,027 shows</b> and <b>967 songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
-    <p class="subtitle" id="heroFlags" style="margin-top:-8px"></p>
+    <p class="subtitle">A <b>statistically honest guess</b> at the next Phish setlist &mdash; built from all <b>2,027 shows</b> and <b>967 songs</b> since 1983, refreshed daily from phish.net. It knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.</p>
   </div>
 
-  <details id="advWrap">
-    <summary>Settings</summary>
-    <div class="dbody">
-      <p>Every default here is the exact setting this tool's accuracy was tested at, so nothing needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
+  <div class="tf-strip">
+    <span class="tf-label">Base the odds on:</span>
+    <div class="tf-pills">
+      <button id="tf2">Last 2 years</button>
+      <button id="tf5" class="active">Last 5 years</button>
+      <button id="tf10">Last 10 years</button>
+      <button id="tfAll">Every show since '83</button>
+    </div>
+  </div>
+  <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
+  <p class="tf-note">Want a specific date, a run position, or to time-travel the stats? <b>Advanced settings</b> below.</p>
 
-      <p class="grp">1 &middot; Which show are we predicting?</p>
-      <div class="controls-row">
+  <details id="advWrap">
+    <summary>Advanced settings</summary>
+    <div class="dbody">
+      <p>Fine-tuning knobs. The defaults are the exact settings this tool's accuracy was tested at, so nothing here needs changing &mdash; it's for poking at how the prediction shifts, or testing the model against a night that already happened.</p>
+      <div class="controls-row" style="margin-top:4px;">
+        <div class="field hidden" id="upcomingField">
+          <label for="upcoming">Got a real show coming up?
+            <span class="hint" title="Pick a real, already-announced Phish show from the tour schedule. Everything else below (show date, run position) fills itself in.">?</span>
+          </label>
+          <select id="upcoming"><option value="">Pick a scheduled show&hellip;</option></select>
+        </div>
         <div class="field">
-          <label for="nextDate">Show date <span style="text-transform:none;font-weight:400">(optional)</span>
-            <span class="hint" title="Leave blank to predict the next scheduled show. Set it to test the model against a night that already happened — move the stats cutoff in section 2 into the past first, and this fills itself in with whatever show really happened next back then, so you can't accidentally predict a date that contradicts your own stats.">?</span>
+          <label for="nextDate">Predicting a specific date? <span style="text-transform:none;font-weight:400">(optional)</span>
+            <span class="hint" title="Leave this blank to just predict 'whatever show is next.' Only set it if you want a particular night. If you also move the stats cutoff below into the past, this fills itself in with whatever show really happened next back then &mdash; you can't accidentally predict a date that contradicts your own stats.">?</span>
           </label>
           <input type="date" id="nextDate">
           <div class="note" id="nextDateNote" style="margin-top:2px;"></div>
         </div>
-      </div>
-
-      <p class="grp">2 &middot; Which history counts?<span class="sub">the window the odds are measured over</span></p>
-      <div class="tf-strip">
-        <span class="tf-label">Base the odds on:</span>
-        <div class="tf-pills">
-          <button id="tf2">Last 2 years</button>
-          <button id="tf5" class="active">Last 5 years</button>
-          <button id="tf10">Last 10 years</button>
-          <button id="tfAll">Every show since '83</button>
+        <div class="field" id="rollingEndField">
+          <label for="refEnd">Use stats through
+            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to today, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then &mdash; useful for testing it against a show that already happened.">?</span>
+          </label>
+          <input type="date" id="refEnd">
         </div>
+        <div class="field hidden" id="customEndField">
+          <label for="customEnd">Use stats through</label>
+          <input type="date" id="customEnd">
+        </div>
+        <div class="field" id="runPosField">
+          <label for="runPos">Opening, middle, or closing night? <span style="text-transform:none;font-weight:400">(optional)</span>
+            <span class="hint" title="A multi-night run's opening, middle, and closing shows each tend to favor different songs. Usually filled in for you automatically &mdash; this only matters for a hypothetical date we can't match to a real show.">?</span>
+          </label>
+          <select id="runPos">
+            <option value="none" selected>Don't know / doesn't apply</option>
+            <option value="tour">First show of a tour</option>
+            <option value="open">Opening night of a run</option>
+            <option value="middle">Middle night</option>
+            <option value="close">Closing night</option>
+          </select>
+        </div>
+        <div class="note" id="runPosNote" style="flex-basis:100%; margin-top:-6px;"></div>
       </div>
-      <p class="tf-note">5 years is the sweet spot &mdash; it's the setting every accuracy number on this page was tested at. Recent shows always count more than old ones.</p>
-      <div class="controls-row">
+      <div class="controls-row" style="margin-top:14px;">
         <div class="field">
-          <label>Window type
-            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. The pill buttons above are shortcuts for Rolling.">?</span>
+          <label>How far back do the stats look?
+            <span class="hint" title="Rolling: a fixed number of years counting back from the cutoff date, which slides automatically as the cutoff changes. Custom range: pick your own fixed start and end date instead. Almost everyone wants Rolling &mdash; the pill buttons at the top of the page set this for you.">?</span>
           </label>
           <div class="mode-toggle">
             <button id="modeRolling" class="active">Rolling (years back)</button>
@@ -328,7 +294,7 @@
         </div>
         <div class="field" id="rollingYearsField">
           <label for="yearsBack">Years back
-            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the pills above are shortcuts for this. Testing found this barely changes accuracy either way — recency weighting matters more.">?</span>
+            <span class="hint" title="How many years of shows feed the stats. 5 is the default and tested value; the buttons at the top of the page are shortcuts for this. Testing found this barely changes accuracy either way &mdash; recency weighting matters more.">?</span>
           </label>
           <input type="number" id="yearsBack" min="0.5" max="43" step="0.5" value="5">
         </div>
@@ -336,48 +302,9 @@
           <label for="customStart">Start date</label>
           <input type="date" id="customStart">
         </div>
-        <div class="field" id="rollingEndField">
-          <label for="refEnd">Use stats through
-            <span class="hint" title="Only shows on or before this date count toward the stats. Defaults to the latest show on record, meaning 'use everything we've got.' Move it into the past to see what the model would have predicted back then — useful for testing it against a show that already happened.">?</span>
-          </label>
-          <input type="date" id="refEnd">
-        </div>
-        <div class="field hidden" id="customEndField">
-          <label for="customEnd">Use stats through</label>
-          <input type="date" id="customEnd">
-        </div>
-      </div>
-
-      <p class="grp">3 &middot; How much do recent shows count?</p>
-      <div class="controls-row">
         <div class="field">
-          <label for="recency">Weight recent shows&hellip;
-            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses — change it to see how predictions shift, not because it's wrong.">?</span>
-          </label>
-          <select id="recency">
-            <option value="0">Not at all (every show counts equally)</option>
-            <option value="200">A little more</option>
-            <option value="100" selected>Somewhat more (recommended default)</option>
-            <option value="50">A lot more</option>
-          </select>
-        </div>
-      </div>
-
-      <p class="grp">4 &middot; Special cases</p>
-      <div class="controls-row">
-        <div class="field">
-          <label for="themeYear">Themed night? Play it like a year
-            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
-          </label>
-          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
-        </div>
-      </div>
-
-      <p class="grp">5 &middot; Display only<span class="sub">changes a label, never the odds</span></p>
-      <div class="controls-row">
-        <div class="field">
-          <label for="bustGap">Flag a returning song as a &ldquo;bustout&rdquo; after
-            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist, and which songs appear on the Bustout watch chart — it doesn't change any song's odds of being picked.">?</span>
+          <label for="bustGap">Flag a returning song as a "bustout" after
+            <span class="hint" title="Just changes the label shown next to a returning song in the predicted setlist &mdash; it doesn't change that song's actual odds of being picked at all.">?</span>
           </label>
           <select id="bustGap">
             <option value="50">50+ missed shows</option>
@@ -387,28 +314,33 @@
             <option value="200">200+ missed shows</option>
           </select>
         </div>
+        <div class="field">
+          <label for="themeYear">Themed night? Play it like a year
+            <span class="hint" title="On the 2026 MSG run the band tied each night to a year — those were their 92nd to 96th shows at the Garden, so 7/22 drew on 1992, 7/24 on 1993, and so on. It held almost perfectly: every song on the first three nights had been played in its target year. Pick a year here and the prediction is restricted to songs the band actually played that year. Nobody knows in advance whether a night is themed, so this is yours to set — leave it off for a normal show.">?</span>
+          </label>
+          <select id="themeYear"><option value="">No theme &mdash; normal show</option></select>
+        </div>
+        <div class="field">
+          <label for="recency">Weight recent shows...
+            <span class="hint" title="How much more the last few shows count than old ones when tallying how often a song is played. 'Somewhat more' is the tested default that every accuracy number on this page uses &mdash; change it to see how predictions shift, not because it's wrong.">?</span>
+          </label>
+          <select id="recency">
+            <option value="0">Not at all (every show counts equally)</option>
+            <option value="200">A little more</option>
+            <option value="100" selected>Somewhat more (recommended default)</option>
+            <option value="50">A lot more</option>
+          </select>
+        </div>
       </div>
-
       <div class="window-summary" id="calSummary"></div>
     </div>
   </details>
-  <!-- Run position is derived from the schedule whenever the date matches a real or announced
-       show, which is nearly always. The manual dropdown that used to sit in Advanced only ever
-       appeared for a made-up date, so it was removed; this hidden field is what syncRunPos()
-       writes the detected value into. -->
-  <select id="runPos" class="hidden" aria-hidden="true" tabindex="-1">
-    <option value="none" selected>none</option>
-    <option value="tour">tour</option>
-    <option value="open">open</option>
-    <option value="middle">middle</option>
-    <option value="close">close</option>
-  </select>
+  <div class="window-summary" id="windowSummary"></div>
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="setlist">Predicted Setlist</button>
     <button class="tab-btn" data-tab="odds">Song Odds</button>
     <button class="tab-btn" data-tab="game">Phantasy Tour Picks</button>
-    <button class="tab-btn" data-tab="track">Track Record</button>
   </div>
 
   <div id="panel-setlist" class="tabpanel active">
@@ -433,7 +365,7 @@
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Song</th><th>Wtd. freq</th><th>Gap now</th><th>Avg gap</th><th>Gap vs avg</th><th>Gap mult</th><th>Raw score</th><th>Prob.</th><th>Usual slot</th>
+              <th>#</th><th>Song</th><th>Weighted Freq</th><th>Current Gap</th><th>Avg Gap</th><th>Gap vs Avg</th><th>Gap Mult</th><th>Raw Score</th><th>Calibrated Probability</th><th>Most Common Slot</th>
             </tr>
           </thead>
           <tbody id="mlBody"></tbody>
@@ -510,20 +442,8 @@
         <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
       </div>
       <div class="card">
-        <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;">
-          <p class="chart-title" id="bustTitle" style="margin:0;">Bustout watch</p>
-          <label for="bustGapLocal" style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-secondary);white-space:nowrap;">
-            Flag after
-            <select id="bustGapLocal" style="font-family:inherit;font-size:11.5px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);">
-              <option value="50">50+ missed shows</option>
-              <option value="75">75+ missed shows</option>
-              <option value="100" selected>100+ missed shows</option>
-              <option value="150">150+ missed shows</option>
-              <option value="200">200+ missed shows</option>
-            </select>
-          </label>
-        </div>
-        <div id="bustChart" style="margin-top:10px;"></div>
+        <p class="chart-title" id="bustTitle">Bustout watch</p>
+        <div id="bustChart"></div>
       </div>
       <div class="card">
         <div class="search-row">
@@ -535,16 +455,16 @@
             <thead>
               <tr id="predictHeadRow">
                 <th data-key="name">Song</th>
-                <th data-key="pred" class="sorted" title="Calibrated probability">Prob.</th>
-                <th data-key="freq" title="Recency-weighted frequency">Wtd. freq</th>
-                <th data-key="gap" title="Shows since it was last played">Gap now</th>
-                <th data-key="avgGap" title="This song's own average gap">Avg gap</th>
-                <th data-key="gapRatio" title="Current gap divided by its average gap">Gap vs avg</th>
-                <th data-key="gapMult" title="Empirical multiplier applied for that gap">Gap mult</th>
-                <th data-key="dur" title="Median performance length">Length</th>
-                <th data-key="coolAff" title="How much more often it follows a 10+ minute jam">Jam follow</th>
-                <th data-key="bestSlotP" title="The slot it turns up in most often">Usual slot</th>
-                <th data-key="last">Last played</th>
+                <th data-key="pred" class="sorted">Calibrated Probability</th>
+                <th data-key="freq">Weighted Freq</th>
+                <th data-key="gap">Current Gap</th>
+                <th data-key="avgGap">Avg Gap</th>
+                <th data-key="gapRatio">Gap vs Avg</th>
+                <th data-key="gapMult">Gap Mult</th>
+                <th data-key="dur">Median Length</th>
+                <th data-key="coolAff">Follows-a-Jam</th>
+                <th data-key="bestSlotP">Most Common Slot</th>
+                <th data-key="last">Last Played</th>
               </tr>
             </thead>
             <tbody id="tbodyPredict"></tbody>
@@ -569,12 +489,12 @@
             <thead>
               <tr id="freqHeadRow">
                 <th data-key="name">Song</th>
-                <th data-key="showsPlayed">Shows played</th>
-                <th data-key="showsInWindow">Shows in window</th>
+                <th data-key="showsPlayed">Shows Played</th>
+                <th data-key="showsInWindow">Shows in Window</th>
                 <th data-key="freq" class="sorted">Frequency</th>
-                <th data-key="onceEvery">Once every</th>
+                <th data-key="onceEvery">Once Every</th>
                 <th data-key="debut">Debut</th>
-                <th data-key="last">Last played</th>
+                <th data-key="last">Last Played</th>
                 <th data-key="gap">Gap</th>
               </tr>
             </thead>
@@ -582,34 +502,6 @@
           </table>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div id="panel-track" class="tabpanel">
-    <div class="card">
-      <p class="chart-title" id="trOfficialTitle">The official call</p>
-      <p class="lede" id="trOfficialLede"></p>
-      <div class="setlist-grid" id="trOfficialGrid"></div>
-      <p class="note">This is the committed prediction: a consensus of 500 generator runs at default
-        settings &mdash; the songs that turned up most often, assembled under the same structural rules
-        every drawn night obeys &mdash; snapshotted by the daily build before the show and never
-        re-rolled. Grading happens on the first build after the show, and a graded row is never touched
-        again &mdash; that's what makes the table below resistant to after-the-fact fiddling.</p>
-    </div>
-    <div class="card">
-      <p class="chart-title">Show by show</p>
-      <div class="tr-headline" id="trHeadline"></div>
-      <div class="table-wrap">
-        <table id="trTable">
-          <thead><tr><th>Date</th><th>Venue</th><th title="Songs from the committed 20-song official call that were played">Official call</th><th title="Songs from the ranked top 20 that were played">Top-20</th><th title="Share of the songs actually played that we had in the top 20 — recall, not precision">Of setlist</th><th title="Nailed = we named the right opener. Top 5 = the real opener was among our five ranked opener candidates.">Opener</th><th></th></tr></thead>
-          <tbody id="trBody"></tbody>
-        </table>
-      </div>
-      <p class="note">Click any graded row to see the actual songs &mdash; what we called and hit, what we called and missed, and what they played that we never had. <b>Of setlist</b> is recall (share of the played setlist we had in our top 20); <b>Top-20</b> is precision out of 20 picks. The two move in opposite directions when a show runs long, so both are shown rather than one headline number.</p>
-      <p class="note" id="trNote">Live rows are graded against the exact prediction committed before the show.
-        <b>Backfill</b> rows (greyed) were computed retroactively over past shows by the identical method &mdash;
-        same code, same default settings, stats cut to the day before each show &mdash; but they can't be verified
-        the way a live row can, so they're counted separately and will never mix with the live average.</p>
     </div>
   </div>
 
@@ -670,7 +562,7 @@
   </div>
 
   <p class="footer">Built by a phan, for phans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
-  <p class="footer" style="margin-top:6px;opacity:.75">Build <code>2026-07-30 17:38 MDT · 987ce7ea</code></p>
+  <p class="footer" style="margin-top:6px;opacity:.75">Build <code>2026-07-30 21:45 MDT · c298e96e</code></p>
 
 </div>
 
@@ -784,11 +676,6 @@ const JAM_RATE = {"208":0.086,"161":0.083,"110":0.345,"483":0.061,"538":0.226,"2
 // exactly like Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint.
 const BREATHERS = new Set([19,32,34,51,64,68,88,94,132,159,177,193,194,297,316,333,338,393,419,473,493,495,507,513,542,573,582,642,649,741,1370,2417,2423,2571,2627,2697,2907,2932,3212]);
 const UPCOMING = [{"date":"2026-07-31","venue":"Fenway Park","city":"Boston","state":"MA","runN":"night 1 of 2","runPos":"none"},{"date":"2026-08-01","venue":"Fenway Park","city":"Boston","state":"MA","runN":"night 2 of 2","runPos":"none"},{"date":"2026-09-04","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 1 of 3","runPos":"open"},{"date":"2026-09-05","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 2 of 3","runPos":"middle"},{"date":"2026-09-06","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 3 of 3","runPos":"close"},{"date":"2027-01-27","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 1 of 4","runPos":"open"},{"date":"2027-01-28","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 2 of 4","runPos":"middle"},{"date":"2027-01-29","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 3 of 4","runPos":"middle"},{"date":"2027-01-30","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 4 of 4","runPos":"close"}];     // scheduled shows from phish.net, refreshed on each build
-// The public track record. Written by snapshot.js in the Action, never by hand: each upcoming
-// show gets ONE committed official call (consensus of 500 seeded draws at default settings),
-// graded on the first build after the show, never re-rolled and never re-graded. Backfill
-// entries were computed retroactively by the identical method and are labeled as such.
-const PRED_LOG = {"v":1,"entries":[{"date":"2023-08-04","venue":"Madison Square Garden","city":"New York","runN":"night 6 of 7","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,485,2656,628,591,250,2829,2743,627,653,2845,381,1355,46,2573,649,364,478,246,208],"open5":[591,485,2,96,208],"official":{"s1":[591,485,2,2829,381,1355,208,628,364,246],"s2":[2656,250,2743,627,653,46,478,273],"e":[649,2845]},"res":{"played":17,"hit20":9,"hitOf":9,"nOf":20,"open":"close","realOpen":96}},{"date":"2023-08-05","venue":"Madison Square Garden","city":"New York","runN":"night 7 of 7","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[628,2656,250,627,2743,2829,364,46,1355,442,2573,649,2424,634,462,657,2506,2744,2970,479],"open5":[2935,2656,2792,2743,2744],"official":{"s1":[634,364,46,1355,442,2424,462,648,2506,2970],"s2":[2743,2656,250,2829,2573,479,2744,627],"e":[649,628]},"res":{"played":17,"hit20":12,"hitOf":11,"nOf":20,"open":"miss","realOpen":354}},{"date":"2023-08-25","venue":"Broadview Stage at SPAC","city":"Saratoga Springs","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[215,3076,2803,2796,622,2946,45,3100,48,202,21,174,2572,1102,2918,3083,508,538,2573,222],"open5":[2803,215,2935,2946,2792],"official":{"s1":[2803,215,2796,45,2918,21,3083,1085,113,622],"s2":[2572,2946,3100,48,174,529,545,3076],"e":[2639,202]},"res":{"played":15,"hit20":3,"hitOf":2,"nOf":20,"open":"miss","realOpen":323}},{"date":"2023-08-26","venue":"Broadview Stage at SPAC","city":"Saratoga Springs","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[215,3076,2803,622,222,45,48,2572,174,202,21,3083,3100,630,683,113,1102,2573,2918,2570],"open5":[2803,215,104,2935,222],"official":{"s1":[2803,215,45,21,3083,113,696,2570,529,622],"s2":[2572,3076,222,48,174,2918,630,2932],"e":[2639,202]},"res":{"played":16,"hit20":9,"hitOf":8,"nOf":20,"open":"close","realOpen":215}},{"date":"2023-08-31","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 1 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,3076,538,48,2572,45,113,104,512,3083,3077,2918,3100,483,1102,690,2932,437,339,609],"open5":[104,2935,2570,2792,8],"official":{"s1":[104,538,45,3083,3077,2918,483,609,545,696],"s2":[2572,2570,3076,48,3100,2932,2639,108],"e":[512,113]},"res":{"played":16,"hit20":7,"hitOf":5,"nOf":20,"open":"nailed","realOpen":104}},{"date":"2023-09-01","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 2 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[48,2572,45,2,2918,3077,437,653,3083,690,2984,2639,381,2932,2571,148,609,3100,538,455],"open5":[2935,96,2792,2,381],"official":{"s1":[2,45,148,2918,3083,381,2571,609,538,2984],"s2":[2572,48,690,3077,3100,437,529,653],"e":[545,2639]},"res":{"played":17,"hit20":5,"hitOf":6,"nOf":20,"open":"miss","realOpen":683}},{"date":"2023-09-02","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 3 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,3077,653,2918,437,381,2984,628,690,2639,1085,478,108,208,110,2829,3083,1355,2571,46],"open5":[591,208,2935,96,2],"official":{"s1":[381,690,208,2,3077,2918,108,1355,478,2984],"s2":[273,2829,455,653,3100,437,1085,591],"e":[545,2639]},"res":{"played":20,"hit20":7,"hitOf":7,"nOf":20,"open":"close","realOpen":208}},{"date":"2023-09-03","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 4 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[628,690,591,202,653,237,381,2932,3077,2918,2829,1355,46,2803,508,2639,1085,215,2656,622],"open5":[96,591,2935,2792,381],"official":{"s1":[591,2829,381,1355,3077,2918,2418,622,215,46],"s2":[2656,690,2803,237,653,250,273,2932],"e":[2639,202]},"res":{"played":18,"hit20":7,"hitOf":8,"nOf":20,"open":"miss","realOpen":2803}},{"date":"2023-10-06","venue":"Bridgestone Arena","city":"Nashville","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,653,622,440,483,381,2829,1355,508,46,2932,2845,3077,545,690,2918,364,3076,2796,867],"open5":[2935,104,96,381,2792],"official":{"s1":[381,2829,622,440,483,1355,508,2796,2918,46],"s2":[2570,690,653,867,273,104,2743,3076],"e":[2845,545]},"res":{"played":18,"hit20":3,"hitOf":2,"nOf":20,"open":"miss","realOpen":318}},{"date":"2023-10-07","venue":"Bridgestone Arena","city":"Nashville","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[622,653,2570,440,381,104,512,2743,3077,2845,690,508,2829,46,627,1355,2932,485,1102,867],"open5":[104,96,2935,381,2792],"official":{"s1":[104,622,381,2829,3077,508,1355,512,485,649],"s2":[2743,2570,440,690,653,273,627,2932],"e":[545,2845]},"res":{"played":18,"hit20":2,"hitOf":2,"nOf":20,"open":"miss","realOpen":21}},{"date":"2023-10-08","venue":"Bridgestone Arena","city":"Nashville","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[690,2570,622,440,653,104,512,2743,381,2829,2845,48,2572,679,627,1102,508,3077,222,867],"open5":[96,104,2935,381,2792],"official":{"s1":[104,2570,622,381,2829,512,96,1355,627,3077],"s2":[2743,690,440,653,48,2572,508,273],"e":[679,2845]},"res":{"played":19,"hit20":4,"hitOf":3,"nOf":20,"open":"close","realOpen":96}},{"date":"2023-10-10","venue":"Ervin J. Nutter Center, Wright State University","city":"Dayton","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,622,440,653,104,512,2743,110,48,2572,381,627,2829,1355,1102,2845,2803,508,246,442],"open5":[104,2803,381,208,2743],"official":{"s1":[104,622,440,110,381,1355,246,2829,679,628],"s2":[2572,2570,2743,48,627,653,273,696],"e":[2845,512]},"res":{"played":21,"hit20":8,"hitOf":7,"nOf":20,"open":"close","realOpen":2803}},{"date":"2023-10-11","venue":"Ervin J. Nutter Center, Wright State University","city":"Dayton","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,104,2743,622,440,2845,508,2829,46,1355,627,1102,437,174,628,591,2,3076,148,208],"open5":[104,208,591,2743,2570],"official":{"s1":[104,622,440,1355,2,591,246,148,45,628],"s2":[2743,2570,2829,627,46,174,1102,508],"e":[2845,2796]},"res":{"played":16,"hit20":7,"hitOf":6,"nOf":20,"open":"close","realOpen":2743}},{"date":"2023-10-13","venue":"United Center","city":"Chicago","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,683,622,104,627,591,2,2845,508,2829,3076,2796,45,628,113,84,538,483,485,208],"open5":[104,591,2570,208,2],"official":{"s1":[591,622,2,2829,84,628,113,45,696,483],"s2":[2570,104,683,627,508,208,485,607],"e":[2845,2796]},"res":{"played":20,"hit20":5,"hitOf":5,"nOf":20,"open":"close","realOpen":104}},{"date":"2023-10-14","venue":"United Center","city":"Chicago","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[622,591,2,2796,3076,2845,683,45,2656,113,508,628,21,364,2418,215,478,607,208,2639],"open5":[591,208,2,96,2803],"official":{"s1":[591,622,2,45,113,208,21,2639,108,364],"s2":[2656,3076,683,2418,508,478,215,607],"e":[2845,2796]},"res":{"played":20,"hit20":8,"hitOf":9,"nOf":20,"open":"miss","realOpen":479}},{"date":"2023-10-15","venue":"United Center","city":"Chicago","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[591,628,690,2796,202,237,683,45,215,21,508,2946,364,2418,478,2803,538,607,2984,2932],"open5":[591,96,2803,8,202],"official":{"s1":[591,683,45,215,364,21,508,679,8,607],"s2":[2946,690,237,2418,2803,478,538,148],"e":[2796,202]},"res":{"played":22,"hit20":6,"hitOf":6,"nOf":20,"open":"miss","realOpen":2794}},{"date":"2023-12-28","venue":"Madison Square Garden","city":"New York","runN":"night 1 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[683,591,84,215,45,2803,21,630,512,48,2572,202,364,2418,2984,2570,653,2932,3077,690],"open5":[591,2803,683,96,215],"official":{"s1":[591,683,2803,215,84,45,21,364,440,2571],"s2":[2572,48,630,690,2418,2932,2570,2984],"e":[512,202]},"res":{"played":19,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":2572}},{"date":"2023-12-29","venue":"Madison Square Garden","city":"New York","runN":"night 2 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[215,591,45,683,2803,630,512,21,202,440,2743,174,690,3077,485,867,364,250,437,2932],"open5":[591,2803,104,96,215],"official":{"s1":[591,215,683,2803,45,21,440,679,3077,364],"s2":[174,630,2743,2932,690,1355,507,582],"e":[202,512]},"res":{"played":19,"hit20":7,"hitOf":5,"nOf":20,"open":"close","realOpen":215}},{"date":"2023-12-30","venue":"Madison Square Garden","city":"New York","runN":"night 3 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,683,21,630,512,202,440,2743,174,607,437,1102,690,442,2656,867,46,3077,1355,455],"open5":[2803,96,2743,202,208],"official":{"s1":[2803,21,630,440,607,442,622,437,1355,3077],"s2":[174,683,512,2743,46,545,2656,96],"e":[679,202]},"res":{"played":19,"hit20":9,"hitOf":8,"nOf":20,"open":"miss","realOpen":46}},{"date":"2023-12-31","venue":"Madison Square Garden","city":"New York","runN":"night 4 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[202,690,679,113,440,2743,174,2656,237,1102,622,8,1355,628,607,442,455,339,2845,96],"open5":[96,202,8,2743,208],"official":{"s1":[96,679,622,8,1355,607,442,2845,582,455],"s2":[174,690,440,237,2656,1102,545,2743],"e":[113,202]},"res":{"played":30,"hit20":13,"hitOf":12,"nOf":20,"open":"miss","realOpen":2656}},{"date":"2024-02-20","venue":"Moon Palace","city":"Cancun","runN":"night 1 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,2743,222,1355,339,2796,402,208,2946,442,48,478,607,2572,84,653,538,483,545,1085],"open5":[208,2743,96,2570,222],"official":{"s1":[237,1355,2796,402,442,84,607,582,507,483],"s2":[2743,222,339,208,2946,48,2572,2570],"e":[545,478]},"res":{"played":2,"hit20":1,"hitOf":1,"nOf":20,"open":null,"realOpen":null}},{"date":"2024-02-21","venue":"Moon Palace","city":"Cancun","runN":"night 2 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2743,222,2570,2796,2946,48,2572,208,485,110,653,2,3076,339,215,250,591,478,508,1355],"open5":[208,96,104,2743,591],"official":{"s1":[208,2570,110,2,215,591,582,381,507,1355],"s2":[2743,222,2946,2572,48,485,508,653],"e":[478,2796]},"res":{"played":15,"hit20":2,"hitOf":2,"nOf":20,"open":"miss","realOpen":45}},{"date":"2024-02-22","venue":"Moon Palace","city":"Cancun","runN":"night 3 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[222,2570,2743,2796,110,2946,2,48,215,3076,250,2572,653,1355,442,508,478,2984,381,2803],"open5":[208,2803,96,2743,222],"official":{"s1":[2803,2570,2,215,1355,442,381,208,582,508],"s2":[2572,110,2743,2946,48,250,653,222],"e":[2984,2796]},"res":{"played":17,"hit20":3,"hitOf":2,"nOf":20,"open":"miss","realOpen":202}},{"date":"2024-02-23","venue":"Moon Palace","city":"Cancun","runN":"night 4 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[222,2570,2743,2796,110,2,250,48,2572,2803,653,508,1355,381,2984,630,512,683,442,246],"open5":[2803,222,2743,208,96],"official":{"s1":[2803,110,2,1355,508,381,246,2829,84,364],"s2":[2743,2570,222,250,48,2572,653,2984],"e":[512,2796]},"res":{"played":16,"hit20":7,"hitOf":7,"nOf":20,"open":"close","realOpen":2743}},{"date":"2024-02-24","venue":"Moon Palace","city":"Cancun","runN":"night 5 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,48,2572,690,237,512,630,683,653,21,508,679,381,2829,2984,339,1355,440,437,364],"open5":[96,208,381,8,237],"official":{"s1":[96,237,630,21,2829,508,381,1355,440,364],"s2":[2572,48,690,512,683,653,2984,246],"e":[679,2796]},"res":{"played":19,"hit20":9,"hitOf":9,"nOf":20,"open":"miss","realOpen":508}},{"date":"2024-04-18","venue":"Sphere","city":"Las Vegas","runN":"night 1 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,653,84,483,437,538,208,2829,364,1355,2418,339,485,381,148,3077,2656,591,609,2932],"open5":[208,104,96,591,381],"official":{"s1":[381,538,84,483,364,1355,591,609,148,246],"s2":[3077,208,437,2829,653,485,273,2418],"e":[679,2796]},"res":{"played":18,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":2656}},{"date":"2024-04-19","venue":"Sphere","city":"Las Vegas","runN":"night 2 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,591,437,174,690,529,3076,148,2418,215,2829,3077,455,538,442,1355,622,246,2946,339],"open5":[591,96,2803,8,202],"official":{"s1":[591,437,215,148,442,1355,622,2829,202,246],"s2":[174,690,529,3077,3076,2418,545,582],"e":[679,2796]},"res":{"played":16,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":215}},{"date":"2024-04-20","venue":"Sphere","city":"Las Vegas","runN":"night 3 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,437,174,3076,2829,246,622,222,538,202,110,2803,2,628,455,1355,148,2418,679,113],"open5":[2803,96,202,2743,222],"official":{"s1":[2803,437,2829,246,622,2,1355,679,545,538],"s2":[174,222,110,3077,1085,148,455,3076],"e":[202,2796]},"res":{"played":17,"hit20":9,"hitOf":7,"nOf":20,"open":"close","realOpen":2743}},{"date":"2024-04-21","venue":"Sphere","city":"Las Vegas","runN":"night 4 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[202,113,679,3076,174,222,437,2829,8,246,2831,339,148,512,440,46,455,2572,96,3077],"open5":[96,202,8,222,2792],"official":{"s1":[96,3076,679,8,2829,437,246,148,545,2831],"s2":[174,222,440,2572,46,512,455,339],"e":[113,202]},"res":{"played":17,"hit20":8,"hitOf":8,"nOf":20,"open":"miss","realOpen":1085}},{"date":"2024-07-11","venue":"NBC Television Studios, Studio 6B","city":"New York","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2829,485,440,2570,2656,2572,46,246,2831,45,683,104,148,508,2984,627,323,455,3077,479],"open5":[104,96,208,485,2792],"official":{"s1":[104,440,2570,46,246,45,508,323,108,2831],"s2":[2572,2829,2656,683,148,627,3077,485],"e":[679,545]},"res":{"played":1,"hit20":0,"hitOf":0,"nOf":20,"open":"miss","realOpen":2944}},{"date":"2024-07-17","venue":"NPR Headquarters","city":"Washington","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,2570,2656,440,2572,45,46,683,104,2829,148,627,250,215,508,591,2984,246,2946,653],"open5":[104,591,208,485,2656],"official":{"s1":[104,2570,440,45,46,215,591,108,2829,246],"s2":[2572,485,2656,683,508,250,323,148],"e":[627,2984]},"res":{"played":5,"hit20":0,"hitOf":0,"nOf":20,"open":"miss","realOpen":2803}},{"date":"2024-07-19","venue":"Xfinity Center","city":"Mansfield","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,683,485,2656,84,440,45,104,538,250,591,2572,215,627,508,2984,653,2946,46,48],"open5":[104,591,2570,208,683],"official":{"s1":[2570,683,84,440,45,591,108,538,381,622],"s2":[2572,485,2656,215,104,250,508,2984],"e":[246,653]},"res":{"played":16,"hit20":2,"hitOf":2,"nOf":20,"open":"miss","realOpen":96}},{"date":"2024-07-20","venue":"Xfinity Center","city":"Mansfield","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,2570,2656,440,45,591,215,683,104,627,2946,48,653,2572,3100,364,381,622,508,2796],"open5":[104,591,208,2656,485],"official":{"s1":[104,440,45,591,215,364,381,108,3100,622],"s2":[2656,2570,683,627,2946,653,273,485],"e":[2572,2796]},"res":{"played":18,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":609}},{"date":"2024-07-21","venue":"Xfinity Center","city":"Mansfield","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[591,215,2570,2656,202,628,104,440,2946,679,48,622,627,630,1102,653,2743,364,2845,381],"open5":[591,104,202,215,208],"official":{"s1":[591,104,215,679,622,3100,364,381,630,2845],"s2":[2656,2570,2946,48,8,653,2743,627],"e":[440,202]},"res":{"played":17,"hit20":8,"hitOf":8,"nOf":20,"open":"close","realOpen":215}},{"date":"2024-07-23","venue":"Mohegan Sun Arena","city":"Uncasville","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,591,2656,104,622,653,508,2743,202,2845,2984,1102,3147,867,437,2803,364,2418,381,2932],"open5":[591,104,2803,2743,208],"official":{"s1":[591,104,622,508,3147,108,381,208,2639,364],"s2":[2656,2570,2743,1102,2984,2803,273,653],"e":[2845,202]},"res":{"played":19,"hit20":5,"hitOf":3,"nOf":20,"open":"miss","realOpen":2506}},{"date":"2024-07-24","venue":"Mohegan Sun Arena","city":"Uncasville","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,591,622,202,653,508,2984,364,2803,381,2743,2845,108,222,250,2,3147,2418,3078,2639],"open5":[591,2803,202,208,2743],"official":{"s1":[591,2803,622,508,364,108,381,2,1355,2984],"s2":[2743,2570,222,2418,653,3078,2639,273],"e":[2845,202]},"res":{"played":18,"hit20":8,"hitOf":9,"nOf":20,"open":"miss","realOpen":8}},{"date":"2024-07-26","venue":"Alpine Valley Music Theatre","city":"East Troy","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[591,538,622,683,2803,2743,222,508,250,2,2984,3147,483,110,108,174,485,113,3076,402],"open5":[591,2803,2743,222,96],"official":{"s1":[591,622,508,2,2984,3147,108,84,174,402],"s2":[2743,2803,683,538,222,250,110,483],"e":[45,113]},"res":{"played":21,"hit20":6,"hitOf":6,"nOf":20,"open":"miss","realOpen":2}},{"date":"2024-07-27","venue":"Alpine Valley Music Theatre","city":"East Troy","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,622,2743,250,110,508,485,113,3076,2984,3147,2796,45,683,21,215,529,2572,2946,630],"open5":[2803,2743,96,215,485],"official":{"s1":[2803,622,110,508,3147,45,21,215,440,2984],"s2":[2743,485,250,3076,683,630,529,442],"e":[2796,113]},"res":{"played":18,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":483}},{"date":"2024-07-28","venue":"Alpine Valley Music Theatre","city":"East Troy","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,622,690,628,2743,110,3076,2796,45,683,215,21,3147,529,2572,630,512,48,440,679],"open5":[96,2743,215,104,202],"official":{"s1":[96,45,215,21,683,3147,529,630,440,622],"s2":[110,2743,690,250,3076,2572,442,609],"e":[679,2796]},"res":{"played":19,"hit20":9,"hitOf":9,"nOf":20,"open":"miss","realOpen":7}},{"date":"2024-07-30","venue":"Chaifetz Arena, Saint Louis University","city":"St. Louis","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,2796,45,215,2572,630,512,690,627,3147,46,2656,628,2829,609,3100,2570,437,1102,202],"open5":[215,96,202,208,45],"official":{"s1":[215,45,630,3147,46,609,2829,3100,202,84],"s2":[2572,690,250,2656,2570,512,437,627],"e":[628,2796]},"res":{"played":17,"hit20":6,"hitOf":6,"nOf":20,"open":"miss","realOpen":106}},{"date":"2024-07-31","venue":"Chaifetz Arena, Saint Louis University","city":"St. Louis","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,215,2796,45,630,512,2572,3100,690,46,222,1102,202,2,591,867,2845,2829,3147,653],"open5":[215,96,591,208,45],"official":{"s1":[215,45,630,3100,46,2,679,591,512,2845],"s2":[2572,250,690,222,3147,381,364,84],"e":[202,2796]},"res":{"played":20,"hit20":8,"hitOf":8,"nOf":20,"open":"miss","realOpen":2792}},{"date":"2024-08-02","venue":"Ruoff Music Center","city":"Noblesville","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[538,512,2796,222,2,591,867,3100,2845,653,174,485,690,2803,364,381,2946,323,113,2418],"open5":[2803,591,96,208,222],"official":{"s1":[2803,2,591,2845,364,381,3100,485,483,273],"s2":[174,538,222,867,323,2639,653,2932],"e":[512,2796]},"res":{"played":18,"hit20":5,"hitOf":4,"nOf":20,"open":"miss","realOpen":447}},{"date":"2024-08-03","venue":"Ruoff Music Center","city":"Noblesville","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,512,222,2,591,2845,653,485,2803,364,381,538,2946,110,113,2418,208,3076,2932,2639],"open5":[2803,591,208,96,222],"official":{"s1":[591,2,2845,364,381,2639,538,108,1355,622],"s2":[2946,222,485,2803,110,653,273,2932],"e":[512,2796]},"res":{"played":16,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":381}},{"date":"2024-08-04","venue":"Ruoff Music Center","city":"Noblesville","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[222,2,2796,591,512,485,2803,538,679,2946,2845,8,3076,628,478,683,622,104,48,440],"open5":[96,591,2803,222,2],"official":{"s1":[591,2,679,2845,622,108,96,478,1355,538],"s2":[2946,222,485,2803,440,2570,21,8],"e":[512,2796]},"res":{"played":16,"hit20":4,"hitOf":4,"nOf":20,"open":"miss","realOpen":723}},{"date":"2024-08-06","venue":"Van Andel Arena","city":"Grand Rapids","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,2803,591,2796,2946,2845,3076,538,683,622,104,48,440,2570,21,508,2656,2984,2743,148],"open5":[2803,591,104,485,96],"official":{"s1":[2803,591,2845,440,21,108,215,582,507,622],"s2":[485,2946,2570,508,104,538,2984,3076],"e":[250,2796]},"res":{"played":20,"hit20":9,"hitOf":9,"nOf":20,"open":"miss","realOpen":2703}},{"date":"2024-08-07","venue":"Van Andel Arena","city":"Grand Rapids","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2946,2796,3076,683,2845,21,2570,2743,627,508,628,45,2984,437,630,202,339,148,2944,442],"open5":[96,2743,208,2946,202],"official":{"s1":[208,2845,21,508,45,628,148,2944,2639,246],"s2":[2946,683,3076,2570,2743,627,2984,108],"e":[202,2796]},"res":{"played":24,"hit20":8,"hitOf":6,"nOf":20,"open":"miss","realOpen":402}},{"date":"2024-08-09","venue":"Bethel Woods Center for the Arts","city":"Bethel","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2845,627,84,21,628,437,45,483,630,2743,202,208,110,2932,2572,174,508,46,2984,113],"open5":[208,96,2743,202,106],"official":{"s1":[208,2845,84,21,45,483,108,148,2639,2932],"s2":[110,627,2743,2572,437,628,174,630],"e":[113,202]},"res":{"played":18,"hit20":7,"hitOf":9,"nOf":20,"open":"close","realOpen":202}},{"date":"2024-08-10","venue":"Bethel Woods Center for the Arts","city":"Bethel","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2845,45,630,2743,508,628,174,2984,3139,46,222,208,2,2932,690,867,3100,148,512,653],"open5":[208,2743,96,2935,222],"official":{"s1":[208,2845,45,630,508,2984,2,3100,381,84],"s2":[2743,174,3139,222,46,690,653,2932],"e":[246,545]},"res":{"played":22,"hit20":6,"hitOf":6,"nOf":20,"open":"miss","realOpen":45}},{"date":"2024-08-11","venue":"Bethel Woods Center for the Arts","city":"Bethel","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[690,2743,2845,508,2984,2,867,3100,8,2803,250,653,3139,215,2656,512,591,208,381,622],"open5":[96,2803,2743,208,591],"official":{"s1":[96,2845,508,2,8,215,3100,591,381,2984],"s2":[2743,690,867,2803,250,653,38,622],"e":[440,512]},"res":{"played":19,"hit20":8,"hitOf":9,"nOf":20,"open":"miss","realOpen":2935}},{"date":"2024-08-14","venue":"The Woodlands","city":"Dover","runN":"night 1 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,538,683,2743,84,3139,653,512,215,381,2656,690,2984,591,148,622,104,440,2829,3076],"open5":[2743,591,104,381,208],"official":{"s1":[591,215,84,381,2984,2829,148,690,38,622],"s2":[2570,538,683,2743,653,3139,2656,273],"e":[440,512]},"res":{"played":7,"hit20":0,"hitOf":0,"nOf":20,"open":null,"realOpen":null}},{"date":"2024-08-15","venue":"The Woodlands","city":"Dover","runN":"night 2 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2743,512,215,2656,591,622,104,440,653,2570,3139,529,381,110,3076,538,2946,1102,690,683],"open5":[2743,591,104,208,215],"official":{"s1":[591,215,622,440,381,529,84,208,2829,2932],"s2":[110,2743,2656,104,2570,653,3139,273],"e":[202,512]},"res":{"played":18,"hit20":8,"hitOf":7,"nOf":20,"open":"nailed","realOpen":591}},{"date":"2024-08-16","venue":"The Woodlands","city":"Dover","runN":"night 3 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[215,622,104,2743,2570,653,538,3076,690,1102,529,222,113,2984,381,202,208,1355,2944,21],"open5":[215,104,2743,208,202],"official":{"s1":[215,104,622,2570,538,381,1355,529,2944,2984],"s2":[2743,3076,653,690,273,208,462,84],"e":[202,113]},"res":{"played":19,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":84}},{"date":"2024-08-17","venue":"The Woodlands","city":"Dover","runN":"night 4 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,104,3076,653,538,690,381,2743,21,2944,627,529,437,174,2984,2803,2,3078,1355,628],"open5":[104,2803,381,2743,2792],"official":{"s1":[104,381,21,2944,2,108,529,2803,1355,437],"s2":[2570,3076,653,538,273,690,2743,2984],"e":[627,2796]},"res":{"played":20,"hit20":12,"hitOf":11,"nOf":20,"open":"close","realOpen":381}},{"date":"2024-08-18","venue":"The Woodlands","city":"Dover","runN":"night 5 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[437,2743,679,2803,538,2829,529,48,2796,2984,108,2639,364,3078,478,1355,2845,3100,867,246],"open5":[2803,96,2743,2792,447],"official":{"s1":[679,437,2984,108,364,1355,478,2845,3100,246],"s2":[2743,2803,2829,529,48,3078,96,538],"e":[2639,2796]},"res":{"played":16,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":723}},{"date":"2024-08-29","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 1 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2743,483,683,529,437,2796,3159,3160,3161,3131,3162,478,110,3139,485,402,2829,2845,108,2639],"open5":[2743,591,2792,106,96],"official":{"s1":[2743,483,529,3159,3160,3161,3131,2829,3162,437],"s2":[110,683,3139,485,402,2639,2656,108],"e":[478,2796]},"res":{"played":16,"hit20":1,"hitOf":1,"nOf":20,"open":"miss","realOpen":119}},{"date":"2024-08-30","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 2 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[437,110,485,2743,2845,529,3139,3100,3159,3160,3161,3131,3162,478,2656,591,45,683,440,512],"open5":[591,2743,96,2935,2792],"official":{"s1":[591,437,3159,3100,3131,3161,3162,45,108,246],"s2":[3139,485,2743,529,110,2656,512,3160],"e":[440,2845]},"res":{"played":17,"hit20":7,"hitOf":5,"nOf":20,"open":"miss","realOpen":45}},{"date":"2024-08-31","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 3 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[437,591,3139,2743,3159,3160,3161,3131,3162,2845,512,215,3100,529,2984,113,630,622,202,2],"open5":[591,2743,215,96,202],"official":{"s1":[591,437,3159,3160,3161,3131,3162,108,2,622],"s2":[3139,2743,3100,529,215,2829,202,2984],"e":[2845,512]},"res":{"played":17,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":2}},{"date":"2024-09-01","venue":"Dick's Sporting Goods Park","city":"Commerce City","runN":"night 4 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[113,591,628,437,512,679,630,622,2743,2845,108,339,3159,3160,3161,3131,3162,442,3100,2829],"open5":[96,591,2743,208,2935],"official":{"s1":[591,2743,679,622,512,108,3162,3159,3160,437],"s2":[3100,339,2829,630,627,208,3131,96],"e":[2845,113]},"res":{"played":19,"hit20":10,"hitOf":10,"nOf":20,"open":"miss","realOpen":164}},{"date":"2024-10-25","venue":"MVP Arena","city":"Albany","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,437,84,630,483,222,402,2803,250,108,46,653,2829,455,2946,2932,174,381,2796,21],"open5":[2803,96,381,2935,2792],"official":{"s1":[381,84,483,437,630,402,108,174,3159,2932],"s2":[2570,222,2803,2829,455,2946,46,653],"e":[273,250]},"res":{"played":21,"hit20":4,"hitOf":4,"nOf":20,"open":"miss","realOpen":1707}},{"date":"2024-10-26","venue":"MVP Arena","city":"Albany","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[630,2803,250,653,381,110,2946,174,2796,246,2656,21,867,148,455,508,45,2829,440,2418],"open5":[2803,381,96,2935,2792],"official":{"s1":[2803,630,381,653,246,21,148,108,45,273],"s2":[110,2946,174,2656,250,867,2829,508],"e":[440,2796]},"res":{"played":19,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":440}},{"date":"2024-10-27","venue":"MVP Arena","city":"Albany","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[630,690,202,679,2946,8,110,2796,21,237,508,653,2656,381,2,3139,148,3076,96,3080],"open5":[96,202,381,8,2935],"official":{"s1":[96,630,8,2796,148,21,381,2,108,508],"s2":[110,690,2946,2656,3139,237,653,273],"e":[679,202]},"res":{"played":18,"hit20":4,"hitOf":4,"nOf":20,"open":"miss","realOpen":254}},{"date":"2024-12-28","venue":"Madison Square Garden","city":"New York","runN":"night 1 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[630,2946,2796,21,483,653,2,508,3076,3080,1707,202,2570,2944,381,690,108,3078,478,402],"open5":[1707,381,96,2,202],"official":{"s1":[1707,630,21,483,2,148,108,381,478,273],"s2":[2946,3076,690,508,3078,3080,2570,653],"e":[202,2796]},"res":{"played":23,"hit20":8,"hitOf":9,"nOf":20,"open":"miss","realOpen":508}},{"date":"2024-12-29","venue":"Madison Square Garden","city":"New York","runN":"night 2 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,21,653,202,690,1707,2944,381,222,485,3080,364,591,3078,104,246,683,529,627,2845],"open5":[1707,381,96,202,591],"official":{"s1":[1707,21,202,381,2944,591,104,529,679,246],"s2":[485,690,222,653,3078,364,3080,273],"e":[2845,2796]},"res":{"played":15,"hit20":3,"hitOf":3,"nOf":20,"open":"miss","realOpen":483}},{"date":"2024-12-30","venue":"Madison Square Garden","city":"New York","runN":"night 3 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2796,21,202,485,653,364,2944,1707,381,529,104,250,683,2803,627,628,3080,2572,174,2845],"open5":[1707,381,202,2803,96],"official":{"s1":[1707,21,364,529,2944,381,2845,440,1355,246],"s2":[2803,485,104,653,683,3080,250,273],"e":[2796,202]},"res":{"played":20,"hit20":8,"hitOf":6,"nOf":20,"open":"miss","realOpen":440}},{"date":"2024-12-31","venue":"Madison Square Garden","city":"New York","runN":"night 4 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[202,628,2796,485,653,113,104,2803,1707,679,3100,2743,381,529,2944,110,3139,46,512,538],"open5":[202,1707,96,104,2803],"official":{"s1":[1707,104,381,3100,2944,113,529,1355,96,679],"s2":[2743,485,2803,653,110,46,512,273],"e":[2796,202]},"res":{"played":29,"hit20":17,"hitOf":14,"nOf":20,"open":"miss","realOpen":381}},{"date":"2025-01-28","venue":"Moon Palace","city":"Cancun","runN":"night 1 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,1707,339,2743,2,215,1355,2984,3076,45,622,2946,630,3078,246,2932,402,607,683,323],"open5":[1707,2743,96,2,215],"official":{"s1":[1707,339,2,215,1355,2984,45,622,402,246],"s2":[2570,2743,3076,2946,3078,630,683,2932],"e":[323,679]},"res":{"played":2,"hit20":1,"hitOf":1,"nOf":20,"open":null,"realOpen":null}},{"date":"2025-01-29","venue":"Moon Palace","city":"Cancun","runN":"night 2 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,2,215,222,339,45,3076,622,2946,1355,2984,630,1707,591,48,2743,3078,2932,323,478],"open5":[1707,2,215,96,591],"official":{"s1":[1707,2,215,45,622,1355,591,48,323,3078],"s2":[2743,2570,222,339,3076,2946,630,2984],"e":[679,478]},"res":{"played":18,"hit20":7,"hitOf":7,"nOf":20,"open":"miss","realOpen":485}},{"date":"2025-01-30","venue":"Moon Palace","city":"Cancun","runN":"night 3 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,2,45,3076,622,2946,591,48,250,2656,1102,174,683,440,508,1355,627,2932,2984,690],"open5":[1707,2,591,45,96],"official":{"s1":[591,2,45,622,440,508,1355,108,683,2984],"s2":[2946,2570,3076,48,2656,174,38,2932],"e":[1707,250]},"res":{"played":20,"hit20":5,"hitOf":6,"nOf":20,"open":"miss","realOpen":2570}},{"date":"2025-01-31","venue":"Moon Palace","city":"Cancun","runN":"night 4 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[622,3076,2946,591,48,508,110,1102,174,3139,2803,683,440,627,21,690,2418,442,148,393],"open5":[591,2803,1707,440,2946],"official":{"s1":[591,622,508,440,21,1355,38,148,1102,364],"s2":[2946,3076,110,48,442,2803,174,393],"e":[3139,202]},"res":{"played":17,"hit20":9,"hitOf":8,"nOf":20,"open":"miss","realOpen":106}},{"date":"2025-02-01","venue":"Moon Palace","city":"Cancun","runN":"night 5 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[690,2946,202,48,628,1102,174,3139,627,8,21,508,1355,2984,512,538,237,2845,148,455],"open5":[202,96,1707,8,2946],"official":{"s1":[8,21,508,1355,627,2845,628,512,148,393],"s2":[2946,690,48,174,237,1102,3139,2984],"e":[2639,202]},"res":{"played":17,"hit20":9,"hitOf":8,"nOf":20,"open":"miss","realOpen":48}},{"date":"2025-04-18","venue":"Climate Pledge Arena","city":"Seattle","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2946,174,1102,512,222,690,485,215,1355,104,508,2984,3100,529,208,630,3080,148,393,38],"open5":[104,208,1707,215,2946],"official":{"s1":[215,1355,508,84,38,104,529,208,3100,3080],"s2":[174,2946,2984,630,222,1102,485,393],"e":[690,512]},"res":{"played":15,"hit20":2,"hitOf":2,"nOf":20,"open":"miss","realOpen":485}},{"date":"2025-04-19","venue":"Climate Pledge Arena","city":"Seattle","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[174,2946,1102,512,215,508,529,104,3100,250,2,2656,630,113,690,208,46,3080,2944,1355],"open5":[104,215,381,208,2],"official":{"s1":[215,508,2,630,46,529,2944,3100,104,84],"s2":[174,2946,1102,3080,250,208,478,1355],"e":[113,512]},"res":{"played":16,"hit20":3,"hitOf":3,"nOf":20,"open":"nailed","realOpen":215}},{"date":"2025-04-20","venue":"Moda Center","city":"Portland","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2946,512,174,1102,104,250,2,2656,630,690,508,113,2803,529,3100,2572,591,3076,3080,653],"open5":[104,381,2803,2,591],"official":{"s1":[104,2,508,591,84,381,2803,529,2796,630],"s2":[2946,174,3080,250,653,2984,2656,393],"e":[113,512]},"res":{"played":18,"hit20":8,"hitOf":10,"nOf":20,"open":"close","realOpen":2}},{"date":"2025-04-22","venue":"Bill Graham Civic Auditorium","city":"San Francisco","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[174,104,1102,113,2572,690,653,3076,381,508,2743,529,364,202,1355,3100,627,2984,148,3080],"open5":[104,381,2743,174,208],"official":{"s1":[381,508,104,364,653,202,1355,108,529,273],"s2":[174,2572,1102,2743,442,3080,208,2984],"e":[690,113]},"res":{"played":17,"hit20":8,"hitOf":10,"nOf":20,"open":"miss","realOpen":96}},{"date":"2025-04-23","venue":"Bill Graham Civic Auditorium","city":"San Francisco","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[113,3076,3139,222,690,508,485,2570,202,627,2743,628,45,683,622,440,442,3100,1355,2984],"open5":[2743,485,202,45,440],"official":{"s1":[2743,508,2570,202,45,485,440,1355,3100,622],"s2":[3139,3076,222,690,442,627,479,108],"e":[2984,113]},"res":{"played":15,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":508}},{"date":"2025-04-25","venue":"Hollywood Bowl","city":"Hollywood","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,683,538,3076,3139,222,485,628,442,45,622,440,110,3100,215,609,48,867,323,2743],"open5":[2570,485,215,45,440],"official":{"s1":[2570,442,45,683,622,440,215,609,108,538],"s2":[3139,485,222,3076,110,3100,323,238],"e":[2743,2639]},"res":{"played":17,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":2}},{"date":"2025-04-26","venue":"Hollywood Bowl","city":"Hollywood","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[3076,485,2570,45,622,215,48,609,442,2743,867,2803,323,3100,2656,46,2639,2796,2946,2418],"open5":[215,485,2803,45,2743],"official":{"s1":[215,45,609,323,2803,3100,108,2796,479,622],"s2":[3076,2570,485,48,2743,442,867,46],"e":[2639,512]},"res":{"played":18,"hit20":4,"hitOf":5,"nOf":20,"open":"miss","realOpen":479}},{"date":"2025-04-27","venue":"Hollywood Bowl","city":"Hollywood","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,45,622,215,609,48,2803,867,323,46,2743,2796,2946,630,21,237,2418,2639,442,174],"open5":[485,2803,215,96,45],"official":{"s1":[485,45,622,215,609,323,46,679,202,442],"s2":[2743,48,2803,867,237,630,2946,21],"e":[2639,2796]},"res":{"played":17,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":584}},{"date":"2025-06-20","venue":"SNHU Arena","city":"Manchester","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[215,45,622,48,2803,84,609,46,2946,867,174,2743,2572,1102,538,442,364,113,397,2570],"open5":[215,2803,45,381,2743],"official":{"s1":[215,45,622,84,609,442,364,381,2572,397],"s2":[2803,48,46,2946,174,2570,2743,867],"e":[202,113]},"res":{"played":17,"hit20":3,"hitOf":3,"nOf":20,"open":"miss","realOpen":591}},{"date":"2025-06-21","venue":"SNHU Arena","city":"Manchester","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,215,48,622,2946,174,46,2572,442,3139,113,867,222,110,1102,364,202,2743,627,397],"open5":[2803,215,381,2743,104],"official":{"s1":[2803,215,622,46,442,364,440,529,381,397],"s2":[2572,110,48,2946,174,653,3139,679],"e":[113,202]},"res":{"played":18,"hit20":3,"hitOf":5,"nOf":20,"open":"close","realOpen":215}},{"date":"2025-06-22","venue":"SNHU Arena","city":"Manchester","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[202,113,622,2803,48,628,2572,3139,222,46,110,867,1102,364,627,653,442,381,529,2570],"open5":[2803,96,202,381,208],"official":{"s1":[2803,622,46,364,442,381,2944,529,96,2845],"s2":[3139,110,2572,48,222,2570,653,273],"e":[113,202]},"res":{"played":17,"hit20":2,"hitOf":0,"nOf":20,"open":"miss","realOpen":479}},{"date":"2025-06-24","venue":"Petersen Events Center","city":"Pittsburgh","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,48,622,222,110,3139,113,202,2572,46,867,1102,2570,364,653,2944,485,381,529,2845],"open5":[2803,381,202,96,2743],"official":{"s1":[2803,622,110,46,2570,364,2944,381,529,2845],"s2":[3139,48,222,2572,508,653,2796,442],"e":[113,202]},"res":{"played":16,"hit20":3,"hitOf":4,"nOf":20,"open":"miss","realOpen":8}},{"date":"2025-06-27","venue":"Moody Center","city":"Austin","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,110,48,622,113,202,2572,46,485,867,2845,2944,339,1102,364,250,2796,2,2656,591],"open5":[2803,202,381,2,591],"official":{"s1":[2803,622,46,2845,2944,2,591,2796,45,364],"s2":[110,2572,485,250,529,323,478,48],"e":[113,202]},"res":{"played":17,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":141}},{"date":"2025-06-28","venue":"Moody Center","city":"Austin","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,622,110,48,46,1102,250,364,2,2656,2796,591,2944,478,529,683,339,45,630,512],"open5":[2803,2,591,96,215],"official":{"s1":[2803,622,46,2,591,2944,529,45,478,364],"s2":[110,48,1102,2656,250,215,609,108],"e":[2639,2796]},"res":{"played":18,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":447}},{"date":"2025-07-03","venue":"Folsom Field","city":"Boulder","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,683,48,538,622,250,84,2,2656,591,45,46,364,512,483,478,323,104,609,2944],"open5":[2803,2,591,96,104],"official":{"s1":[2803,622,84,2,591,45,364,483,478,538],"s2":[48,683,46,323,2656,609,440,2944],"e":[250,512]},"res":{"played":19,"hit20":7,"hitOf":7,"nOf":20,"open":"miss","realOpen":683}},{"date":"2025-07-04","venue":"Folsom Field","city":"Boulder","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,250,2,2656,48,591,45,512,609,437,174,2946,46,2944,3100,3076,222,3139,508,478],"open5":[2803,2,591,96,45],"official":{"s1":[2803,2,591,45,609,2944,108,478,3100,437],"s2":[2656,48,250,46,174,508,2570,2932],"e":[2639,512]},"res":{"played":18,"hit20":9,"hitOf":6,"nOf":20,"open":"miss","realOpen":48}},{"date":"2025-07-05","venue":"Folsom Field","city":"Boulder","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,250,2,2656,512,202,2946,2944,2570,478,437,46,679,3100,8,2932,2639,148,397,479],"open5":[2803,96,2,202,2656],"official":{"s1":[2803,2,2944,46,3100,512,148,478,479,437],"s2":[2656,2570,2946,250,8,2932,2639,96],"e":[679,202]},"res":{"played":18,"hit20":11,"hitOf":11,"nOf":20,"open":"close","realOpen":96}},{"date":"2025-07-09","venue":"Jerome Schottenstein Center","city":"Columbus","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[46,437,2946,478,110,202,2572,215,3100,2845,479,630,867,442,2796,653,38,246,381,2932],"open5":[215,381,479,202,106],"official":{"s1":[479,46,437,215,3100,442,202,38,2796,653],"s2":[110,2946,2572,867,630,246,381,108],"e":[2845,478]},"res":{"played":20,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":8}},{"date":"2025-07-11","venue":"North Charleston Coliseum","city":"North Charleston","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[538,683,110,215,202,2572,630,485,2796,442,2845,867,84,104,479,440,1102,653,2570,21],"open5":[215,381,479,104,202],"official":{"s1":[215,683,538,630,442,84,479,2796,529,622],"s2":[110,2572,485,440,2570,104,2984,108],"e":[2845,202]},"res":{"played":19,"hit20":4,"hitOf":4,"nOf":20,"open":"nailed","realOpen":215}},{"date":"2025-07-12","venue":"North Charleston Coliseum","city":"North Charleston","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,2572,2845,2796,867,683,104,440,653,538,381,3139,222,21,622,442,1102,591,323,113],"open5":[381,104,485,591,479],"official":{"s1":[381,2845,440,485,591,683,108,529,45,622],"s2":[2572,21,442,653,104,273,323,867],"e":[113,2796]},"res":{"played":18,"hit20":4,"hitOf":5,"nOf":20,"open":"close","realOpen":591}},{"date":"2025-07-13","venue":"North Charleston Coliseum","city":"North Charleston","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[690,113,628,485,222,3139,683,104,440,2572,538,1102,21,622,2845,867,45,529,3076,627],"open5":[96,104,485,2,2803],"official":{"s1":[104,440,21,622,45,84,683,2,529,364],"s2":[2572,690,323,222,2570,3139,442,485],"e":[2845,113]},"res":{"played":17,"hit20":7,"hitOf":3,"nOf":20,"open":"miss","realOpen":479}},{"date":"2025-07-15","venue":"TD Pavilion at the Mann","city":"Philadelphia","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,104,440,2572,3139,21,622,113,45,2570,2,2656,3076,690,1102,364,2803,323,339,609],"open5":[485,104,2,2803,440],"official":{"s1":[485,440,622,21,104,45,2,364,609,84],"s2":[2572,3139,323,2656,2803,529,208,2570],"e":[442,113]},"res":{"played":17,"hit20":6,"hitOf":7,"nOf":20,"open":"miss","realOpen":447}},{"date":"2025-07-16","venue":"TD Pavilion at the Mann","city":"Philadelphia","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[3139,622,113,45,3076,2572,21,2,2803,323,690,364,339,1102,3080,508,208,110,2946,2418],"open5":[2,2803,45,215,208],"official":{"s1":[45,622,21,2,323,364,84,508,2944,3080],"s2":[3139,2572,3076,690,215,529,110,2803],"e":[208,113]},"res":{"played":19,"hit20":5,"hitOf":6,"nOf":20,"open":"miss","realOpen":2499}},{"date":"2025-07-18","venue":"United Center","city":"Chicago","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,3139,2803,113,45,3076,84,21,622,2572,1102,110,2418,215,483,323,174,630,339,202],"open5":[2,2803,215,45,96],"official":{"s1":[2803,2,45,84,21,215,483,202,591,622],"s2":[3139,3076,2572,110,323,250,46,1102],"e":[2639,113]},"res":{"played":18,"hit20":6,"hitOf":7,"nOf":20,"open":"miss","realOpen":250}},{"date":"2025-07-19","venue":"United Center","city":"Chicago","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,622,45,21,110,1102,215,437,591,174,630,2418,202,3100,323,2796,222,2639,3080,683],"open5":[2803,215,591,45,96],"official":{"s1":[2803,622,45,21,215,591,3100,84,630,437],"s2":[110,1102,174,2418,323,2796,512,38],"e":[2639,202]},"res":{"played":18,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":3100}},{"date":"2025-07-20","venue":"United Center","city":"Chicago","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[215,2803,45,628,630,222,8,591,323,1102,437,2796,683,2418,538,512,627,455,485,2570],"open5":[215,2803,96,8,591],"official":{"s1":[215,45,630,8,591,323,2639,437,2845,84],"s2":[2803,222,1102,683,2570,440,485,381],"e":[512,2796]},"res":{"played":21,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":106}},{"date":"2025-07-22","venue":"Forest Hills Stadium","city":"Forest Hills","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2803,591,215,45,222,437,485,1102,683,2570,2656,538,512,627,628,104,440,609,2845,867],"open5":[591,215,2803,45,96],"official":{"s1":[591,215,45,437,84,609,683,2639,479,627],"s2":[2803,222,2570,440,1102,104,2656,485],"e":[2845,512]},"res":{"played":17,"hit20":11,"hitOf":10,"nOf":20,"open":"nailed","realOpen":591}},{"date":"2025-07-23","venue":"Forest Hills Stadium","city":"Forest Hills","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[222,215,45,485,437,2656,867,1102,609,2946,479,2944,690,364,2,397,478,442,2743,48],"open5":[215,96,45,479,485],"official":{"s1":[215,45,437,609,2944,479,364,2,84,397],"s2":[222,485,2656,867,1102,442,2743,38],"e":[478,113]},"res":{"played":18,"hit20":6,"hitOf":6,"nOf":20,"open":"nailed","realOpen":215}},{"date":"2025-07-25","venue":"Broadview Stage at SPAC","city":"Saratoga Springs","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,2656,84,437,2,483,867,48,3076,397,2944,442,690,364,478,2572,402,148,110,479],"open5":[485,96,2,479,2656],"official":{"s1":[2,84,437,483,397,2944,364,402,529,442],"s2":[2656,485,867,48,148,110,479,622],"e":[2572,478]},"res":{"played":17,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":202}},{"date":"2025-07-26","venue":"Broadview Stage at SPAC","city":"Saratoga Springs","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,2,690,3076,364,2944,174,867,397,2572,508,21,442,622,529,208,148,339,2932,479],"open5":[485,2,96,479,208],"official":{"s1":[485,2,364,2944,508,622,21,529,84,397],"s2":[2572,690,3076,174,148,479,867,442],"e":[208,2796]},"res":{"played":17,"hit20":9,"hitOf":8,"nOf":20,"open":"miss","realOpen":2506}},{"date":"2025-07-27","venue":"Broadview Stage at SPAC","city":"Saratoga Springs","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[690,2,867,622,364,630,2796,628,529,508,250,3139,8,2570,2418,442,591,323,683,104],"open5":[96,2,591,8,479],"official":{"s1":[2,622,364,529,630,508,8,108,591,442],"s2":[690,867,250,2570,3139,512,96,582],"e":[440,2796]},"res":{"played":15,"hit20":8,"hitOf":7,"nOf":20,"open":"close","realOpen":96}},{"date":"2025-09-12","venue":"Highland Festival Grounds at Kentucky Expo Center","city":"Louisville","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[622,3139,2570,591,2803,2796,683,104,440,538,512,364,3080,2418,222,2845,442,215,508,113],"open5":[591,2803,215,104,479],"official":{"s1":[591,622,440,364,538,108,582,512,507,442],"s2":[3139,2570,2803,104,3080,215,148,683],"e":[2845,2796]},"res":{"played":18,"hit20":6,"hitOf":5,"nOf":20,"open":"miss","realOpen":2}},{"date":"2025-09-13","venue":"Coca-Cola Amphitheater","city":"Birmingham","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[622,2796,3139,2570,222,364,2803,538,2418,512,442,508,45,2946,609,2845,3080,46,479,1102],"open5":[2803,479,8,45,508],"official":{"s1":[479,622,2570,364,442,508,45,609,512,538],"s2":[3139,222,2803,2639,2418,582,84,507],"e":[2845,2796]},"res":{"played":16,"hit20":8,"hitOf":7,"nOf":20,"open":"close","realOpen":45}},{"date":"2025-09-14","venue":"Coca-Cola Amphitheater","city":"Birmingham","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[3139,622,538,512,364,2845,2418,2946,508,442,46,2639,437,1102,148,478,3076,462,3075,38],"open5":[8,508,106,2743,381],"official":{"s1":[508,622,364,538,442,2639,148,84,507,582],"s2":[3139,2418,2946,46,1085,1102,437,462],"e":[2845,512]},"res":{"played":18,"hit20":4,"hitOf":4,"nOf":20,"open":"miss","realOpen":447}},{"date":"2025-09-16","venue":"Ameris Bank Amphitheatre","city":"Alpharetta","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[512,622,46,364,2845,1102,3076,2418,437,508,2572,478,442,627,628,148,208,3004,679,462],"open5":[106,96,208,508,8],"official":{"s1":[508,622,46,364,2845,437,582,507,148,3004],"s2":[2572,1102,3076,2418,627,478,208,442],"e":[679,512]},"res":{"played":21,"hit20":8,"hitOf":8,"nOf":20,"open":"close","realOpen":96}},{"date":"2025-09-17","venue":"Ameris Bank Amphitheatre","city":"Alpharetta","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[437,1102,627,2845,628,2572,250,110,485,508,2,2656,591,690,3004,215,683,104,440,113],"open5":[591,215,2,104,2743],"official":{"s1":[591,437,2845,2,508,3004,202,215,208,397],"s2":[2572,1102,110,485,250,2656,113,627],"e":[679,628]},"res":{"played":17,"hit20":6,"hitOf":4,"nOf":20,"open":"miss","realOpen":683}},{"date":"2025-09-19","venue":"Hampton Coliseum","city":"Hampton","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,250,110,2845,2572,2,2656,591,215,627,628,440,113,202,21,397,1102,222,208,2944],"open5":[591,215,2,202,208],"official":{"s1":[591,2,215,84,208,21,222,202,2944,397],"s2":[2572,2570,110,2656,627,250,1102,440],"e":[2845,113]},"res":{"played":19,"hit20":7,"hitOf":6,"nOf":20,"open":"close","realOpen":208}},{"date":"2025-09-20","venue":"Hampton Coliseum","city":"Hampton","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,110,2656,222,591,215,2845,440,113,2570,202,21,2803,174,48,45,2796,2944,529,609],"open5":[591,215,2803,202,45],"official":{"s1":[591,215,440,21,45,2944,529,113,2796,609],"s2":[110,222,2656,2570,174,250,48,2803],"e":[2845,202]},"res":{"played":18,"hit20":2,"hitOf":2,"nOf":20,"open":"miss","realOpen":80}},{"date":"2025-09-21","venue":"Hampton Coliseum","city":"Hampton","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[202,113,250,110,591,215,21,222,2570,2845,2944,174,48,2803,3139,45,2796,630,538,609],"open5":[591,215,202,96,2803],"official":{"s1":[591,215,21,2845,2944,45,609,622,529,538],"s2":[110,222,250,2570,48,2803,630,174],"e":[113,202]},"res":{"played":21,"hit20":7,"hitOf":7,"nOf":20,"open":"close","realOpen":202}},{"date":"2025-12-28","venue":"Madison Square Garden","city":"New York","runN":"night 1 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,538,591,215,113,174,48,2803,683,45,2796,483,609,630,2944,3076,512,485,323,622],"open5":[591,215,2570,2803,45],"official":{"s1":[215,591,45,538,483,609,683,2944,630,622],"s2":[2570,2803,48,323,512,478,485,174],"e":[2796,113]},"res":{"played":17,"hit20":6,"hitOf":6,"nOf":20,"open":"miss","realOpen":96}},{"date":"2025-12-29","venue":"Madison Square Garden","city":"New York","runN":"night 2 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,48,591,215,45,2796,113,630,538,485,323,104,867,2944,622,46,3080,2639,2,2418],"open5":[591,215,45,104,2570],"official":{"s1":[591,215,45,538,630,323,2944,2639,2,622],"s2":[2570,48,485,104,867,46,364,108],"e":[113,2796]},"res":{"played":18,"hit20":5,"hitOf":5,"nOf":20,"open":"close","realOpen":104}},{"date":"2025-12-30","venue":"Madison Square Garden","city":"New York","runN":"night 3 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,591,215,630,45,2796,538,485,622,2,46,323,2418,455,364,627,628,2572,339,437],"open5":[591,215,2,45,485],"official":{"s1":[591,215,538,45,630,622,2,148,108,364],"s2":[2570,485,2418,455,323,627,2572,46],"e":[2639,2796]},"res":{"played":17,"hit20":7,"hitOf":7,"nOf":20,"open":"miss","realOpen":110}},{"date":"2025-12-31","venue":"Madison Square Garden","city":"New York","runN":"night 4 of 4","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[485,690,215,628,538,2796,679,2,437,627,46,2418,364,250,323,2572,3139,3004,148,3080],"open5":[215,485,2,479,106],"official":{"s1":[215,2,538,46,364,323,2639,3004,148,628],"s2":[485,690,437,2418,250,2572,3080,627],"e":[679,2796]},"res":{"played":27,"hit20":13,"hitOf":13,"nOf":20,"open":"nailed","realOpen":215}},{"date":"2026-01-27","venue":"Moon Palace","city":"Cancun","runN":"night 1 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,683,46,3209,3210,483,3080,2656,364,402,442,174,2803,3004,3076,512,148,2743,679,2570],"open5":[2,683,2803,479,106],"official":{"s1":[2,683,46,483,3004,402,148,512,2570,442],"s2":[2743,2656,3209,174,3080,364,3076,2803],"e":[679,3210]},"res":{"played":2,"hit20":1,"hitOf":1,"nOf":20,"open":null,"realOpen":null}},{"date":"2026-01-28","venue":"Moon Palace","city":"Cancun","runN":"night 2 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,2656,46,683,364,3209,3210,174,2803,3076,512,3080,478,104,442,440,48,113,479,2946],"open5":[2,2803,96,479,104],"official":{"s1":[2,46,364,3210,3080,442,479,104,478,679],"s2":[3076,2656,3209,683,2803,174,113,3004],"e":[440,512]},"res":{"played":18,"hit20":3,"hitOf":4,"nOf":20,"open":"miss","realOpen":3004}},{"date":"2026-01-29","venue":"Moon Palace","city":"Cancun","runN":"night 3 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,2656,683,174,104,440,3076,512,48,364,2946,3209,3210,653,2944,478,381,2570,867,630],"open5":[2,104,96,381,683],"official":{"s1":[2,440,683,364,3210,2944,381,273,442,622],"s2":[3076,3209,104,174,653,48,2570,2656],"e":[202,512]},"res":{"played":15,"hit20":3,"hitOf":2,"nOf":20,"open":"miss","realOpen":240}},{"date":"2026-01-30","venue":"Moon Palace","city":"Cancun","runN":"night 4 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2656,2,683,174,512,104,440,2570,48,3209,3210,630,202,364,250,622,653,2944,381,508],"open5":[2,96,104,215,202],"official":{"s1":[2,440,2570,3210,622,630,2944,381,8,364],"s2":[2656,683,3209,104,48,250,653,174],"e":[512,202]},"res":{"played":17,"hit20":8,"hitOf":8,"nOf":20,"open":"miss","realOpen":2570}},{"date":"2026-01-31","venue":"Moon Palace","city":"Cancun","runN":"night 5 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,174,628,690,512,440,8,250,3209,3210,653,381,630,867,21,627,679,364,208,237],"open5":[96,2,8,381,208],"official":{"s1":[2,8,3210,381,679,208,364,21,96,630],"s2":[174,690,250,3209,653,867,627,273],"e":[440,512]},"res":{"played":16,"hit20":6,"hitOf":6,"nOf":20,"open":"close","realOpen":381}},{"date":"2026-04-16","venue":"Sphere","city":"Las Vegas","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,440,174,630,3206,627,628,3211,483,3209,3210,455,529,609,222,110,485,3212,208,437],"open5":[2,96,440,591,208],"official":{"s1":[2,3206,630,3211,483,529,609,208,108,364],"s2":[174,627,455,3209,222,110,485,3212],"e":[3210,440]},"res":{"played":17,"hit20":3,"hitOf":3,"nOf":20,"open":"miss","realOpen":2944}},{"date":"2026-04-17","venue":"Sphere","city":"Las Vegas","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,630,440,627,222,110,628,485,3211,591,437,323,2803,113,3212,3209,3210,45,508,455],"open5":[2,96,591,440,2803],"official":{"s1":[2,627,630,3211,591,323,2639,3210,628,455],"s2":[110,222,485,2803,3209,45,2572,3212],"e":[440,113]},"res":{"played":19,"hit20":0,"hitOf":1,"nOf":20,"open":"miss","realOpen":215}},{"date":"2026-04-18","venue":"Sphere","city":"Las Vegas","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[628,2,113,440,630,202,222,110,485,627,3139,3212,8,591,679,2803,437,45,538,323],"open5":[96,2,591,202,8],"official":{"s1":[2,440,630,591,8,96,45,2796,3206,679],"s2":[110,222,485,627,2803,3139,323,3212],"e":[113,202]},"res":{"played":16,"hit20":5,"hitOf":5,"nOf":20,"open":"close","realOpen":96}},{"date":"2026-04-23","venue":"Sphere","city":"Las Vegas","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2570,222,110,485,538,2,440,591,113,45,3139,437,3206,2834,2418,46,202,2946,3211,2796],"open5":[2,591,485,2570,45],"official":{"s1":[591,2570,2,45,3206,84,2834,202,2796,538],"s2":[110,222,485,3139,2418,323,483,3211],"e":[440,113]},"res":{"played":18,"hit20":5,"hitOf":4,"nOf":20,"open":"close","realOpen":2}},{"date":"2026-04-24","venue":"Sphere","city":"Las Vegas","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[222,110,3139,485,591,113,45,2946,2796,437,2570,1102,202,3212,512,3206,250,208,3100,323],"open5":[591,485,45,202,208],"official":{"s1":[591,45,437,2796,3206,323,2834,208,512,84],"s2":[110,222,485,3139,2570,2946,250,3212],"e":[202,113]},"res":{"played":18,"hit20":5,"hitOf":4,"nOf":20,"open":"miss","realOpen":588}},{"date":"2026-04-25","venue":"Sphere","city":"Las Vegas","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[113,202,222,110,485,2570,690,591,45,250,2946,2656,683,21,2845,323,174,2834,679,1102],"open5":[202,591,485,45,215],"official":{"s1":[591,45,2845,21,323,3206,2944,683,609,679],"s2":[110,222,2570,485,690,250,2946,2834],"e":[113,202]},"res":{"played":17,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":613}},{"date":"2026-04-30","venue":"Sphere","city":"Las Vegas","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[683,485,113,84,2946,45,250,2656,2834,104,215,21,174,2845,323,609,397,2572,653,339],"open5":[215,485,683,45,104],"official":{"s1":[215,45,84,2834,683,21,609,2944,381,397],"s2":[485,2946,323,2656,104,250,653,273],"e":[2845,113]},"res":{"played":17,"hit20":1,"hitOf":1,"nOf":20,"open":"miss","realOpen":607}},{"date":"2026-05-01","venue":"Sphere","city":"Las Vegas","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,2656,485,683,113,21,174,45,609,2944,1102,104,215,690,48,2803,3076,3239,630,627],"open5":[215,485,104,45,381],"official":{"s1":[215,21,45,609,2944,683,3239,84,381,397],"s2":[2656,485,250,174,323,2803,630,2834],"e":[653,113]},"res":{"played":21,"hit20":1,"hitOf":2,"nOf":20,"open":"miss","realOpen":483}},{"date":"2026-05-02","venue":"Sphere","city":"Las Vegas","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[113,250,690,2656,683,21,174,628,104,215,45,2572,609,653,2845,8,339,3239,381,2944],"open5":[215,96,104,381,2],"official":{"s1":[215,21,45,609,683,381,2944,2,2803,653],"s2":[2572,690,250,2656,8,104,174,3239],"e":[2845,113]},"res":{"played":19,"hit20":3,"hitOf":3,"nOf":20,"open":"miss","realOpen":193}},{"date":"2026-07-07","venue":"Kohl Center","city":"Madison","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,2656,104,215,683,21,174,609,48,2803,3076,630,627,628,3139,2572,653,339,381,478],"open5":[215,104,96,381,2803],"official":{"s1":[215,21,609,104,630,381,2,2944,478,622],"s2":[2656,250,683,2803,653,174,48,273],"e":[440,2796]},"res":{"played":18,"hit20":4,"hitOf":5,"nOf":20,"open":"miss","realOpen":110}},{"date":"2026-07-08","venue":"Kohl Center","city":"Madison","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,2656,683,48,2803,104,3076,630,21,174,609,2,2572,440,538,2944,627,622,628,690],"open5":[2803,104,2,96,591],"official":{"s1":[2,630,21,609,683,2944,104,202,591,622],"s2":[3076,2656,2803,48,2570,2572,2639,529],"e":[440,250]},"res":{"played":16,"hit20":5,"hitOf":7,"nOf":20,"open":"close","realOpen":2803}},{"date":"2026-07-10","venue":"Ruoff Music Center","city":"Noblesville","runN":"night 1 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[683,538,2570,3139,2656,2,104,48,21,622,3076,174,627,628,609,339,2944,690,529,437],"open5":[2,683,104,96,2570],"official":{"s1":[683,2570,2,21,622,609,538,2944,84,437],"s2":[3139,104,2656,48,3076,364,46,529],"e":[174,2639]},"res":{"played":15,"hit20":7,"hitOf":8,"nOf":20,"open":"close","realOpen":2570}},{"date":"2026-07-11","venue":"Ruoff Music Center","city":"Noblesville","runN":"night 2 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2656,104,48,2,538,21,627,628,609,339,2944,529,437,867,455,364,38,2639,508,246],"open5":[2,96,104,2656,2944],"official":{"s1":[2,21,609,2944,538,437,364,529,96,246],"s2":[2656,104,48,627,38,508,8,2506],"e":[2639,628]},"res":{"played":16,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":8}},{"date":"2026-07-12","venue":"Ruoff Music Center","city":"Noblesville","runN":"night 3 of 3","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,48,538,21,113,339,2944,364,96,237,508,222,110,437,485,529,679,215,2932,2639],"open5":[96,2,215,2944,208],"official":{"s1":[96,2,21,538,2944,364,529,215,512,582],"s2":[110,48,222,237,508,485,45,339],"e":[679,113]},"res":{"played":15,"hit20":10,"hitOf":9,"nOf":20,"open":"close","realOpen":2}},{"date":"2026-07-14","venue":"Enmarket Arena","city":"Savannah","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[222,110,485,437,215,113,2946,512,45,2796,3100,653,381,2418,478,1102,250,529,148,591],"open5":[96,215,381,591,45],"official":{"s1":[215,110,45,381,3100,591,512,478,96,437],"s2":[2946,222,485,653,250,440,273,2932],"e":[113,2796]},"res":{"played":15,"hit20":4,"hitOf":2,"nOf":20,"open":"miss","realOpen":148}},{"date":"2026-07-15","venue":"Enmarket Arena","city":"Savannah","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[250,222,110,591,215,440,2803,202,113,630,2946,512,45,2796,3100,2572,653,381,2418,478],"open5":[96,215,591,2803,381],"official":{"s1":[215,110,591,3100,45,381,2796,512,653,622],"s2":[2572,222,2803,440,2946,250,323,630],"e":[113,202]},"res":{"played":15,"hit20":1,"hitOf":1,"nOf":20,"open":"miss","realOpen":158}},{"date":"2026-07-17","venue":"Coastal Credit Union Music Park at Walnut Creek","city":"Raleigh","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[110,215,113,2946,512,45,2796,250,3100,653,381,2570,3139,683,2418,478,1102,591,440,2803],"open5":[215,96,381,591,2803],"official":{"s1":[215,45,3100,381,591,683,622,440,512,202],"s2":[110,2946,2570,653,3139,250,2803,273],"e":[113,2796]},"res":{"played":16,"hit20":4,"hitOf":3,"nOf":20,"open":"close","realOpen":96}},{"date":"2026-07-18","venue":"Merriweather Post Pavilion","city":"Columbia","runN":"night 1 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[110,215,512,45,2796,591,440,2803,202,630,2572,2656,3100,653,104,3139,381,2570,683,323],"open5":[215,591,2803,45,381],"official":{"s1":[215,45,591,3100,202,381,622,323,609,630],"s2":[110,2803,2656,440,104,2570,653,2572],"e":[512,2796]},"res":{"played":17,"hit20":3,"hitOf":2,"nOf":20,"open":"miss","realOpen":3139}},{"date":"2026-07-19","venue":"Merriweather Post Pavilion","city":"Columbia","runN":"night 2 of 2","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[110,591,440,2803,202,630,512,45,2796,2570,683,653,174,3076,622,2572,2656,2,48,104],"open5":[591,2803,202,2,45],"official":{"s1":[591,2803,45,630,622,2796,512,2,609,84],"s2":[110,683,174,2570,3076,2572,2656,381],"e":[440,202]},"res":{"played":15,"hit20":7,"hitOf":6,"nOf":20,"open":"miss","realOpen":634}},{"date":"2026-07-21","venue":"Empower Federal Credit Union Amphitheater at Lakeview","city":"Syracuse","runN":"single night","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[110,2570,683,174,2803,622,512,630,2796,2656,653,381,627,628,609,485,2845,867,397,455],"open5":[2803,381,2570,2,683],"official":{"s1":[381,110,2570,683,622,630,609,2845,2,582],"s2":[174,2803,2656,653,273,627,397,84],"e":[512,2796]},"res":{"played":16,"hit20":5,"hitOf":4,"nOf":20,"open":"miss","realOpen":2792}},{"date":"2026-07-22","venue":"Madison Square Garden","city":"New York","runN":"night 1 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[683,538,110,174,630,512,84,622,2,48,653,381,627,628,609,2944,2845,867,397,208],"open5":[2,683,381,8,208],"official":{"s1":[683,538,630,84,2,381,609,2944,208,622],"s2":[110,174,48,627,653,273,679,582],"e":[2845,512]},"res":{"played":26,"hit20":5,"hitOf":6,"nOf":20,"open":"miss","realOpen":227}},{"date":"2026-07-24","venue":"Madison Square Garden","city":"New York","runN":"night 2 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[110,2,48,683,174,630,627,512,628,622,323,113,2944,2946,437,609,2845,867,2418,208],"open5":[2,96,110,683,215],"official":{"s1":[2,683,630,622,323,2944,609,628,113,2845],"s2":[110,48,174,627,2946,364,208,462],"e":[679,512]},"res":{"played":24,"hit20":5,"hitOf":6,"nOf":20,"open":"miss","realOpen":345}},{"date":"2026-07-25","venue":"Madison Square Garden","city":"New York","runN":"night 3 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[683,2,174,630,627,628,609,2845,867,323,3139,215,113,2946,437,3100,2944,2418,108,690],"open5":[2,215,96,683,447],"official":{"s1":[2,683,609,215,108,2944,113,202,591,630],"s2":[174,627,323,867,3139,2946,679,558],"e":[2845,628]},"res":{"played":16,"hit20":5,"hitOf":5,"nOf":20,"open":"miss","realOpen":44}},{"date":"2026-07-27","venue":"Madison Square Garden","city":"New York","runN":"night 4 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[2,609,113,630,2946,2845,867,3139,323,104,2418,591,215,202,3076,45,3004,3100,2572,2944],"open5":[2,96,215,591,104],"official":{"s1":[2,609,630,591,215,45,3004,2944,202,246],"s2":[3076,2946,867,323,104,3139,2418,679],"e":[2845,113]},"res":{"played":20,"hit20":2,"hitOf":4,"nOf":20,"open":"miss","realOpen":679}},{"date":"2026-07-29","venue":"Madison Square Garden","city":"New York","runN":"night 5 of 5","backfill":true,"graded":true,"snapAt":"retroactive 2026-07-30","top20":[113,690,202,630,2,3139,2944,2845,2946,867,222,437,485,3100,2656,2570,104,591,2418,2803],"open5":[96,2,202,591,2803],"official":{"s1":[96,2,630,2944,2845,591,323,45,2803,437],"s2":[2946,3139,2570,222,485,2656,2796,690],"e":[113,202]},"res":{"played":13,"hit20":1,"hitOf":1,"nOf":20,"open":"miss","realOpen":604}},{"date":"2026-07-31","venue":"Fenway Park","city":"Boston","runN":"night 1 of 2","graded":false,"snapAt":"2026-07-30 16:48 MDT \u00b7 ed47bc12","top20":[3139,630,2946,2,104,591,202,3076,45,2944,222,437,250,485,2572,2845,867,2656,3100,440],"open5":[2,96,591,104,202],"official":{"s1":[591,2,45,2944,440,485,323,222,2639,630],"s2":[3139,2946,3076,250,437,2570,2572,104],"e":[2845,202]}}]};
 // Sets are held to their measured 5th-95th percentile range (2022+ shows), not a fixed guess.
 // Set 1 runs longer and carries more songs than set 2 in 81% of shows; set-2 songs average
 // 9.2 min against 7.7 in set 1.
@@ -1009,9 +896,9 @@ let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
 const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
- 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
+ 'customStartField','customEndField','recency','windowSummary','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
- 'countNotePredict','countNoteFreq','rerollField','nextDateNote','themeYear','bustGapLocal','heroSubtitle','heroFlags',
+ 'countNotePredict','countNoteFreq','rerollField','upcoming','upcomingField','runPosNote','runPosField','nextDateNote','themeYear',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
 
 els.refEnd.value = LATEST_DATE; els.refEnd.max = LATEST_DATE;
@@ -1061,17 +948,25 @@ function syncNextDate() {
 // a show that already happened, or one on the announced schedule. Both carry a real runPos/runN
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
-let RUNPOS_SOURCE = null;
 function syncRunPos() {
   const d = els.nextDate.value;
   let match = null, source = null;
   if (d && UPCOMING_BY_DATE.has(d)) { match = UPCOMING[UPCOMING_BY_DATE.get(d)]; source = 'scheduled'; }
   else if (d && DATE_IDX.has(d)) { match = SHOWS[DATE_IDX.get(d)]; source = 'history'; }
-  // Run position is a fact we look up, never a question we ask. The manual dropdown is gone:
-  // it only ever appeared for a date matching no real or scheduled show, and in that case the
-  // honest answer is that we don't know, which is what 'none' means.
-  els.runPos.value = (match && match.runPos) ? match.runPos : 'none';
-  RUNPOS_SOURCE = match ? source : null;
+  if (match && match.runPos && match.runPos !== 'none') {
+    // Known for a fact — no need to show a dropdown for something we're not guessing at.
+    els.runPos.value = match.runPos;
+    els.runPosField.classList.add('hidden');
+    els.runPosNote.textContent = source === 'scheduled'
+      ? `${match.runN} at ${match.venue} — already factored in.`
+      : `This show already happened — ${match.runN} at ${match.venue} — already factored in.`;
+    els.runPosNote.classList.add('auto');
+  } else {
+    if (match) els.runPos.value = 'none';   // a real single-night show — nothing to pick
+    els.runPosField.classList.remove('hidden');
+    els.runPosNote.textContent = '';
+    els.runPosNote.classList.remove('auto');
+  }
 }
 
 function getSettings() {
@@ -1265,20 +1160,9 @@ function compute() {
   const n1local = med(recent.map(s => s.n1)) || 9;
   const n2local = med(recent.map(s => s.n2)) || 7;
   const nelocal = med(recent.map(s => s.ne)) || 2;
-  // Per-set counts are drawn from their own marginal distributions, which says nothing about
-  // the TOTAL. Two independent low draws can land a 16-song night with a 4-song second set —
-  // a combination real shows essentially do not produce. Measured over 680 modern shows the
-  // total runs 10 at the extreme low end but only 1% fall below 14 and 2% below 15, so the
-  // night is redrawn (bounded, never looped indefinitely) until it clears a floor. Set floors
-  // of 6 and 4 stay as the per-set backstop; this is the joint constraint they cannot express.
-  const TOTAL_FLOOR = 15;               // real 2nd percentile; p05 is 16, median 20
-  let n1, n2, ne;
-  for (let attempt = 0; ; attempt++) {
-    n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
-    n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
-    ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
-    if (!slModeSample || n1 + n2 + ne >= TOTAL_FLOOR || attempt >= 12) break;
-  }
+  const n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
+  const n2 = slModeSample ? Math.max(4, sampleSetCount('s2', n2local)) : medSetCount('s2', n2local);
+  const ne = slModeSample ? Math.max(1, sampleSetCount('e', nelocal)) : medSetCount('e', nelocal);
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
   return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
@@ -1514,20 +1398,6 @@ function buildSetlist(rows, n1, n2, ne) {
     const k = cap / tot;
     budget.s1 *= k; budget.s2 *= k; budget.e *= k;
   }
-  // Minutes and song count are NOT independent draws, and treating them as if they were is
-  // the deepest structural error left in the builder. A 4-song set 2 physically cannot fill a
-  // 67-minute budget: that is 16.75 min/song, against a real 95th percentile of 11.78. The
-  // budget came from the set-minutes distribution and the count from the set-count
-  // distribution with nothing reconciling them, so whenever a short count was drawn the set
-  // fell far under budget and the OTHER set kept its full allocation and carried the whole
-  // night. Measured over 2,000 nights: when the drawn set-2 count was <= 5, 26.5% of nights
-  // blew the measured 0.73-1.58 set-length band (ratios up to 3.2x) against 2.1% when it was
-  // >= 6. Clamping each budget to what its own drawn count can actually hold removes the
-  // contradiction at the source. Bounds are the real 5th-95th percentile of minutes-per-song,
-  // measured over 2022+ shows: set 1 6.94-9.80, set 2 7.98-11.78.
-  const PER_SONG = { s1: [6.94, 9.80], s2: [7.98, 11.78] };
-  budget.s1 = clamp(budget.s1, [n1 * PER_SONG.s1[0], n1 * PER_SONG.s1[1]]);
-  budget.s2 = clamp(budget.s2, [n2 * PER_SONG.s2[0], n2 * PER_SONG.s2[1]]);
 
   // Bustouts: never more than one a night, and most nights none at all.
   // Measured at the 100-show threshold: 68% of real shows have zero, ~20% exactly one.
@@ -1737,31 +1607,6 @@ function buildSetlist(rows, n1, n2, ne) {
   };
   topUp(s1mid, () => m1, v => { m1 = v; }, Math.max(60, budget.s1 * 0.92), false, cap1);
   topUp(s2mid, () => m2, v => { m2 = v; }, Math.max(56, budget.s2 * 0.92), true, cap2);
-  // Count top-up. Measured over 1,500 nights: the `rest` pool runs dry before the drawn counts
-  // are reached on 73% of them, because selectPool() sizes the pool to the drawn total and then
-  // the bustout thin-out, the rarity guard and the bond invariant all REMOVE from it, while the
-  // openers, closers and encore consume five or six more slots. Nothing refilled it. Set 1
-  // finished a mean 1.6 songs under its drawn count on 65% of nights, which put the night at a
-  // median 155 minutes against a real 164 — and left the long-song floor to paper over the gap
-  // by stuffing in jam vehicles. The minute top-up above cannot fix this: it stops at a minute
-  // target, not at a count. This is the mirror of the count CAP — the count is a draw from the
-  // measured distribution and should be hit from below as well as respected from above.
-  const countUp = (arr, getM, setM, budgetM, cap) => {
-    while (arr.length < cap && spare.length) {
-      const room = budgetM + 4 - getM();
-      let bi = -1;
-      for (let i = 0; i < spare.length; i++) if (durOf(spare[i]) <= room) { bi = i; break; }
-      if (bi < 0) break;                       // nothing left that fits the minutes ceiling
-      const [pick] = spare.splice(bi, 1);
-      arr.push(pick); used.add(pick.id); setM(getM() + durOf(pick));
-    }
-  };
-  // Ceiling for the count top-up is the measured 95th-percentile SET BOUND, not the sampled
-  // budget: the budget is a target drawn for this night, while the bound is what real sets
-  // actually respect. Holding the top-up to budget+4 left set 1 under its drawn count on 44%
-  // of nights because there was no room left for even a short song.
-  countUp(s1mid, () => m1, v => { m1 = v; }, Math.min(SET_BOUNDS.s1[1] - 4, budget.s1 + 8), cap1);
-  countUp(s2mid, () => m2, v => { m2 = v; }, Math.min(SET_BOUNDS.s2[1] - 4, budget.s2 + 8), cap2);
   while (s2mid.length > s1mid.length && spare.length && s1mid.length < cap1) { const r = spare.shift(); s1mid.push(r); used.add(r.id); m1 += durOf(r); }
 
   // Bonds survive every top-up: an anchor that slipped in late still brings its partner.
@@ -1773,21 +1618,8 @@ function buildSetlist(rows, n1, n2, ne) {
     if (Math.random() >= bond.p) continue;
     const dep = rows.find(r => r.id === +depId);
     if (!dep || used.has(dep.id) || dep.offTheme || dep.runRepeat) continue;
-    // The bond top-up used to push straight past the drawn count. The bond itself is
-    // non-negotiable, so when the destination set is full the weakest unlocked mid-set song
-    // makes way instead of the count being breached.
-    const dest = (s1mid.includes(anchor) || s1o.includes(anchor)) ? s1mid : s2mid;
-    const destCap = dest === s1mid ? cap1 : cap2;
-    if (dest.length >= destCap) {
-      let wi = -1;
-      dest.forEach((r, i) => { if (r.locked || r.id in BONDED) return;
-                               if (wi < 0 || r.pred < dest[wi].pred) wi = i; });
-      if (wi < 0) continue;
-      used.delete(dest[wi].id);
-      dest.splice(wi, 1);
-    }
     used.add(dep.id);
-    dest.push(dep);
+    (s1mid.includes(anchor) || s1o.includes(anchor) ? s1mid : s2mid).push(dep);
   }
 
   s1mid.sort((a, b) => b.pred - a.pred);
@@ -1821,33 +1653,6 @@ function buildSetlist(rows, n1, n2, ne) {
   const sl = { set1: [...s1o, ...s1mid, ...s1c], set2: cooldownOrder([...s2o, ...s2mid, ...s2c]), encore: enc };
 
   // pair placement pass
-  // Every pass below can RELOCATE a song from one set to the other. Measured, none of them
-  // checked the drawn count on the receiving side: pair placement alone pushed set 1 over its
-  // count on 3.1% more nights and set 2 on 4.5% more, and the balance guard added another 2.6%
-  // to set 2. A relocation that would breach the destination's drawn count is skipped.
-  let trimNight = () => {};
-  const distinctN = arr => new Set(arr.map(r => r.id)).size;
-  const capOf = key => key === 'set1' ? n1 : (key === 'set2' ? n2 : Infinity);
-  const canReceive = (fromKey, toKey) => fromKey === toKey || distinctN(sl[toKey]) < capOf(toKey);
-  // Songs that must not be evicted to make room for a pair move.
-  const pairLocked = new Set();
-  for (const r of PAIR_RULES) if (r.place !== 'free') { pairLocked.add(r.a); pairLocked.add(r.b); }
-  for (const [dep, bd] of Object.entries(BONDED)) { pairLocked.add(+dep); pairLocked.add(bd.anchor); }
-  // Move `mover` into `toKey` even though that set is at its drawn count, by sending the
-  // weakest ordinary mid-set song back the other way. Returns false if nothing can be spared.
-  const makeRoom = (toKey, fromKey) => {
-    const dest = sl[toKey], donor = sl[fromKey];
-    let wi = -1;
-    dest.forEach((r, i) => {
-      if (i === 0 || i === dest.length - 1) return;        // opener and closer stay put
-      if (r.cool || r.reentry || r.locked || pairLocked.has(r.id)) return;
-      if (wi < 0 || r.pred < dest[wi].pred) wi = i;
-    });
-    if (wi < 0) return false;
-    const [out] = dest.splice(wi, 1);
-    donor.splice(Math.max(1, donor.length - 1), 0, out);
-    return true;
-  };
   const findLoc = id => {
     for (const key of ['set1', 'set2', 'encore']) {
       const i = sl[key].findIndex(r => r.id === id);
@@ -1860,41 +1665,10 @@ function buildSetlist(rows, n1, n2, ne) {
     const la = findLoc(rule.a), lb = findLoc(rule.b);
     if (!la || !lb || la.key === 'encore') continue;
     if (la.key === lb.key && lb.i > la.i && (rule.place !== 'adj' || lb.i === la.i + 1)) continue;
-    // Skipping when the destination is full was wrong. Measured over all 2,015 shows:
-    // Mike's Song and Weekapaug Groove share a set 98.4% of the time (505/513), and when
-    // I Am Hydrogen is played all three share a set 99.7% of the time. Letting an off-by-one
-    // count cap veto a 98.4% structural rule is how a Mike's Song in set 1 shipped with its
-    // Weekapaug opening set 2 and a stranded I Am Hydrogen behind it. Trade a song back the
-    // other way instead: both counts hold AND the pair lands together.
-    if (!canReceive(lb.key, la.key) && !makeRoom(la.key, lb.key)) continue;
-    const lb2 = findLoc(rule.b);                 // makeRoom may have shifted indices
-    if (!lb2) continue;
-    const [b] = sl[lb2.key].splice(lb2.i, 1);
+    const [b] = sl[lb.key].splice(lb.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === rule.a);
-    if (aIdx < 0) { sl[lb2.key].splice(lb2.i, 0, b); continue; }   // anchor moved out from under us
     arr.splice(rule.place === 'adj' ? aIdx + 1 : Math.min(aIdx + 2, arr.length), 0, b);
-  }
-  // Final same-set invariant for the canonical trios, by name. The mined `sameset` placement
-  // above is a preference the passes can lose; this is the guarantee. A Weekapaug in a
-  // different set from its Mike's is a setlist real Phish does not play, so the orphan is
-  // dropped rather than shipped in the wrong place.
-  for (const [ancNm, ...deps] of [["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove'],
-                                  ['Tweezer', 'Tweezer Reprise'],
-                                  ['The Horse', 'Silent in the Morning']]) {
-    const anc = SONG_ID_BY_NAME.get(ancNm);
-    const la = anc != null && findLoc(anc);
-    if (!la) continue;
-    for (const depNm of deps) {
-      const dep = SONG_ID_BY_NAME.get(depNm);
-      const lb = dep != null && findLoc(dep);
-      if (!lb || lb.key === la.key) continue;
-      const [depRow] = sl[lb.key].splice(lb.i, 1);
-      if (canReceive(lb.key, la.key) || makeRoom(la.key, lb.key)) {
-        const arr = sl[la.key], ai = arr.findIndex(r => r.id === anc);
-        arr.splice(ai < 0 ? arr.length : Math.min(ai + 1, arr.length), 0, depRow);
-      }   // else: nowhere to put it, so it is dropped rather than shipped in the wrong set
-    }
   }
   // A bonded dependent (Tweezer Reprise, Weekapaug Groove...) can never come before its anchor,
   // even under a "free" placement pattern that doesn't otherwise pin down where it lands.
@@ -1905,14 +1679,6 @@ function buildSetlist(rows, n1, n2, ne) {
     if (!la || !lb) continue;
     const isBefore = SET_ORDER[lb.key] < SET_ORDER[la.key] || (lb.key === la.key && lb.i < la.i);
     if (!isBefore) continue;
-    if (!canReceive(lb.key, la.key)) {
-      // Destination set is already at its drawn count. Exchanging the two songs' positions is
-      // count-neutral in both sets and always puts the anchor first, since the dependent was
-      // the earlier of the two by definition of isBefore.
-      const anchorRow = sl[la.key][la.i], depRow = sl[lb.key][lb.i];
-      sl[la.key][la.i] = depRow; sl[lb.key][lb.i] = anchorRow;
-      continue;
-    }
     const [b] = sl[lb.key].splice(lb.i, 1);
     const arr = sl[la.key];
     const aIdx = arr.findIndex(r => r.id === bond.anchor);
@@ -1927,18 +1693,10 @@ function buildSetlist(rows, n1, n2, ne) {
     const lockedIds = new Set();
     for (const r of PAIR_RULES) if (r.place !== 'free') { lockedIds.add(r.a); lockedIds.add(r.b); }
     for (const [dep, b] of Object.entries(BONDED)) { lockedIds.add(+dep); lockedIds.add(b.anchor); }
-    for (let guard = 0; guard < 10; guard++) {
+    for (let guard = 0; guard < 4; guard++) {
       const m1 = minutesOf(sl.set1), m2 = minutesOf(sl.set2);
       const ratio = m1 / m2;
-      // The 0.73-1.58 band is measured across ALL shows, so it already averages over the
-      // counts. A night that drew 10 songs for set 1 and 4 for set 2 really does run about
-      // 2x longer in set 1 — that combination is 1.2% of real shows, not an error — and
-      // forcing it back inside the all-shows band would be correcting the draw with a
-      // statistic that does not apply to it. Widen the band to whatever the drawn counts
-      // imply, at their median minutes-per-song.
-      const cImplied = (n1 * 8.17) / Math.max(1e-9, n2 * 9.85);
-      const loR = Math.min(0.73, cImplied * 0.85), hiR = Math.max(1.58, cImplied * 1.15);
-      if (ratio <= hiR && ratio >= loR) break;
+      if (ratio <= 1.58 && ratio >= 0.73) break;
       const from = ratio > 1.58 ? sl.set1 : sl.set2;
       const to = ratio > 1.58 ? sl.set2 : sl.set1;
       if (from.length <= 5) break;
@@ -1950,27 +1708,6 @@ function buildSetlist(rows, n1, n2, ne) {
         const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
         if (dev < bestDev) { bestDev = dev; best = c; }
       }
-      if (distinctN(to) >= capOf(to === sl.set1 ? 'set1' : 'set2')) {
-        // Receiving set is at its drawn count, so a plain move would breach it. Trade a song
-        // each way instead: count-neutral in both sets, and it still moves minutes by the
-        // difference between the two. Search the pairs rather than assuming the shortest
-        // return song is best — a bad trade can overshoot the band in the other direction.
-        const outs = cands;
-        const ins = to.slice(1, -1).filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
-        let bp = null, bpDev = Math.abs(Math.log(ratio / 1.07));
-        for (const c of outs) for (const d of ins) {
-          const dd = durOf(c) - durOf(d);
-          const nm1 = ratio > 1.58 ? m1 - dd : m1 + dd;
-          const nm2 = ratio > 1.58 ? m2 + dd : m2 - dd;
-          if (nm2 <= 0) continue;
-          const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
-          if (dev < bpDev) { bpDev = dev; bp = [c, d]; }
-        }
-        if (!bp) break;
-        const fi = from.indexOf(bp[0]), ti = to.indexOf(bp[1]);
-        from[fi] = bp[1]; to[ti] = bp[0];
-        continue;
-      }
       if (!best) break;
       from.splice(from.indexOf(best), 1);
       to.splice(to.length - 1, 0, best);
@@ -1978,24 +1715,6 @@ function buildSetlist(rows, n1, n2, ne) {
     // Total-night ceiling: the whole night stays inside its measured 95th-percentile
     // minutes. Budgets are capped up front, but a long draw can still nudge the assembled
     // night past the line — trim the least likely unlocked mid-set song until it fits.
-    // Exposed as a function because it has to run AGAIN after the long-song floor: the floor
-    // swaps songs for longer ones after this point, and running the trim only here let 19.3%
-    // of nights ship past the measured total-minute ceiling.
-    trimNight = () => {
-    // Per-set ceiling as well as the night ceiling. Measured before this existed: 12.5% of
-    // first sets and 7.1% of second sets shipped past their own 95th-percentile bound, because
-    // the bound was only ever applied to the sampled BUDGET, and the fill's +4 overshoot
-    // allowance, the minute top-up and the balance guard all push past the budget afterwards.
-    for (const [key, bnd] of [['set1', SET_BOUNDS.s1], ['set2', SET_BOUNDS.s2]]) {
-      for (let guard = 0; guard < 5; guard++) {
-        if (minutesOf(sl[key]) <= bnd[1]) break;
-        const cands = sl[key].slice(1, -1)
-          .filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly && !r.reentry)
-          .sort((a, b2) => a.pred - b2.pred);
-        if (!cands.length) break;
-        sl[key].splice(sl[key].indexOf(cands[0]), 1);
-      }
-    }
     for (let guard = 0; guard < 6; guard++) {
       const tot = minutesOf(sl.set1) + minutesOf(sl.set2) + minutesOf(sl.encore);
       if (tot <= SET_BOUNDS.total[1] + 4) break;
@@ -2008,8 +1727,6 @@ function buildSetlist(rows, n1, n2, ne) {
         if (i > 0 && i < sl[key].length - 1) { sl[key].splice(i, 1); break; }
       }
     }
-    };
-    trimNight();
   }
   for (const key of ['set1', 'set2']) {
     sl[key].forEach((r, i) => { r.role = i === 0 ? 'opener' : (i === sl[key].length - 1 ? 'closer' : ''); });
@@ -2036,6 +1753,25 @@ function buildSetlist(rows, n1, n2, ne) {
   // set 2, and the encore each fill from a competitive weighted draw, so an anchor can lose out
   // on a slot even after its dependent won one. A reprise without its song is a state the real
   // setlist can't produce, so drop the dependent rather than ship the impossible pairing.
+  // The fill loop respects the drawn song count, but the passes that run after it —
+  // pair placement, the bond re-check, the set-balance rebalance — move songs between
+  // sets and could push one over. Enforce the count here, after every mover has run,
+  // the same way bond orphans are handled. Trims the least likely unlocked mid-set song
+  // and never touches an opener, closer, bond, cool-down or reentry.
+  for (const [key, capN] of [['set1', t1], ['set2', t2]]) {
+    const arr = sl[key];
+    while (arr.length > capN) {
+      let victim = -1;
+      for (let i = 1; i < arr.length - 1; i++) {
+        const r = arr[i];
+        if (r.cool || r.reentry || r.bonded || r.locked) continue;
+        if (BONDED[r.id] || Object.values(BONDED).some(b => b.anchor === r.id)) continue;
+        if (victim < 0 || (r.pred || 0) < (arr[victim].pred || 0)) victim = i;
+      }
+      if (victim < 0) break;          // nothing safe to remove; leave it rather than break a bond
+      arr.splice(victim, 1);
+    }
+  }
   for (const [depId, bond] of Object.entries(BONDED)) {
     const lb = findLoc(+depId);
     if (!lb) continue;
@@ -2045,31 +1781,7 @@ function buildSetlist(rows, n1, n2, ne) {
   // A tagged song can still get relocated to set 1 by the pair-placement pass (Silent in
   // the Morning follows The Horse wherever it lands), and it must not carry the label along.
   for (const r of [...sl.set1, ...sl.encore]) delete r.cool;
-  // Night floor, on the ASSEMBLED show rather than the drawn counts. Drawing n1+n2+ne above a
-  // floor is not enough: both sets can still finish under their drawn counts (the pool thins
-  // as bustouts, rarities and bond orphans are removed), and the night lands short anyway.
-  // Measured: only ~1% of real shows carry fewer than 14 distinct songs and 2% fewer than 15.
-  // Top the show back up from the best remaining eligible songs, into whichever set is
-  // furthest below its own drawn count.
-  {
-    const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
-    if (inShow.size < 15) {
-      const pool = rows.filter(r => r.pred > 0 && !inShow.has(r.id) && !r.terminalOnly &&
-          !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
-        .sort((a, b) => b.pred - a.pred);
-      let si = 0;
-      while (inShow.size < 15 && si < pool.length) {
-        const pick = pool[si++];
-        const short1 = n1 - new Set(sl.set1.map(r => r.id)).size;
-        const short2 = n2 - new Set(sl.set2.map(r => r.id)).size;
-        const arr = short1 >= short2 ? sl.set1 : sl.set2;
-        arr.splice(Math.max(1, arr.length - 1), 0, pick);   // never displace the set closer
-        inShow.add(pick.id);
-      }
-    }
-  }
   enforceLongFloor(sl, rows);
-  trimNight();
   applyReentry(sl);
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;
@@ -2101,55 +1813,38 @@ function buildSetlist(rows, n1, n2, ne) {
 // ---------------------------------------------------------------------------
 function enforceLongFloor(sl, rows) {
   if (!LONG_SONGS) return;
-  // `r.bonded` was tested here but is never assigned anywhere in the engine, so the swap could
-  // evict a bonded ANCHOR (The Horse, Tweezer, Mike's Song) — and this pass runs AFTER the final
-  // bond-invariant check, so nothing caught it. Measured: 2.0% of nights shipped an orphaned
-  // dependent (Weekapaug Groove, Tweezer Reprise or Silent in the Morning with no anchor);
-  // disabling this pass took that to zero. Build the protected set from BONDED directly.
-  const bondIds = new Set();
-  for (const [dep, b] of Object.entries(BONDED)) { bondIds.add(+dep); bondIds.add(b.anchor); }
-  const isProtected = r => r.cool || r.reentry || r.locked || bondIds.has(r.id);
-  // LONG_SONGS is mined from each song's MEDIAN length, so eligibility is judged on the median
-  // too. The old code counted what the set `have`s with the per-night sampled length and picked
-  // candidates by median, which are different questions.
-  const isLong = r => durMedian(r) >= LONG_THRESH;
   const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
-
   for (const key of ['set1', 'set2']) {
     const arr = sl[key];
-    if (arr.length < 3) continue;
+    if (!arr.length) continue;
     const want = sampleLongFloor(key === 'set1' ? 's1' : 's2');
-    let have = arr.filter(isLong).length;
-    if (have === want) continue;
+    let have = arr.filter(r => durOf(r) >= LONG_THRESH).length;
+    if (have >= want) continue;
 
-    // Two-sided. Raising to a floor and never lowering makes the result E[max(natural, want)]
-    // rather than E[want]: measured over 1,000 nights, set 1 carried a mean 3.22 songs of 10+
-    // minutes against a real 1.93, set 2 3.78 against 2.87, and the pass added a median 9.8
-    // minutes to a night whose budget had already been fixed. Swapping in BOTH directions
-    // reproduces the mined distribution instead of its upper envelope.
-    const wantLong = have < want;
+    // candidates: not already in the show, priced, and actually long
+    // Bustouts are excluded: they run on their own measured one-per-night budget, and
+    // letting this pass pull one in could put a second bustout in the same show.
     const cands = rows
-      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly &&
-                   !(r.id in BONDED) && isLong(r) === wantLong)
+      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly && !r.isBustout &&
+                   durMedian(r) >= LONG_THRESH)
       .sort((a, b) => b.pred - a.pred);
     if (!cands.length) continue;
 
-    for (let ci = 0; have !== want && ci < cands.length; ci++) {
+    for (let ci = 0; have < want && ci < cands.length; ci++) {
+      // find the shortest swappable mid-set song
       let victim = -1;
       for (let i = 1; i < arr.length - 1; i++) {
         const r = arr[i];
-        if (isProtected(r)) continue;
-        if (isLong(r) === wantLong) continue;      // already on the wanted side of the line
-        // swapping a long song IN, sacrifice the shortest; swapping one OUT, the longest
-        if (victim < 0 ||
-            (wantLong ? durMedian(r) < durMedian(arr[victim])
-                      : durMedian(r) > durMedian(arr[victim]))) victim = i;
+        if (r.cool || r.reentry || r.bonded || r.locked) continue;
+        if (durOf(r) >= LONG_THRESH) continue;
+        if (victim < 0 || durOf(r) < durOf(arr[victim])) victim = i;
       }
       if (victim < 0) break;
+      const pick = cands[ci];
       inShow.delete(arr[victim].id);
-      inShow.add(cands[ci].id);
-      arr[victim] = cands[ci];
-      have += wantLong ? 1 : -1;
+      inShow.add(pick.id);
+      arr[victim] = pick;
+      have++;
     }
   }
 }
@@ -2161,23 +1856,16 @@ function applyReentry(sl) {
   const cands = [];
   for (const key of setKeys) {
     sl[key].forEach((r, i) => {
+      // The set closer can't be the first half of a sandwich — there is nothing after it
+      // to sandwich around, and picking it made the set end on the repeat.
+      if (i >= sl[key].length - 1) return;
       const rule = REENTRY_BY_SID.get(r.id);
       if (rule) cands.push({ key, i, r, rule });
     });
   }
   if (!cands.length) return;
-  // The pass used to pick ONE eligible song uniformly at random and roll only that song's rate,
-  // which divides the show-level reentry rate by the number of eligible songs on stage — 4.2 on
-  // average. Measured result: reentries on 3.5% of generated nights against 22% of real shows.
-  // Roll each eligible song against its own measured rate and take the first hit; the ceiling of
-  // one reentrant song per night is unchanged.
-  const order = cands.slice();
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const t = order[i]; order[i] = order[j]; order[j] = t;
-  }
-  const pick = order.find(c => Math.random() < c.rule.rate);
-  if (!pick) return;
+  const pick = cands[Math.floor(Math.random() * cands.length)];
+  if (Math.random() > pick.rule.rate) return;      // roll its measured reentry rate
 
   const pl = pick.rule.place || {};
   const u = Math.random();
@@ -2188,10 +1876,6 @@ function applyReentry(sl) {
   }
 
   const arr = sl[pick.key];
-  // A bonded song must not be relocated by the gap-fitting step below: moving a dependent
-  // earlier can push it in front of its anchor, and the bond-order pass has already run.
-  const __bondIds = new Set();
-  for (const [dep, bd] of Object.entries(BONDED)) { __bondIds.add(+dep); __bondIds.add(bd.anchor); }
   const copy = Object.assign({}, pick.r, { reentry: true });
   delete copy.cool;
 
@@ -2210,24 +1894,10 @@ function applyReentry(sl) {
   else if (mode === 'far') offset = 5 + Math.floor(Math.random() * 3);
   else offset = 2 + Math.floor(Math.random() * 3);   // sandwich: 2-4 slots on
 
-  // The insert used to clamp to the end of the set when pick.i + offset overran it, which
-  // silently turned a sandwich into an ADJACENT repeat. Measured: 29% of generated repeats
-  // landed adjacent against 1.8% in the real data, and the worst offenders were exactly the
-  // songs recorded as 100% sandwich with no exceptions (Hold Your Head Up, Harry Hood) —
-  // because those sit late in a set, so the overshoot branch fired almost every time.
-  // If the gap won't fit behind the first copy, move the FIRST copy earlier rather than
-  // shorten the gap; if the set is too short to hold the gap at all, skip the reentry.
-  let i0 = pick.i;
-  const lastSlot = arr.length - 1;                 // the closer keeps the final slot
-  if (i0 + offset > lastSlot) {
-    const back = i0 + offset - lastSlot;
-    if (i0 - back < 1) return;                     // opener stays put; no room for this gap
-    if (__bondIds.has(pick.r.id)) return;          // never reorder a bond to make a gap fit
-    const [moved] = arr.splice(i0, 1);
-    i0 -= back;
-    arr.splice(i0, 0, moved);
-  }
-  arr.splice(i0 + offset, 0, copy);
+  const at = Math.min(pick.i + offset, arr.length);
+  // never displace the set closer — the sandwich resolves before the set ends
+  if (at >= arr.length) arr.splice(Math.max(pick.i + 1, arr.length - 1), 0, copy);
+  else arr.splice(at, 0, copy);
 }
 
 // ---------------------------------------------------------------------------
@@ -2343,13 +2013,6 @@ function sortRows(rows, key, dir) {
   });
 }
 function pct(p) { return p < 0.01 ? (p * 100).toFixed(1) : (p * 100).toFixed(0); }
-
-// Tier bands over the CALIBRATED probability. The cut points are round numbers, not fitted:
-// >=60% has historically meant "hit two nights in three," which is as lock as Phish gets.
-function tierOf(p) {
-  return p >= 0.60 ? ['lock', 'lock'] : p >= 0.30 ? ['likely', 'likely'] : p >= 0.10 ? ['bubble', 'bubble'] : ['long', 'longshot'];
-}
-const tierChip = p => { const [cls, label] = tierOf(p); return `<span class="tier ${cls}">${label}</span>`; };
 // current gap vs the song's own average gap: >1 means it is overdue, <1 means recently played
 function ratioCell(r) {
   if (r.gap == null || !r.avgGap) return '—';
@@ -2377,14 +2040,9 @@ function render() {
   const targetLabel = target
     ? `${target.venue}, ${target.city} &mdash; ${target.date}${target.runN && target.runPos && target.runPos !== 'none' ? ` (${target.runN})` : ''}`
     : (d ? d : 'the next show (nothing announced yet)');
-  // One status line, in the subtitle, above the fold — not a separate strip repeating it.
-  els.heroSubtitle.innerHTML = `Predicting <b>${targetLabel}</b>, from the <b>${showsInFullWindow}</b> shows between <b>${startDate}</b> and <b>${st.end}</b>. `
-    + `A <b>statistically honest guess</b> at the next Phish setlist, built from all <b>2,027 shows</b> and <b>967 songs</b> since 1983 and refreshed daily from phish.net &mdash; it knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.`;
-  // Conditions that materially change the prediction get their own line, but only while active.
-  els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
-    + (runMates.size && themePool ? '<br>' : '')
-    + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
-  els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
+  els.windowSummary.innerHTML = `Predicting: <b>${targetLabel}</b> &nbsp;&bull;&nbsp; using stats from <b>${startDate}</b> to <b>${st.end}</b> (<b>${showsInFullWindow}</b> shows)`
+    + (runMates.size ? `<br><span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
+    + (themePool ? `<br><span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
   els.calSummary.innerHTML = cal.n > 0
     ? `Calibration: refit on <b>${cal.n}</b> shows (${cal.from} &rarr; ${cal.to}) at these exact settings`
@@ -2462,7 +2120,7 @@ function render() {
   const maxPredAll = Math.max(0.0001, ...fp.map(r => r.pred));
   els.tbodyPredict.innerHTML = fp.slice(0, 400).map(r => `
     <tr>
-      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${tierChip(r.pred)}</td>
+      <td class="song-name"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}</td>
       <td class="pred-cell"><div class="pred-bar-bg" style="width:${(r.pred / maxPredAll * 60).toFixed(1)}%"></div><span class="pred-text">${(r.pred * 100).toFixed(1)}%</span></td>
       <td>${(r.freq * 100).toFixed(1)}%</td>
       <td>${r.gap != null ? r.gap : '—'}</td>
@@ -2521,8 +2179,7 @@ els.modeCustom.addEventListener('click', () => {
   syncNextDate();
   render();
 });
-[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.themeYear].forEach(el => el.addEventListener('change', render));
-els.bustGap.addEventListener('change', () => syncBustGap(els.bustGap));   // mirrors to the copy beside the chart, then renders
+[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.bustGap, els.runPos, els.themeYear].forEach(el => el.addEventListener('change', render));
 // Themed-year options, newest first — only years the band actually played.
 for (const y of [...SONGS_BY_YEAR.keys()].sort().reverse()) {
   const o = document.createElement('option');
@@ -2584,125 +2241,24 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// The "pick a scheduled show" dropdown was removed. It could only select a show FURTHER OUT
-// than the next one, and doing that changes almost nothing real: gap is counted in SHOWS, not
-// days, so every song carries the identical gap and the identical probability — all that moves
-// is the run-position multiplier and the date-lock check. That reads like a deeper forecast
-// than it is. The next scheduled show is still filled in automatically by syncNextDate(), which
-// is where the run position ("night 2 of 5") comes from.
-
-// The bustout threshold appears twice — in settings and beside the Bustout watch chart — so the
-// two stay in lockstep. Neither is authoritative; whichever the user touches wins.
-function syncBustGap(from) {
-  const v = from.value;
-  if (els.bustGap.value !== v) els.bustGap.value = v;
-  if (els.bustGapLocal.value !== v) els.bustGapLocal.value = v;
-  render();
-}
-els.bustGapLocal.addEventListener('change', () => syncBustGap(els.bustGapLocal));
-
-// ---- Track Record tab: rendered once — PRED_LOG is baked at build time and never changes
-// client-side. Ids resolve through SONG_BY_ID so the log file stays small.
-function renderTrackRecord() {
-  const log = (PRED_LOG && PRED_LOG.entries) || [];
-  const nameOf = id => { const s = SONG_BY_ID.get(id); return s ? s.name : '?'; };
-  const live = log.filter(e => !e.backfill), bf = log.filter(e => e.backfill);
-  const gradedLive = live.filter(e => e.graded && e.res), gradedBf = bf.filter(e => e.graded && e.res);
-
-  // --- the official call for the next ungraded show, if one is committed
-  const pending = live.find(e => !e.graded);
-  const t = $('trOfficialTitle'), l = $('trOfficialLede'), g = $('trOfficialGrid');
-  if (pending) {
-    t.textContent = `The official call — ${pending.venue} · ${pending.date}`;
-    l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b>. This exact list is what gets graded after the show.`;
-    const block = (title, ids) => `
-      <div class="set-block"><h3>${title}</h3>
-        ${ids.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOf(id)}</span></span></div>`).join('')}
-      </div>`;
-    g.innerHTML = block('Set 1', pending.official.s1) + block('Set 2', pending.official.s2) + block('Encore', pending.official.e);
-  } else {
-    t.textContent = 'The official call';
-    l.textContent = 'No upcoming show has a committed prediction yet — the next daily build after a show is announced will commit one automatically.';
-    g.innerHTML = '';
-  }
-
-  // --- headline numbers: live and backfill NEVER mix
-  const mean = (arr, f) => arr.length ? arr.reduce((a, e) => a + f(e), 0) / arr.length : null;
-  const fmt = (v, d) => v == null ? '\u2014' : v.toFixed(d == null ? 1 : d);
-  const openPct = arr => { const g = arr.filter(e => e.res.open); return g.length ? 100 * g.filter(e => e.res.open !== 'miss').length / g.length : null; };
-  // "Of setlist" is RECALL — the share of what they actually played that we had in our top 20.
-  // It moves opposite to precision when a show runs long, so both are reported, never blended.
-  const recall = arr => arr.length ? 100 * arr.reduce((a, e) => a + e.res.hit20 / Math.max(1, e.res.played), 0) / arr.length : null;
-  $('trHeadline').innerHTML = `
-    <div class="stat"><b>${gradedLive.length}</b><span>shows graded live</span></div>
-    <div class="stat"><b>${fmt(mean(gradedLive, e => e.res.hitOf))}</b><span>official-call hits / show (live)</span></div>
-    <div class="stat"><b>${fmt(mean(gradedLive, e => e.res.hit20))}</b><span>top-20 hits / show (live)</span></div>
-    <div class="stat"><b>${fmt(recall(gradedLive), 0)}${recall(gradedLive) == null ? '' : '%'}</b><span>of setlist (live)</span></div>
-    <div class="stat"><b>${fmt(openPct(gradedLive), 0)}${openPct(gradedLive) == null ? '' : '%'}</b><span>opener in top 5 (live)</span></div>
-    <div class="stat" style="opacity:.7"><b>${fmt(mean(gradedBf, e => e.res.hitOf))} \u00b7 ${fmt(mean(gradedBf, e => e.res.hit20))} \u00b7 ${fmt(recall(gradedBf), 0)}% \u00b7 ${fmt(openPct(gradedBf), 0)}%</b><span>backfill (${gradedBf.length} shows): official \u00b7 top-20 \u00b7 of setlist \u00b7 opener</span></div>`;
-
-  // --- the actual setlist of a past show, rebuilt from PLAYS. Kept out of the log entirely:
-  // the page already ships every play, so storing them again would only bloat the commit.
-  const PLAYED_BY_DATE = new Map();
-  for (const p of PLAYS) {
-    if (!PLAYED_BY_DATE.has(p.date)) PLAYED_BY_DATE.set(p.date, []);
-    PLAYED_BY_DATE.get(p.date).push(p);
-  }
-
-  const OPEN_MARK = { nailed: '<span class="hit" title="we named the right opener">\u25cf nailed</span>',
-                      close: '<span title="real opener was in our top 5">\u25cb top 5</span>',
-                      miss: '<span class="miss">\u2014</span>' };
-
-  // --- table: live rows newest-first, then the labeled backfill block
-  const row = (e, cls, i) => {
-    const g = e.graded && e.res;
-    const rec = g ? Math.round(100 * e.res.hit20 / Math.max(1, e.res.played)) + '%' : '\u2014';
-    return `
-    <tr class="tr-row ${cls}" data-tr="${i}">
-      <td>${e.date}</td><td>${e.venue}${e.city ? ', ' + e.city : ''}${e.runN ? ` <span class="miss">(${e.runN})</span>` : ''}</td>
-      <td>${g ? `<b>${e.res.hitOf}</b> / ${e.res.nOf}` : 'awaiting show'}</td>
-      <td>${g ? `<b>${e.res.hit20}</b> / 20` : '\u2014'}</td>
-      <td>${rec}</td>
-      <td>${g ? (OPEN_MARK[e.res.open] || '\u2014') : '\u2014'}</td>
-      <td class="miss">${g ? '\u25be' : ''}</td>
-    </tr>`;
-  };
-
-  // Detail: what we called and hit, what we called and missed, and what they played that we
-  // never had. The third column is the one no scoreboard shows and the most informative.
-  const detail = (e, i) => {
-    if (!e.graded || !e.res) return '';
-    const rows = PLAYED_BY_DATE.get(e.date) || [];
-    const played = new Set(rows.map(p => p.sid));
-    const call = [...e.official.s1, ...e.official.s2, ...e.official.e];
-    const li = (id, hit) => `<li class="${hit ? 'hit' : 'miss'}">${hit ? '\u2713' : '\u00b7'} ${nameOf(id)}</li>`;
-    const missedByUs = [...played].filter(id => !call.includes(id) && !e.top20.includes(id));
-    const realOpen = e.res.realOpen;
-    return `
-    <tr class="tr-detail ${e.backfill ? 'bf' : ''}" id="trd${i}" style="display:none"><td class="tr-detailcell" colspan="7">
-      <div class="cols">
-        <div><h4>Official call (${e.res.hitOf}/${call.length})</h4><ul>${call.map(id => li(id, played.has(id))).join('')}</ul></div>
-        <div><h4>Ranked top 20 (${e.res.hit20}/20)</h4><ul>${e.top20.map(id => li(id, played.has(id))).join('')}</ul></div>
-        <div><h4>They played, we never had (${missedByUs.length})</h4><ul>${missedByUs.map(id => `<li class="miss">${nameOf(id)}</li>`).join('') || '<li class="miss">nothing \u2014 every song was on one of our lists</li>'}</ul></div>
-      </div>
-      <p class="prov">Opener: they opened with <b>${realOpen != null ? nameOf(realOpen) : '\u2014'}</b>; we called <b>${nameOf(e.official.s1[0])}</b>${(e.open5 || []).length ? `, with ${e.open5.map(nameOf).join(', ')} as the five candidates` : ''}.
-        ${e.backfill ? 'Computed retroactively on ' : 'Committed by the build on '}<b>${e.snapAt}</b>${e.backfill ? '' : ' \u2014 the commit that added this row is in the repo\u2019s git history, timestamped before the show'}.</p>
-    </td></tr>`;
-  };
-
-  const ordered = [...live.slice().reverse(), ...(bf.length ? [null] : []), ...bf.slice().reverse()];
-  $('trBody').innerHTML = ordered.map((e, i) => e === null
-    ? `<tr class="bf-divider"><td colspan="7">Backfill \u2014 computed retroactively, same method (${bf.length} shows)</td></tr>`
-    : row(e, e.backfill ? 'bf' : '', i) + detail(e, i)).join('');
-
-  $('trBody').addEventListener('click', ev => {
-    const tr = ev.target.closest('tr.tr-row');
-    if (!tr) return;
-    const d = $('trd' + tr.getAttribute('data-tr'));
-    if (d) d.style.display = d.style.display === 'none' ? '' : 'none';
+// Scheduled shows come from phish.net and refresh whenever the site rebuilds. Picking one
+// fills in the date and works out where it sits in its run.
+if (UPCOMING.length) {
+  els.upcomingField.classList.remove('hidden');
+  UPCOMING.forEach((s, i) => {
+    const o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = `${s.date} — ${s.venue}, ${s.city}${s.runPos && s.runPos !== 'none' ? ` (${s.runN})` : ''}`;
+    els.upcoming.appendChild(o);
+  });
+  els.upcoming.addEventListener('change', () => {
+    const s = UPCOMING[+els.upcoming.value];
+    if (!s) return;
+    els.nextDate.value = s.date;
+    syncRunPos();
+    render();
   });
 }
-renderTrackRecord();
 
 // ---- song detail card: click any song name for its phish.net-style stat sheet ----
 const pnetSlug = name => name.toLowerCase().replace(/['’.]/g, '').replace(/&/g, 'and')
