@@ -19,7 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const { buildEngine } = require('./harness.js');
-const { buildConsensus, hashSeed } = require('./consensus.js');
+const { buildConsensus, hashSeed, enforceChains } = require('./consensus.js');
 const { gradeEntry } = require('./grade.js');
 
 const HERE = __dirname;
@@ -42,6 +42,27 @@ let log = { v: 1, entries: [] };
 try { log = JSON.parse(fs.readFileSync(LOG, 'utf8')); } catch (e) { /* first run */ }
 const have = new Set(log.entries.map(e => e.date));
 let changed = false;
+
+// ---- REPAIR ---------------------------------------------------------------
+// Structure-only fix for committed-but-UNGRADED calls that violate the same-set bond
+// invariant (consensus.js could split Mike's Groove across sets before 2026-08-01 — modal-set
+// aggregation; observed live that night). The SONG LIST is untouched: the same ids, so the
+// grade (hitOf counts flattened ids) and the opener call (s1[0] is never displaced) cannot
+// change — this repairs an impossible structure, it does not re-roll a prediction. Graded
+// entries are never touched, same as everywhere else.
+{
+  const idOfName = nm => { const x = E.SONGS.find(s2 => s2.name === nm); return x ? x.id : null; };
+  for (const e of log.entries) {
+    if (e.graded || e.skip || !e.official) continue;
+    const beforeJson = JSON.stringify([e.official.s1, e.official.s2, e.official.e]);
+    const arrs = [e.official.s1, e.official.s2, e.official.e];
+    enforceChains(arrs, idOfName);
+    if (JSON.stringify(arrs) !== beforeJson) {
+      changed = true;
+      console.log(`repaired bond placement in the committed call for ${e.date} (song list unchanged)`);
+    }
+  }
+}
 
 // ---- GRADE ----------------------------------------------------------------
 for (const e of log.entries) {
