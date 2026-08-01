@@ -64,7 +64,10 @@ if (next) {
   E.setSetting('nextDate', next.date);
   E.setSetting('runPos', next.runPos && next.runPos !== 'none' ? next.runPos : '');
   const con = buildConsensus(E, { draws: 500, seed: hashSeed(next.date) });
-  const stampM = idx.match(/Build <code>([^<]+)<\/code>/);
+  // The build stamp moved out of the visible footer into an HTML comment (visitors never cared;
+  // it stays in the source as the only reliable fresh-vs-cached check). Read the comment first,
+  // keep the old footer form as a fallback so this script works against either template.
+  const stampM = idx.match(/<!-- Build: ([^>]+?) -->/) || idx.match(/Build <code>([^<]+)<\/code>/);
   log.entries.push({
     date: next.date, venue: next.venue, city: next.city, runN: next.runN || '',
     graded: false, snapAt: stampM ? stampM[1] : 'unknown build',

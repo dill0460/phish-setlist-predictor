@@ -198,12 +198,11 @@
   .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
   .badge.bust { background: var(--pred-100); color: var(--series-2); }
   .badge.cool { background: var(--seq-100); color: var(--seq-650); }
-  /* Called-in-the-right-place badges. "slot" is the strong one — the song landed in the exact
-     slot it was called for (set 1 opener, set 2 closer, encore...). "sameset" is the weaker,
-     commoner claim. Ordering is genuinely the hard half of this problem, so an exact-slot hit
-     is worth shouting about and is styled to outrank the plain played tick. */
+  /* The ONE placement badge: called for a specific spot (opener / closer / encore) and it
+     landed there. There is deliberately no weaker "right set" badge — it diluted this one,
+     and a green played row already says the song showed up. Ordering is the hard half of the
+     model, so the only claim made about it is the checkable one. */
   .badge.slot { background: var(--good); color: #fff; }
-  .badge.sameset { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
   /* Probability tiers — bands of the CALIBRATED probability, so the words mean something:
      a "lock" really has hit ~2 nights in 3 historically. */
   .tier { display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.04em; padding:1px 6px;
@@ -925,7 +924,6 @@ const slotSet = c => (c === 6 ? 'e' : (c <= 2 ? 's1' : 's2'));
 // entire pitch is that the numbers are honest. Mid-set carries exactly the information "right
 // set" already carries, so that is all it may ever claim.
 const PRECISE_SLOTS = new Set([0, 2, 3, 5, 6]);   // S1 open/close, S2 open/close, encore
-const SLOT_LABEL = { 0: 'set 1 opener', 2: 'set 1 closer', 3: 'set 2 opener', 5: 'set 2 closer', 6: 'encore' };
 
 // How well a called song landed: 'slot' (called for a specific position and hit it), 'set'
 // (right set, position not a claim we made or not matched), 'played' (turned up elsewhere), or
@@ -939,12 +937,13 @@ function placementOf(pl, id, setKey, i, n) {
   if (PRECISE_SLOTS.has(want) && actual.includes(want)) return 'slot';
   return actual.some(c => slotSet(c) === setKey) ? 'set' : 'played';
 }
-// The badge names the slot it nailed ("set 2 opener") rather than saying "exact slot" — it is
-// both more specific and self-evidently checkable against the setlist.
-function placementBadge(p, want) {
-  if (p === 'slot') return `<span class="badge slot" title="called for this exact spot, and that is where it landed">${SLOT_LABEL[want] || 'exact slot'}</span>`;
-  if (p === 'set') return '<span class="badge sameset" title="played in the set it was called for">right set</span>';
-  return '';
+// One badge, one claim: the song was called for a specific spot (opener, closer, encore) and
+// landed there. Nothing for "right set" — a green played row already says it showed up, and a
+// weaker second badge just diluted the strong one.
+function placementBadge(p) {
+  return p === 'slot'
+    ? '<span class="badge slot" title="called for this exact spot, and that is where it landed">exact spot</span>'
+    : '';
 }
 
 // The committed official call for a date, if one exists. Both pending and graded entries carry
@@ -2723,7 +2722,7 @@ function render() {
     // Exact-slot hits across the whole call, for the headline sentence.
     const slotHits = !pl ? 0 : [['s1', officialFor.official.s1], ['s2', officialFor.official.s2], ['e', officialFor.official.e]]
       .reduce((a, [k, ids]) => a + ids.filter((id, i) => placementOf(pl, id, k, i, ids.length) === 'slot').length, 0);
-    const slotLine = slotHits ? ` <b>${slotHits}</b> landed in the exact slot called.` : '';
+    const slotLine = slotHits ? ` <b>${slotHits}</b> landed in the exact spot called.` : '';
     const block = (title, ids, setKey) => {
       const arr = markSegues(asRows(ids), setKey, false);   // deterministic: a committed call
       const mins = arr.reduce((a, r) => a + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
@@ -2734,10 +2733,12 @@ function render() {
         ${arr.map((r, i) => {
           const hit = playedSet ? playedSet.has(r.id) : false;
           const place = placementOf(pl, r.id, setKey, i, arr.length);
-          const want = calledSlot(setKey, i, arr.length);
           const cls = place === 'slot' ? ' slot-hit' : (hit ? ' played' : '');
+          // Same muted opener/closer tags the drawn setlists carry (encore songs get none —
+          // the column header already says it). They describe the CALL, not the outcome.
+          const role = setKey === 'e' ? '' : (i === 0 ? 'opener' : (i === arr.length - 1 ? 'closer' : ''));
           const gl = place === 'slot' ? '&#9678;' : (hit ? '&#10003;' : '&#9675;');
-          return `<div class="set-song${cls}"><span class="sname">${playedSet ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${placementBadge(place, want)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
+          return `<div class="set-song${cls}"><span class="sname">${playedSet ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${role ? `<span class="role">${role}</span>` : ''}${placementBadge(place)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
         }).join('')}
       </div>`;
     };
@@ -3069,9 +3070,10 @@ function renderTrackRecord() {
         ${marked.map((r, i) => {
           const hit = playedSet.has(r.id);
           const place = placementOf(pl, r.id, setKey, i, marked.length);
+          const role = setKey === 'e' ? '' : (i === 0 ? 'opener' : (i === marked.length - 1 ? 'closer' : ''));
           const cls = place === 'slot' ? ' slot-hit' : (hit ? ' played' : '');
           const gl = place === 'slot' ? '&#9678;' : (hit ? '&#10003;' : '&#9675;');
-          return `<div class="set-song${cls}"><span class="sname">${pl ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}${placementBadge(place, calledSlot(setKey, i, marked.length))}</span></div>`;
+          return `<div class="set-song${cls}"><span class="sname">${pl ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}${role ? `<span class="role">${role}</span>` : ''}${placementBadge(place)}</span></div>`;
         }).join('')}
       </div>`;
     };
@@ -3125,7 +3127,7 @@ function renderTrackRecord() {
             [`${hitOf}<small>/${all.length}</small>`, 'official-call hits'],
             [`${hit20}<small>/${(pending.top20 || []).length}</small>`, 'top-20 hits'],
             [pctOr(100 * hit20 / Math.max(1, plNow.set.size)), 'of setlist so far'],
-            [slotN, 'in the exact slot called'],
+            [slotN, 'in the exact spot called'],
             [plNow.set.size, 'songs played so far'],
           ]) + `</div>`;
     }
