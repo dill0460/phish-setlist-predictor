@@ -267,6 +267,21 @@
   .set-song .sname { font-size: 14px; font-weight: 500; }
   .set-song .sname .role { font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-left: 6px; }
   .set-song .sprob { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  /* Segue marks. Muted and slightly smaller than the song name — they are punctuation between
+     songs, not content. "->" (seamless) is tinted so the two kinds are tellable apart at a
+     glance without needing the tooltip. */
+  .set-song .seg { color: var(--text-muted); font-weight: 600; margin-left: 5px; font-size: 12.5px; }
+  .set-song .seg-arrow { color: var(--accent); }
+  .mode-toggle button.disabled { opacity: .4; cursor: not-allowed; }
+  /* Live tick-off on the official call. The tick column is a fixed inline-block so names stay
+     aligned whether or not a song has landed yet — a shifting left edge reads as a glitch. */
+  .set-song .tick { display: inline-block; width: 15px; margin-right: 5px; font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+  .set-song.played .tick { color: var(--good); font-weight: 700; }
+  .set-song.played .sname .songlink { color: var(--good); font-weight: 700; }
+  .set-song.played { background: color-mix(in srgb, var(--good) 9%, transparent); border-radius: 5px; padding-left: 6px; padding-right: 6px; margin: 0 -6px; }
+  .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 7px; vertical-align: baseline; animation: livepulse 1.8s ease-in-out infinite; }
+  @keyframes livepulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
 
   .footer { margin-top: 28px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
   .footer a { color: var(--accent); }
@@ -415,19 +430,22 @@
     <div class="card">
       <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Not feeling this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of appearing in that exact slot. Click any song for its history.</p>
       <div class="controls-row" style="margin-bottom:14px;">
-        <div class="field" id="rerollField">
-          <label>&nbsp;</label>
-          <button class="btn-spin" id="reroll">&#8635;&nbsp; Spin another night</button>
-        </div>
         <div class="field">
           <label>Setlist mode</label>
           <div class="mode-toggle">
-            <button id="slModeSample" class="active">Realistic (weighted draw)</button>
+            <button id="slModeOfficial" class="active">Official call</button>
+            <button id="slModeSample">Realistic (weighted draw)</button>
             <button id="slModeLikely">Most likely (ranked list)</button>
+          </div>
+          <!-- The spin button sits UNDER the mode toggle, not beside it: it only acts on
+               Realistic mode, and alongside the toggle it read as a third mode option. -->
+          <div id="rerollField" style="margin-top:10px;">
+            <button class="btn-spin" id="reroll">&#8635;&nbsp; Spin another night</button>
           </div>
         </div>
       </div>
       <p class="chart-title" id="setlistTitle">Predicted setlist</p>
+      <p class="note hidden" id="officialNote" style="margin:-4px 0 12px;"></p>
       <div class="setlist-grid" id="setlistGrid"></div>
       <div class="table-wrap hidden" id="mlWrap">
         <table>
@@ -739,6 +757,91 @@ const COOL_AFF = __COOL_JSON__;     // songid -> how much more often it follows 
 // 2009+: 22% of shows contain one, but 85% of repeats are a same-set sandwich 2-4 slots on.
 const REENTRY = __REENTRY_JSON__;
 const REENTRY_BY_SID = new Map((REENTRY || []).map(r => [r.sid, r]));
+// How songs are JOINED — ", " vs "> " vs "-> ". Straight from phish.net's trans_mark, so none
+// of this is guessed. Measured 2009+ (last song of each set excluded, it has no successor):
+// set 1 segues 30.9% of the time, set 2 74.9%, encore 53.7%. The set is the dominant term by
+// far; position within it is a real but second-order effect (set 2 opens at 84% and decays to
+// 66% by its close). Median longest unbroken chain is 2 songs in set 1 against 5 in set 2 —
+// the "one long segue with a couple of breaks" shape falls out of the per-set rate on its own.
+const SEGUES = __SEGUES_JSON__;
+const SEG_ON = !!(SEGUES && SEGUES.has);
+
+// The mark that follows `a` when `b` comes next. Hierarchy, most specific first:
+//   1. a decisive mined pair (Mike's Song > I Am Hydrogen is 45/45; a rate would fumble it)
+//   2. the set's base rate, shaped by position, nudged by each song's own tendency
+//      (Stash and Divided Sky stop dead at ~0.16x; Piper and Light run on at ~1.8x)
+// `rand` picks the SOURCE of randomness, not whether there is any:
+//   true  — Math.random, so every spin of a realistic night re-rolls the transitions too
+//   false — a hash of the two song ids, so a committed call renders identically every time
+//
+// Deliberately NOT "take the mark if p >= 0.5" for the deterministic case. Thresholding an
+// honest 31% set-1 rate emits segues 9.5% of the time and seamless arrows never — an
+// argmax over a coin-flip is not the coin. Hashing keeps the real distribution and is still
+// stable for a given show, which is the property the official call actually needs.
+function segHash(a, b, salt) {
+  let h = (2166136261 ^ (a * 2654435761) ^ (b * 40503) ^ (salt * 97)) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function segueMark(a, b, setKey, frac, rand) {
+  if (!SEG_ON || !a || !b) return '';
+  const pair = SEGUES.pairs && SEGUES.pairs[a.id + '|' + b.id];
+  let p, arrow;
+  const base = (SEGUES.base && SEGUES.base[setKey]) || null;
+  if (pair) { p = pair[0]; arrow = pair[1]; }
+  else {
+    if (!base) return '';
+    const q = SEGUES.quint && SEGUES.quint[setKey];
+    const qi = Math.max(0, Math.min(4, Math.floor(frac * 5)));
+    p = (q && q[qi] != null) ? q[qi] : base.p;
+    // Residual multipliers — how far each song departs from what its slot already implies —
+    // applied in ODDS space, the same trick used on the probability ceiling. Multiplying
+    // probabilities directly and clamping at 0.98 is biased upward wherever the base is
+    // already high: set 2 opens at 0.84, so almost any positive multiplier pinned it to the
+    // clamp and the generated rate came out 79% against a real 75%. Odds saturate toward 1
+    // asymptotically instead of clipping.
+    const m = ((SEGUES.outMult && SEGUES.outMult[a.id]) || 1) * ((SEGUES.inMult && SEGUES.inMult[b.id]) || 1);
+    const o = (p / (1 - p)) * m;
+    p = Math.max(0.02, Math.min(0.985, o / (1 + o)));
+    arrow = base.arrow;
+  }
+  if (arrow == null) arrow = base ? base.arrow : 0;
+  const r1 = rand ? Math.random() : segHash(a.id, b.id, 1);
+  if (r1 >= p) return '';
+  const r2 = rand ? Math.random() : segHash(a.id, b.id, 2);
+  return r2 < arrow ? '->' : '>';
+}
+
+// The mark, rendered. Kept out of the .songlink span so clicking a name still opens the card
+// and never the arrow, and marked aria-hidden because a screen reader saying "greater than"
+// between every song is noise.
+function segHtml(seg) {
+  if (!seg) return '';
+  const cls = seg === '->' ? 'seg seg-arrow' : 'seg';
+  return `<span class="${cls}" aria-hidden="true" title="${seg === '->' ? 'seamless segue' : 'segue'}">${seg === '->' ? '&#8594;' : '&gt;'}</span>`;
+}
+
+// The committed official call for a date, if one exists. Both pending and graded entries carry
+// `official`, so a past date returns the call that was locked BEFORE that show — which is what
+// makes picking a date in Advanced show real history rather than a hindsight reconstruction.
+function officialEntry(date) {
+  const es = (PRED_LOG && PRED_LOG.entries) || [];
+  const e = es.find(x => x.date === date && x.official && !x.skip);
+  return e || null;
+}
+
+// Attach a `seg` field to every song in a set: the mark shown AFTER it. The last song of a set
+// never gets one — a set ends, it does not segue into the break.
+function markSegues(arr, setKey, rand) {
+  if (!Array.isArray(arr)) return arr;
+  for (let i = 0; i < arr.length; i++) {
+    arr[i].seg = (i < arr.length - 1)
+      ? segueMark(arr[i], arr[i + 1], setKey, arr.length > 1 ? i / (arr.length - 1) : 0, rand)
+      : '';
+  }
+  return arr;
+}
 // Measured distribution of distinct songs per set (2009+), as a CDF per set.
 // Set 1 median is 10 and the 98th percentile is 15 — the old code targeted a fixed
 // median and then let the minute budget override it, so a short-song pool overshot badly.
@@ -789,6 +892,14 @@ const UPCOMING = __UPCOMING_JSON__;     // scheduled shows from phish.net, refre
 // graded on the first build after the show, never re-rolled and never re-graded. Backfill
 // entries were computed retroactively by the identical method and are labeled as such.
 const PRED_LOG = __PREDLOG_JSON__;
+// Tonight's setlist AS IT IS BEING PLAYED. Written by live.js on the show-night poll, which is
+// a completely separate channel from the corpus: these songs must NOT enter the stats window.
+// phish.net posts setlists live, song by song, and folding a partial in-progress setlist into
+// history is exactly the bug v16 fixed (a song played tonight gets hit by BOTH the gap
+// multiplier at 0.445x AND the run-repeat rule at 0.02x, scoring every song that actually
+// played at ~zero). So this is display-only: it ticks off the official call, nothing more.
+// Shape: {date, sids:[songid...], updated} — or {sids:[]} when no show is in progress.
+const LIVE_SET = __LIVE_JSON__;
 // Sets are held to their measured 5th-95th percentile range (2022+ shows), not a fixed guess.
 // Set 1 runs longer and carries more songs than set 2 in 81% of shows; set-2 songs average
 // 9.2 min against 7.7 in set 1.
@@ -1002,14 +1113,25 @@ function calibrateWith(pts, p) {
 
 // ---------- UI state ----------
 let mode = 'rolling';
+// Three setlist modes. `slMode` is the source of truth; `slModeSample` is kept as a derived
+// alias because the ENGINE reads it in a dozen places to choose sampled-vs-median counts and
+// weighted-vs-argmax slot picks. Official mode assembles nothing, so it rides on the sampled
+// engine path and simply renders the committed call instead of a draw.
+//   'official' — the committed consensus call for the target show (the landing state)
+//   'sample'   — one plausible night, redrawn on every spin
+//   'likely'   — the ranked list with the arithmetic shown
+let slMode = 'official';
 let slModeSample = true;
+// Set once the user actively spins or switches mode. Until then, changing the target date
+// re-lands on that date's official call — which is the point: pick a date, see the call.
+let slModeUserPicked = false;
 let LAST_CTX = null;   // rows + asOfIdx from the latest compute(), for the song detail card
 let sortKeyPredict = 'pred', sortDirPredict = -1;
 let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
 const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
- 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody',
+ 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody','slModeOfficial','officialNote',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
  'countNotePredict','countNoteFreq','rerollField','nextDateNote','themeYear','bustGapLocal','heroSubtitle','heroFlags',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
@@ -1044,10 +1166,15 @@ function syncNextDate() {
     // Predicting the present: the next show is an announced fact, not a mystery — default to
     // it so its run position (night 1 of 3, etc.) is factored in automatically. Still fully
     // editable for anyone who wants a different night.
-    if (!els.nextDate.value && UPCOMING.length) {
-      els.nextDate.value = UPCOMING[0].date;
-      nextDateWasAuto = true; nextDateAutoVal = UPCOMING[0].date;
-      els.nextDateNote.textContent = 'Defaulting to the next scheduled show — change it to predict a different night.';
+    const up = nextUpcoming();
+    if (!els.nextDate.value && up) {
+      // nextUpcoming(), not UPCOMING[0]: the schedule is baked at build time, so after a
+      // skipped or failed build UPCOMING[0] is a show that has already happened.
+      els.nextDate.value = up.date;
+      nextDateWasAuto = true; nextDateAutoVal = up.date;
+      els.nextDateNote.textContent = up.date === todayMT()
+        ? `Tonight: ${up.venue}${up.city ? ', ' + up.city : ''} — change it to predict a different night.`
+        : 'Defaulting to the next scheduled show — change it to predict a different night.';
       els.nextDateNote.classList.add('auto');
     } else if (!nextDateWasAuto) {
       els.nextDateNote.textContent = els.nextDate.value ? '' : 'Pick an upcoming show above, or enter a date, to predict that specific night.';
@@ -1061,6 +1188,35 @@ function syncNextDate() {
 // a show that already happened, or one on the announced schedule. Both carry a real runPos/runN
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
+
+// Today, in Mountain time, computed IN THE BROWSER — deliberately not baked at build time.
+//
+// Everything date-shaped on this page used to key off UPCOMING[0], which is only correct while
+// the build is fresh. The moment a daily build is skipped or fails, UPCOMING[0] is whatever was
+// next when it last ran, and the page confidently targets a show that has already happened.
+// That failure is silent and it is exactly what a visitor notices first.
+//
+// Mountain is the project's convention for a reason (see build.py): a show on calendar date D
+// anywhere in North America starts and ends inside date D in Mountain time, so ">= today in MT"
+// means "tonight's show is still the one to show" right through the encore, and rolls over to
+// tomorrow's only after the night is genuinely over.
+function todayMT() {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);   // no tz data: UTC is close enough to fail safe
+  }
+}
+// The next show that has NOT finished — tonight's while tonight is happening. Falls back to the
+// last announced show rather than nothing, so a very stale build degrades to "wrong but sane"
+// instead of a blank page.
+function nextUpcoming() {
+  if (!UPCOMING.length) return null;
+  const t = todayMT();
+  return UPCOMING.find(s => s.date >= t) || UPCOMING[UPCOMING.length - 1];
+}
 let RUNPOS_SOURCE = null;
 function syncRunPos() {
   const d = els.nextDate.value;
@@ -2391,17 +2547,55 @@ function render() {
     : `Calibration: static fallback (not enough prior shows at this "as of" date)`;
 
   // ---- Predicted setlist ----
-  if (slModeSample) {
+  // The committed call for whatever show is being targeted. Graded past shows keep theirs, so
+  // picking a date in Advanced lands on that night's real committed call, not a fresh guess.
+  const officialFor = target ? officialEntry(target.date) : null;
+  // Official mode is only meaningful when a call exists. Fall through to a draw when it does
+  // not, rather than showing an empty panel.
+  const showingOfficial = slMode === 'official' && !!officialFor;
+  els.slModeOfficial.classList.toggle('disabled', !officialFor);
+
+  if (showingOfficial) {
     els.setlistGrid.classList.remove('hidden'); els.mlWrap.classList.add('hidden');
+    els.setlistTitle.innerHTML = `The official call &mdash; ${targetShort}`;
+    const nameOfId = id => { const s = SONG_BY_ID.get(id); return s ? s.name : '?'; };
+    const predOf = id => { const r = rows.find(x => x.id === id); return r ? r.pred : null; };
+    const durOfId = id => { const s = SONG_BY_ID.get(id); return s && s.dur != null ? s.dur : null; };
+    const asRows = ids => ids.map(id => ({ id, name: nameOfId(id), dur: durOfId(id), pred: predOf(id) }));
+    const block = (title, ids, setKey) => {
+      const arr = markSegues(asRows(ids), setKey, false);   // deterministic: a committed call
+      const mins = arr.reduce((a, r) => a + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
+      return `
+      <div class="set-block">
+        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
+        ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`).join('')}
+      </div>`;
+    };
+    els.setlistGrid.innerHTML = block('Set 1', officialFor.official.s1, 's1')
+      + block('Set 2', officialFor.official.s2, 's2')
+      + block('Encore', officialFor.official.e, 'e');
+    els.officialNote.classList.remove('hidden');
+    els.officialNote.innerHTML = (officialFor.graded && officialFor.res)
+      ? `This is the call that was committed <b>before</b> ${officialFor.date} and graded afterwards &mdash; not a hindsight pick. `
+        + `It hit <b>${officialFor.res.hitOf}</b> of its ${officialFor.res.nOf} songs. See the Track Record tab for the full breakdown. `
+        + `Hit <b>Spin another night</b> for a fresh random draw instead.`
+      : `Committed by the build on <b>${officialFor.snapAt}</b> and locked until the show is graded &mdash; `
+        + `a consensus of 500 generator runs at default settings, not one lucky spin. `
+        + `Hit <b>Spin another night</b> to draw a plausible night instead.`;
+  } else if (slModeSample) {
+    els.setlistGrid.classList.remove('hidden'); els.mlWrap.classList.add('hidden');
+    els.officialNote.classList.add('hidden');
     els.setlistTitle.innerHTML = `A realistic setlist &mdash; ${targetShort}`;
     const sl = buildSetlist(rows, n1, n2, ne);
+    markSegues(sl.set1, 's1', true); markSegues(sl.set2, 's2', true); markSegues(sl.encore, 'e', true);
     const block = (title, arr, mins) => `
       <div class="set-block">
         <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
-        ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032 \u00b7 ${pct(r.pred)}%</span></div>`).join('')}
+        ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032 \u00b7 ${pct(r.pred)}%</span></div>`).join('')}
       </div>`;
     els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1) + block('Set 2', sl.set2, sl.minutes.s2) + block('Encore', sl.encore, sl.minutes.e);
   } else {
+    els.officialNote.classList.add('hidden');
     els.setlistGrid.classList.add('hidden'); els.mlWrap.classList.remove('hidden');
     els.setlistTitle.innerHTML = `Most likely songs &mdash; ${targetShort} (full formula shown)`;
     const top = rows.slice().sort((a, b) => b.pred - a.pred).slice(0, 30);
@@ -2521,7 +2715,15 @@ els.modeCustom.addEventListener('click', () => {
   syncNextDate();
   render();
 });
-[els.yearsBack, els.refEnd, els.customStart, els.customEnd, els.nextDate, els.themeYear].forEach(el => el.addEventListener('change', render));
+// Changing the TARGET NIGHT re-lands on that night's official call — that is the whole point of
+// letting someone pick a date: they want to see what was called for it. The one exception is the
+// ranked list, which is an analytical view someone chose on purpose and should not be yanked out
+// of. Window/recency settings are not target changes and do not reset the mode.
+function retargetToOfficial() {
+  if (slMode !== 'likely') setSlMode('official', false); else render();
+}
+[els.nextDate, els.refEnd, els.customEnd].forEach(el => el.addEventListener('change', retargetToOfficial));
+[els.yearsBack, els.customStart, els.themeYear].forEach(el => el.addEventListener('change', render));
 els.bustGap.addEventListener('change', () => syncBustGap(els.bustGap));   // mirrors to the copy beside the chart, then renders
 // Themed-year options, newest first — only years the band actually played.
 for (const y of [...SONGS_BY_YEAR.keys()].sort().reverse()) {
@@ -2536,19 +2738,31 @@ els.nextDate.addEventListener('change', syncNextDate);
 els.recency.addEventListener('change', render);
 els.searchPredict.addEventListener('input', render);
 els.searchFreq.addEventListener('input', render);
-$('slModeSample').addEventListener('click', () => {
-  slModeSample = true;
-  $('slModeSample').classList.add('active'); $('slModeLikely').classList.remove('active');
-  els.rerollField.classList.remove('hidden');
+// One place decides what the three-way toggle looks like and what the engine sees, so the
+// button state and `slModeSample` cannot drift apart.
+function setSlMode(m, userPicked) {
+  slMode = m;
+  // Official mode renders a committed list rather than assembling one, but it still runs
+  // through compute(), which reads slModeSample. Keep it on the sampled path so the
+  // probabilities shown beside each song match what the rest of the page shows.
+  slModeSample = (m !== 'likely');
+  if (userPicked) slModeUserPicked = true;
+  for (const [id, key] of [['slModeOfficial', 'official'], ['slModeSample', 'sample'], ['slModeLikely', 'likely']]) {
+    $(id).classList.toggle('active', m === key);
+  }
+  // Spinning only means something for a drawn night. In official mode the button is the way
+  // OUT of the committed call, so it stays visible there too — only the ranked list hides it.
+  els.rerollField.classList.toggle('hidden', m === 'likely');
   render();
+}
+$('slModeOfficial').addEventListener('click', () => setSlMode('official', true));
+$('slModeSample').addEventListener('click', () => setSlMode('sample', true));
+$('slModeLikely').addEventListener('click', () => setSlMode('likely', true));
+// Spin always means "give me a fresh random night", so from the official call it switches
+// modes rather than doing nothing.
+$('reroll').addEventListener('click', () => {
+  if (slMode === 'official') setSlMode('sample', true); else render();
 });
-$('slModeLikely').addEventListener('click', () => {
-  slModeSample = false;
-  $('slModeLikely').classList.add('active'); $('slModeSample').classList.remove('active');
-  els.rerollField.classList.add('hidden');
-  render();
-});
-$('reroll').addEventListener('click', render);
 els.gameType.addEventListener('change', render);
 els.copyPicks.addEventListener('click', () => {
   navigator.clipboard.writeText(els.picksText.textContent).then(() => {
@@ -2609,17 +2823,71 @@ function renderTrackRecord() {
   const live = log.filter(e => !e.backfill), bf = log.filter(e => e.backfill);
   const gradedLive = live.filter(e => e.graded && e.res), gradedBf = bf.filter(e => e.graded && e.res);
 
-  // --- the official call for the next ungraded show, if one is committed
-  const pending = live.find(e => !e.graded);
+  // --- the official call for the next show
+  //
+  // NOT `live.find(e => !e.graded)`. That takes the OLDEST ungraded entry, so any single entry
+  // that fails to grade — a setlist that never posted, a skipped build, a cancelled show not
+  // marked skip — would pin the official call to it permanently, and every later show would
+  // queue up invisibly behind it. Latent rather than observed, but it is a one-line difference
+  // between "self-heals" and "silently wrong forever".
+  //
+  // Prefer the soonest ungraded entry that has not finished yet; if every ungraded entry is in
+  // the past, show the MOST RECENT one (awaiting its grade) rather than the oldest.
+  const ungraded = live.filter(e => !e.graded && !e.skip);
+  const tMT = todayMT();
+  const pending = ungraded.find(e => e.date >= tMT) || ungraded[ungraded.length - 1] || null;
+  const pendingStale = !!(pending && pending.date < tMT);
   const t = $('trOfficialTitle'), l = $('trOfficialLede'), g = $('trOfficialGrid');
   if (pending) {
+    // Live tick-off. Only ever applied when the in-progress date MATCHES the pending call —
+    // otherwise a stale live file left over from last night would decorate tonight's call with
+    // yesterday's songs. Display-only; nothing here feeds the model.
+    const liveOn = LIVE_SET && LIVE_SET.date === pending.date && (LIVE_SET.sids || []).length > 0;
+    const playedSet = new Set(liveOn ? LIVE_SET.sids : []);
+    const hitsIn = ids => ids.filter(id => playedSet.has(id)).length;
+
     t.textContent = `The official call — ${pending.venue} · ${pending.date}`;
-    l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b>. This exact list is what gets graded after the show.`;
-    const block = (title, ids) => `
-      <div class="set-block"><h3>${title}</h3>
-        ${ids.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOf(id)}</span></span></div>`).join('')}
+    if (liveOn) {
+      const all = [...pending.official.s1, ...pending.official.s2, ...pending.official.e];
+      l.innerHTML = `<span class="live-dot"></span><b>Show in progress.</b> `
+        + `<b>${hitsIn(all)}</b> of <b>${all.length}</b> called songs played so far `
+        + `(${playedSet.size} songs on stage). Committed by the build on <b>${pending.snapAt}</b> — `
+        + `the list is fixed; only the ticks move. Updated ${LIVE_SET.updated || 'just now'}.`;
+    } else if (pendingStale) {
+      // Every ungraded entry is in the past, so this one is waiting on a build that has not
+      // run (or on a setlist phish.net has not posted). Say so rather than presenting a
+      // finished show as if it were the next one — a stale headline with no explanation is
+      // the thing that makes a track record look untrustworthy.
+      l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b> for <b>${pending.date}</b>, `
+        + `which has already happened &mdash; it is still waiting to be graded, which the next `
+        + `daily build does automatically once phish.net has posted the setlist.`;
+    } else {
+      l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b>. This exact list is what gets graded after the show.`;
+    }
+    const block = (title, ids, setKey) => {
+      // Same stable (hashed, not rolled) marks the Predicted Setlist tab shows for this call,
+      // so the two views of one committed list never disagree on its transitions.
+      const marked = markSegues(ids.map(id => ({ id })), setKey, false);
+      return `
+      <div class="set-block"><h3>${title}${liveOn ? `<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${hitsIn(ids)}/${ids.length}</span>` : ''}</h3>
+        ${marked.map(r => {
+          const hit = playedSet.has(r.id);
+          return `<div class="set-song${hit ? ' played' : ''}"><span class="sname">${liveOn ? `<span class="tick">${hit ? '&#10003;' : '&#9675;'}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}</span></div>`;
+        }).join('')}
       </div>`;
-    g.innerHTML = block('Set 1', pending.official.s1) + block('Set 2', pending.official.s2) + block('Encore', pending.official.e);
+    };
+    g.innerHTML = block('Set 1', pending.official.s1, 's1') + block('Set 2', pending.official.s2, 's2') + block('Encore', pending.official.e, 'e');
+    // Songs they played that the call never had — the same "we never had it" view the graded
+    // rows show, but live. Costs nothing: LIVE_SET already carries the ids.
+    if (liveOn) {
+      const called = new Set([...pending.official.s1, ...pending.official.s2, ...pending.official.e]);
+      const missed = LIVE_SET.sids.filter(id => !called.has(id));
+      g.innerHTML += `<div class="set-block"><h3>Played, not called<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${missed.length}</span></h3>`
+        + (missed.length
+            ? missed.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOf(id)}</span></span></div>`).join('')
+            : '<div class="set-song"><span class="sname" style="color:var(--text-muted);">nothing yet</span></div>')
+        + '</div>';
+    }
   } else {
     t.textContent = 'The official call';
     l.textContent = 'No upcoming show has a committed prediction yet — the next daily build after a show is announced will commit one automatically.';

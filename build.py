@@ -565,6 +565,159 @@ def mine_setcounts(raw):
     return out
 
 
+def mine_segues(raw, modern="2009-01-01"):
+    """How songs are joined: ", " (full stop) vs "> " (segue) vs "-> " (seamless segue).
+
+    phish.net carries this per performance in `trans_mark`, so none of it is guessed.
+
+    MEASURED 2009+, excluding the last song of each set (it has no successor, and counting its
+    blank mark drags every rate down and understates the difference between sets):
+
+        set 1   30.9% segue  (28.6% ">", 2.3% "->")
+        set 2   74.9% segue  (62.4% ">", 12.5% "->")
+        encore  53.7% segue
+
+    The set is by far the dominant term — set 2 segues at 2.4x the rate of set 1, and carries
+    5.4x the share of seamless "->" arrows. Position matters too but much less: set 2 opens at
+    84% and decays to 66% by its close, while set 1 is roughly flat with a bump at the end.
+
+    Median longest unbroken chain: set 1 = 2 songs with 7 breaks; set 2 = 5 songs (p90 = 8)
+    with just 2 breaks. That is the "second set is one long segue with a couple of breaks"
+    shape, and it falls out of the per-set rate on its own — no chain logic needed.
+
+    The breather effect is real but MILD and is measured here rather than assumed: a transition
+    INTO a ballad segues 66.9% of the time against 75.5% into anything else. An 8.6-point dip,
+    not a rule, so it is carried as a per-song multiplier and never as a hard break.
+
+    Specific pairs override everything: Mike's Song > I Am Hydrogen and I Am Hydrogen >
+    Weekapaug Groove are 100% over 45+ and 47+ observations. Those must not be left to a rate.
+    """
+    def key(setname):
+        s = str(setname)
+        return "e" if s.lower().startswith("e") else ("s" + s if s in ("1", "2") else None)
+
+    shows = defaultdict(lambda: defaultdict(list))
+    for r in raw:
+        if r["showdate"] < modern:
+            continue
+        k = key(r["set"])
+        if k:
+            shows[r["showdate"]][k].append(r)
+
+    SEG = (">", "->")
+    is_seg = lambda m: (m or "").strip() in SEG
+    is_arrow = lambda m: (m or "").strip() == "->"
+
+    # If the field is missing entirely (an API shape change), ship no segues rather than
+    # ship wrong ones — same defensive posture as phish_only().
+    if not any((r.get("trans_mark") or "").strip() for r in raw[:2000]):
+        print("  ! no trans_mark field on setlist rows — segues disabled", file=sys.stderr)
+        return {"has": 0}
+
+    base = defaultdict(lambda: [0, 0, 0])          # setkey -> [segues, arrows, n]
+    quint = defaultdict(lambda: defaultdict(lambda: [0, 0]))
+    pair = defaultdict(lambda: [0, 0, 0])
+    out_c, in_c = defaultdict(lambda: [0, 0]), defaultdict(lambda: [0, 0])
+    names = {}
+
+    for d, sets in shows.items():
+        for k, rs in sets.items():
+            rs.sort(key=lambda x: int(x["position"]))
+            n = len(rs) - 1
+            if n < 1:
+                continue
+            for i, (a, b) in enumerate(zip(rs, rs[1:])):
+                names[a["songid"]] = a["song"]
+                names[b["songid"]] = b["song"]
+                s = 1 if is_seg(a["trans_mark"]) else 0
+                base[k][0] += s
+                base[k][1] += 1 if is_arrow(a["trans_mark"]) else 0
+                base[k][2] += 1
+                q = min(4, int(5 * i / n))
+                quint[k][q][0] += s
+                quint[k][q][1] += 1
+                p = pair[(a["songid"], b["songid"])]
+                p[0] += s
+                p[1] += 1 if is_arrow(a["trans_mark"]) else 0
+                p[2] += 1
+                out_c[a["songid"]][0] += s
+                out_c[a["songid"]][1] += 1
+                in_c[b["songid"]][0] += s
+                in_c[b["songid"]][1] += 1
+
+    if not base:
+        return {"has": 0}
+
+    overall = sum(v[0] for v in base.values()) / max(1, sum(v[2] for v in base.values()))
+    out = {
+        "has": 1,
+        "base": {k: {"p": round(v[0] / v[2], 4),
+                     "arrow": round(v[1] / max(1, v[0]), 4),   # share of segues that are "->"
+                     "n": v[2]}
+                 for k, v in base.items()},
+        "quint": {k: [round(q[b][0] / q[b][1], 4) if q[b][1] else None for b in range(5)]
+                  for k, q in quint.items()},
+    }
+
+    # Pairs: only where the habit is both frequent enough and decisive enough to beat the set
+    # rate. n>=6 with a rate at least 25 points away from the set's own base.
+    pairs = {}
+    for (a, b), v in pair.items():
+        if v[2] < 6:
+            continue
+        p = v[0] / v[2]
+        if abs(p - overall) < 0.25:
+            continue
+        pairs[f"{a}|{b}"] = [round(p, 3), round(v[1] / max(1, v[0]), 3), v[2]]
+    out["pairs"] = pairs
+
+    # Per-song tendencies, as a RESIDUAL against what the set already predicts.
+    #
+    # The obvious version — each song's raw rate divided by the global rate — is wrong, and
+    # measurably so: it double-counts the set. A song that lives in set 2 gets a high raw rate
+    # *because set 2 segues*, so multiplying the set-2 base by it again pushed generated set 2
+    # to 83.7% against a real 74.9%, and dragged set 1 down to 24.5% against a real 30.9%.
+    #
+    # So the baseline for each transition is the rate its own set-and-quintile already implies,
+    # and the multiplier is how far the song departs from THAT. Empirical-Bayes shrunk, so a
+    # song with nine observations cannot swing a transition on its own.
+    exp_out, exp_in = defaultdict(float), defaultdict(float)
+    for d, sets in shows.items():
+        for k, rs in sets.items():
+            rs.sort(key=lambda x: int(x["position"]))
+            n = len(rs) - 1
+            if n < 1:
+                continue
+            q = quint[k]
+            for i, (a, b) in enumerate(zip(rs, rs[1:])):
+                qi = min(4, int(5 * i / n))
+                e = (q[qi][0] / q[qi][1]) if q[qi][1] else base[k][0] / base[k][2]
+                exp_out[a["songid"]] += e
+                exp_in[b["songid"]] += e
+
+    alpha = 12
+    def resid(counts, expected):
+        got, n = counts
+        e = expected
+        if n < 8 or e <= 0:
+            return None
+        # shrink toward 1.0 (i.e. toward "behaves exactly like its slot suggests")
+        return round(max(0.15, min(2.6, (got + alpha) / (e + alpha))), 3)
+
+    out["outMult"] = {str(s): m for s, c in out_c.items()
+                      if (m := resid(c, exp_out[s])) is not None}
+    out["inMult"] = {str(s): m for s, c in in_c.items()
+                     if (m := resid(c, exp_in[s])) is not None}
+
+    for k in ("s1", "s2", "e"):
+        if k in out["base"]:
+            b = out["base"][k]
+            print(f"  {k}: {100 * b['p']:.1f}% segue ({100 * b['arrow']:.0f}% of those seamless), n={b['n']:,}")
+    print(f"  {len(pairs)} decisive song-pair transitions, "
+          f"{len(out['outMult'])} out / {len(out['inMult'])} in tendencies")
+    return out
+
+
 def mine_reentry(raw):
     """Songs that appear more than once in a single night, and where the repeat lands.
 
@@ -1067,6 +1220,8 @@ def main():
     cool = mine_cool_affinity(raw, durations)
     print("Mining reentrant songs...")
     reentry = mine_reentry(raw)
+    print("Mining segues...")
+    segues = mine_segues(raw)
     print("Mining set-count distributions...")
     setcounts = mine_setcounts(raw)
     print("Mining long-song floors...")
@@ -1101,6 +1256,30 @@ def main():
     except Exception as e:
         sys.exit(f"data/predictions_log.json is unreadable ({e}) — fix or delete it; refusing to build without the committed track record.")
 
+    # Tonight's in-progress setlist, if the show-night poll has written one. OWNED by live.js,
+    # exactly as the predictions log is owned by snapshot.js — build.py only reads it.
+    #
+    # Deliberately NOT merged into `raw`: a partial setlist inside the stats window is the v16
+    # double-suppression bug (gap 0.445x AND run-repeat 0.02x land on every song already played
+    # tonight, scoring the songs that actually hit at ~zero). CUTOFF exists precisely to keep
+    # today's show out of history, and this payload does not go around it — it is display-only.
+    #
+    # Stale-guard: a file left from an earlier show date is dropped here rather than shipped, so
+    # a poll that stopped running cannot leave last night's ticks sitting on tonight's call.
+    live = {"date": None, "sids": [], "updated": ""}
+    try:
+        with open(os.path.join(HERE, "data", "live_setlist.json"), encoding="utf-8") as f:
+            cand = json.load(f)
+        if cand.get("date") == now_mt().date().isoformat():
+            live = cand
+            print(f"  live setlist: {len(live.get('sids') or [])} songs so far ({live['date']})")
+        else:
+            print(f"  live setlist: ignoring stale file dated {cand.get('date')}")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        print(f"  ! live setlist unreadable ({e}) — continuing without it", file=sys.stderr)
+
     print("Rendering index.html...")
     esc = lambda s: s.replace("</", "<\\/")
     j = lambda o: json.dumps(o, separators=(",", ":"))
@@ -1113,6 +1292,7 @@ def main():
         "__COOL_JSON__": j(cool),
         "__BUILD_STAMP__": build_stamp(html),
         "__REENTRY_JSON__": j(reentry),
+        "__SEGUES_JSON__": j(segues),
         "__SETCOUNTS_JSON__": j(setcounts),
         "__LONGSONGS_JSON__": j(longsongs),
         "__DATELOCK_JSON__": j(locked),
@@ -1124,6 +1304,7 @@ def main():
         "__BREATHERS_JSON__": j(breathers),
         "__UPCOMING_JSON__": j(upcoming),
         "__PREDLOG_JSON__": j(predlog),
+        "__LIVE_JSON__": j(live),
         "__SETMIN_JSON__": j(minutes),
         "__STATIC_CAL_JSON__": j(cal),
         "__LATEST_DATE__": shows_list[-1]["date"],

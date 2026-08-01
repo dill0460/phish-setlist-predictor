@@ -36,7 +36,8 @@ function extractJsonTables(indexHtml) {
     __CLOSER_JSON__: 'CLOSER', __JAMRATE_JSON__: 'JAM_RATE',
     __BREATHERS_JSON__: 'BREATHERS', __UPCOMING_JSON__: 'UPCOMING',
     __SETMIN_JSON__: 'SET_MIN', __STATIC_CAL_JSON__: 'STATIC_CAL',
-    __PREDLOG_JSON__: 'PRED_LOG',
+    __PREDLOG_JSON__: 'PRED_LOG', __LIVE_JSON__: 'LIVE_SET',
+    __SEGUES_JSON__: 'SEGUES',
   };
   // A table can legitimately be absent: index.html may predate a table the template
   // introduced. Substituting null lets the engine load anyway (the guarded code paths
