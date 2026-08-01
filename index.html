@@ -729,13 +729,13 @@
   </div>
 
   <p class="footer">Built by a phan, for phans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
-  <!-- Build: 2026-08-01 00:04 EDT · 88c5b5f2 -->
+  <!-- Build: 2026-08-01 00:08 EDT · 68b4fe0f -->
   <!-- The build stamp is no longer shown to visitors — it is developer plumbing and meant
        nothing to anyone reading the site. It stays here as a comment because it is still the
        ONLY reliable way to tell a freshly deployed page from a CDN-cached one (the template
        filename never changes, so a stale index.html is otherwise indistinguishable). View
        source, or Ctrl+F "Build:", to check what is actually live. -->
-  <p class="footer" style="margin-top:6px;opacity:.75">Updated Aug 1, 12:04 AM EDT</p>
+  <p class="footer" style="margin-top:6px;opacity:.75">Updated Aug 1, 12:08 AM EDT</p>
 
 </div>
 
@@ -917,19 +917,33 @@ function calledSlot(setKey, i, n) {
 }
 const slotSet = c => (c === 6 ? 'e' : (c <= 2 ? 's1' : 's2'));
 
-// How well a called song landed: 'slot' (exact), 'set' (right set, wrong position), 'played'
-// (turned up somewhere else), or null (not played). Ordering is the weak half of this model, so
-// an exact-slot hit is the one genuinely worth calling out.
+// ONLY these five are real positional claims. Codes 1 and 4 mean "somewhere in the middle of
+// the set", which on a 10-song set covers eight of the ten songs — so a song called 7th and
+// played 3rd would "match" code 1 and score as an exact-slot hit. That is not a prediction
+// anyone made. It shipped that way once and reported 5 exact-slot hits on a night that really
+// had 2. On this site of all things, an overstated hit rate is the worst possible bug: the
+// entire pitch is that the numbers are honest. Mid-set carries exactly the information "right
+// set" already carries, so that is all it may ever claim.
+const PRECISE_SLOTS = new Set([0, 2, 3, 5, 6]);   // S1 open/close, S2 open/close, encore
+const SLOT_LABEL = { 0: 'set 1 opener', 2: 'set 1 closer', 3: 'set 2 opener', 5: 'set 2 closer', 6: 'encore' };
+
+// How well a called song landed: 'slot' (called for a specific position and hit it), 'set'
+// (right set, position not a claim we made or not matched), 'played' (turned up elsewhere), or
+// null (not played). Ordering is the weak half of this model, so a genuine slot hit is the one
+// thing worth shouting about — which is exactly why it must not be inflated.
 function placementOf(pl, id, setKey, i, n) {
   if (!pl || !pl.set.has(id)) return null;
   const actual = (pl.slots && pl.slots.get(id)) || [];
   if (!actual.length) return 'played';
-  if (actual.includes(calledSlot(setKey, i, n))) return 'slot';
+  const want = calledSlot(setKey, i, n);
+  if (PRECISE_SLOTS.has(want) && actual.includes(want)) return 'slot';
   return actual.some(c => slotSet(c) === setKey) ? 'set' : 'played';
 }
-function placementBadge(p) {
-  if (p === 'slot') return '<span class="badge slot" title="landed in the exact slot it was called for">exact slot</span>';
-  if (p === 'set') return '<span class="badge sameset" title="played in the set it was called for, different position">right set</span>';
+// The badge names the slot it nailed ("set 2 opener") rather than saying "exact slot" — it is
+// both more specific and self-evidently checkable against the setlist.
+function placementBadge(p, want) {
+  if (p === 'slot') return `<span class="badge slot" title="called for this exact spot, and that is where it landed">${SLOT_LABEL[want] || 'exact slot'}</span>`;
+  if (p === 'set') return '<span class="badge sameset" title="played in the set it was called for">right set</span>';
   return '';
 }
 
@@ -2720,9 +2734,10 @@ function render() {
         ${arr.map((r, i) => {
           const hit = playedSet ? playedSet.has(r.id) : false;
           const place = placementOf(pl, r.id, setKey, i, arr.length);
+          const want = calledSlot(setKey, i, arr.length);
           const cls = place === 'slot' ? ' slot-hit' : (hit ? ' played' : '');
           const gl = place === 'slot' ? '&#9678;' : (hit ? '&#10003;' : '&#9675;');
-          return `<div class="set-song${cls}"><span class="sname">${playedSet ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${placementBadge(place)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
+          return `<div class="set-song${cls}"><span class="sname">${playedSet ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${placementBadge(place, want)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
         }).join('')}
       </div>`;
     };
@@ -3056,7 +3071,7 @@ function renderTrackRecord() {
           const place = placementOf(pl, r.id, setKey, i, marked.length);
           const cls = place === 'slot' ? ' slot-hit' : (hit ? ' played' : '');
           const gl = place === 'slot' ? '&#9678;' : (hit ? '&#10003;' : '&#9675;');
-          return `<div class="set-song${cls}"><span class="sname">${pl ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}${placementBadge(place)}</span></div>`;
+          return `<div class="set-song${cls}"><span class="sname">${pl ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}${placementBadge(place, calledSlot(setKey, i, marked.length))}</span></div>`;
         }).join('')}
       </div>`;
     };
