@@ -428,7 +428,10 @@
 
   <div id="panel-setlist" class="tabpanel active">
     <div class="card">
-      <p class="lede" style="margin-bottom:14px;">Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Not feeling this one? Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise of appearing in that exact slot. Click any song for its history.</p>
+      <!-- Rewritten per mode in render(). The static text used to describe the weighted draw
+           only, which flatly contradicted the panel underneath it once Official call became the
+           landing view: "here's one plausible night" sitting directly above "The official call". -->
+      <p class="lede" id="setlistLede" style="margin-bottom:14px;"></p>
       <div class="controls-row" style="margin-bottom:14px;">
         <div class="field">
           <label>Setlist mode</label>
@@ -822,6 +825,36 @@ function segHtml(seg) {
   return `<span class="${cls}" aria-hidden="true" title="${seg === '->' ? 'seamless segue' : 'segue'}">${seg === '->' ? '&#8594;' : '&gt;'}</span>`;
 }
 
+// What was actually played on a given date — the single source both the Predicted Setlist tab
+// and the Track Record tab tick against, so the two can never disagree about the same show.
+//
+// Two sources, in this order and for a reason:
+//   LIVE_SET — tonight, mid-show. The ONLY possible source for a show still in progress: the
+//              corpus cutoff deliberately keeps today's show out of PLAYS (see build.py), so
+//              PLAYS is empty for tonight by design, not by accident.
+//   PLAYS    — any finished show already in the corpus. Costs zero extra bytes; the page
+//              already ships every play.
+// Returns null when neither knows anything, which is what suppresses the tick column entirely.
+let _playedByDate = null;
+function playedByDate() {
+  if (!_playedByDate) {
+    _playedByDate = new Map();
+    for (const p of PLAYS) {
+      if (!_playedByDate.has(p.date)) _playedByDate.set(p.date, new Set());
+      _playedByDate.get(p.date).add(p.sid);
+    }
+  }
+  return _playedByDate;
+}
+function playedSetFor(date) {
+  if (!date) return null;
+  if (LIVE_SET && LIVE_SET.date === date && (LIVE_SET.sids || []).length) {
+    return { set: new Set(LIVE_SET.sids), live: true, updated: LIVE_SET.updated || '' };
+  }
+  const s = playedByDate().get(date);
+  return (s && s.size) ? { set: s, live: false, updated: '' } : null;
+}
+
 // The committed official call for a date, if one exists. Both pending and graded entries carry
 // `official`, so a past date returns the call that was locked BEFORE that show — which is what
 // makes picking a date in Advanced show real history rather than a hindsight reconstruction.
@@ -1131,7 +1164,7 @@ let sortKeyFreq = 'freq', sortDirFreq = -1;
 const $ = id => document.getElementById(id);
 const els = {};
 ['yearsBack','refEnd','customStart','customEnd','nextDate','bustGap','runPos','modeRolling','modeCustom','rollingYearsField','rollingEndField',
- 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody','slModeOfficial','officialNote',
+ 'customStartField','customEndField','recency','calSummary','setlistGrid','setlistTitle','mlWrap','mlBody','slModeOfficial','officialNote','setlistLede',
  'predictChart','bustChart','freqChart','tbodyPredict','tbodyFreq','searchPredict','searchFreq',
  'countNotePredict','countNoteFreq','rerollField','nextDateNote','themeYear','bustGapLocal','heroSubtitle','heroFlags',
  'gameType','tourLen','tourLenField','gameTitle','gameHead','gameBody','gameNote','picksText','copyPicks','copyOk'].forEach(id => els[id] = $(id));
@@ -2554,6 +2587,26 @@ function render() {
   // not, rather than showing an empty panel.
   const showingOfficial = slMode === 'official' && !!officialFor;
   els.slModeOfficial.classList.toggle('disabled', !officialFor);
+  // No committed call for this date (an old backtest date, a night that was never snapshotted):
+  // the panel falls through to a draw, so the toggle must not keep claiming Official is on.
+  if (slMode === 'official' && !officialFor) {
+    $('slModeOfficial').classList.remove('active');
+    $('slModeSample').classList.add('active');
+  }
+
+  // The lede describes whichever mode is actually showing. One static paragraph could not:
+  // "Here's one plausible night" sat directly above "The official call" and read as a
+  // contradiction, which is the fastest way to make an honest page look sloppy.
+  els.setlistLede.innerHTML = showingOfficial
+    ? `This is <b>the official call</b> &mdash; the single prediction this site commits to before the show `
+      + `and grades itself on afterwards. One list per show, locked, never re-rolled. `
+      + `Want a different night instead? Hit <b>Spin another night</b>. Click any song for its history.`
+    : (slModeSample
+      ? `Here's <b>one plausible night</b>, drawn song by song from each song's real odds. Not feeling this one? `
+        + `Spin another. The percentage is each song's chance of showing up <i>at all</i> tonight, not a promise `
+        + `of appearing in that exact slot. Click any song for its history.`
+      : `Every song <b>ranked by probability</b>, with the arithmetic that produced it. Nothing is assembled `
+        + `into a setlist here &mdash; this is the model's raw opinion, in order. Click any song for its history.`);
 
   if (showingOfficial) {
     els.setlistGrid.classList.remove('hidden'); els.mlWrap.classList.add('hidden');
@@ -2562,26 +2615,60 @@ function render() {
     const predOf = id => { const r = rows.find(x => x.id === id); return r ? r.pred : null; };
     const durOfId = id => { const s = SONG_BY_ID.get(id); return s && s.dur != null ? s.dur : null; };
     const asRows = ids => ids.map(id => ({ id, name: nameOfId(id), dur: durOfId(id), pred: predOf(id) }));
+    // Tick off what has actually been played \u2014 live during tonight's show, and from the corpus
+    // for any finished one. Same helper the Track Record tab uses.
+    const pl = playedSetFor(officialFor.date);
+    const playedSet = pl ? pl.set : null;
+    const hitsIn = ids => playedSet ? ids.filter(id => playedSet.has(id)).length : 0;
+    const allIds = [...officialFor.official.s1, ...officialFor.official.s2, ...officialFor.official.e];
     const block = (title, ids, setKey) => {
       const arr = markSegues(asRows(ids), setKey, false);   // deterministic: a committed call
       const mins = arr.reduce((a, r) => a + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
+      const right = playedSet ? `${hitsIn(ids)}/${ids.length} hit` : `~${Math.round(mins)} min`;
       return `
       <div class="set-block">
-        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
-        ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`).join('')}
+        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${right}</span></h3>
+        ${arr.map(r => {
+          const hit = playedSet ? playedSet.has(r.id) : false;
+          return `<div class="set-song${hit ? ' played' : ''}"><span class="sname">${playedSet ? `<span class="tick">${hit ? '&#10003;' : '&#9675;'}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
+        }).join('')}
       </div>`;
     };
-    els.setlistGrid.innerHTML = block('Set 1', officialFor.official.s1, 's1')
+    let grid = block('Set 1', officialFor.official.s1, 's1')
       + block('Set 2', officialFor.official.s2, 's2')
       + block('Encore', officialFor.official.e, 'e');
+    // What they played that the call never had. The honest other half of a hit count \u2014 a
+    // scoreboard that only shows what it got right is the kind nobody believes.
+    if (playedSet) {
+      const called = new Set(allIds);
+      const missed = [...playedSet].filter(id => !called.has(id));
+      grid += `<div class="set-block"><h3>Played, not called<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${missed.length}</span></h3>`
+        + (missed.length
+            ? missed.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOfId(id)}</span></span></div>`).join('')
+            : `<div class="set-song"><span class="sname" style="color:var(--text-muted);">${pl.live ? 'nothing yet' : 'nothing \u2014 every song played was called'}</span></div>`)
+        + '</div>';
+    }
+    els.setlistGrid.innerHTML = grid;
+
     els.officialNote.classList.remove('hidden');
-    els.officialNote.innerHTML = (officialFor.graded && officialFor.res)
-      ? `This is the call that was committed <b>before</b> ${officialFor.date} and graded afterwards &mdash; not a hindsight pick. `
+    const commit = `Committed by the build on <b>${officialFor.snapAt}</b>`;
+    if (pl && pl.live) {
+      els.officialNote.innerHTML = `<span class="live-dot"></span><b>Show in progress.</b> `
+        + `<b>${hitsIn(allIds)}</b> of <b>${allIds.length}</b> called songs played so far `
+        + `(${playedSet.size} on stage). ${commit} and locked &mdash; the list is fixed, only the ticks move. `
+        + `Updated ${pl.updated || 'just now'}.`;
+    } else if (officialFor.graded && officialFor.res) {
+      els.officialNote.innerHTML = `Committed <b>before</b> ${officialFor.date} and graded afterwards &mdash; not a hindsight pick. `
         + `It hit <b>${officialFor.res.hitOf}</b> of its ${officialFor.res.nOf} songs. See the Track Record tab for the full breakdown. `
-        + `Hit <b>Spin another night</b> for a fresh random draw instead.`
-      : `Committed by the build on <b>${officialFor.snapAt}</b> and locked until the show is graded &mdash; `
+        + `Hit <b>Spin another night</b> for a fresh random draw instead.`;
+    } else if (playedSet) {
+      els.officialNote.innerHTML = `${commit}. The show has been played &mdash; <b>${hitsIn(allIds)}</b> of `
+        + `${allIds.length} called songs hit. It is still awaiting its official grade, which the next daily build does automatically.`;
+    } else {
+      els.officialNote.innerHTML = `${commit} and locked until the show is graded &mdash; `
         + `a consensus of 500 generator runs at default settings, not one lucky spin. `
         + `Hit <b>Spin another night</b> to draw a plausible night instead.`;
+    }
   } else if (slModeSample) {
     els.setlistGrid.classList.remove('hidden'); els.mlWrap.classList.add('hidden');
     els.officialNote.classList.add('hidden');
@@ -2839,11 +2926,13 @@ function renderTrackRecord() {
   const pendingStale = !!(pending && pending.date < tMT);
   const t = $('trOfficialTitle'), l = $('trOfficialLede'), g = $('trOfficialGrid');
   if (pending) {
-    // Live tick-off. Only ever applied when the in-progress date MATCHES the pending call —
-    // otherwise a stale live file left over from last night would decorate tonight's call with
-    // yesterday's songs. Display-only; nothing here feeds the model.
-    const liveOn = LIVE_SET && LIVE_SET.date === pending.date && (LIVE_SET.sids || []).length > 0;
-    const playedSet = new Set(liveOn ? LIVE_SET.sids : []);
+    // Tick-off, via the SAME helper the Predicted Setlist tab uses, so one show can never be
+    // ticked differently in two places. Keyed on the pending call's own date, so a live file
+    // left over from an earlier night can never decorate this call with the wrong songs.
+    // Display-only; nothing here feeds the model.
+    const pl = playedSetFor(pending.date);
+    const liveOn = !!(pl && pl.live);
+    const playedSet = pl ? pl.set : new Set();
     const hitsIn = ids => ids.filter(id => playedSet.has(id)).length;
 
     t.textContent = `The official call — ${pending.venue} · ${pending.date}`;
@@ -2852,7 +2941,7 @@ function renderTrackRecord() {
       l.innerHTML = `<span class="live-dot"></span><b>Show in progress.</b> `
         + `<b>${hitsIn(all)}</b> of <b>${all.length}</b> called songs played so far `
         + `(${playedSet.size} songs on stage). Committed by the build on <b>${pending.snapAt}</b> — `
-        + `the list is fixed; only the ticks move. Updated ${LIVE_SET.updated || 'just now'}.`;
+        + `the list is fixed; only the ticks move. Updated ${pl.updated || 'just now'}.`;
     } else if (pendingStale) {
       // Every ungraded entry is in the past, so this one is waiting on a build that has not
       // run (or on a setlist phish.net has not posted). Say so rather than presenting a
@@ -2869,23 +2958,23 @@ function renderTrackRecord() {
       // so the two views of one committed list never disagree on its transitions.
       const marked = markSegues(ids.map(id => ({ id })), setKey, false);
       return `
-      <div class="set-block"><h3>${title}${liveOn ? `<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${hitsIn(ids)}/${ids.length}</span>` : ''}</h3>
+      <div class="set-block"><h3>${title}${pl ? `<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${hitsIn(ids)}/${ids.length}</span>` : ''}</h3>
         ${marked.map(r => {
           const hit = playedSet.has(r.id);
-          return `<div class="set-song${hit ? ' played' : ''}"><span class="sname">${liveOn ? `<span class="tick">${hit ? '&#10003;' : '&#9675;'}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}</span></div>`;
+          return `<div class="set-song${hit ? ' played' : ''}"><span class="sname">${pl ? `<span class="tick">${hit ? '&#10003;' : '&#9675;'}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}</span></div>`;
         }).join('')}
       </div>`;
     };
     g.innerHTML = block('Set 1', pending.official.s1, 's1') + block('Set 2', pending.official.s2, 's2') + block('Encore', pending.official.e, 'e');
     // Songs they played that the call never had — the same "we never had it" view the graded
-    // rows show, but live. Costs nothing: LIVE_SET already carries the ids.
-    if (liveOn) {
+    // rows show. Costs zero log bytes: the ids are already on the page either way.
+    if (pl) {
       const called = new Set([...pending.official.s1, ...pending.official.s2, ...pending.official.e]);
-      const missed = LIVE_SET.sids.filter(id => !called.has(id));
+      const missed = [...playedSet].filter(id => !called.has(id));
       g.innerHTML += `<div class="set-block"><h3>Played, not called<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${missed.length}</span></h3>`
         + (missed.length
             ? missed.map(id => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${id}">${nameOf(id)}</span></span></div>`).join('')
-            : '<div class="set-song"><span class="sname" style="color:var(--text-muted);">nothing yet</span></div>')
+            : `<div class="set-song"><span class="sname" style="color:var(--text-muted);">${liveOn ? 'nothing yet' : 'nothing — every song played was called'}</span></div>`)
         + '</div>';
     }
   } else {
