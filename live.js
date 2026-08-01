@@ -114,19 +114,54 @@ async function fetchTonight(date) {
 
   // Distinct song ids in performance order. Order matters for readability; a song played twice
   // (Tweezerfest and friends) counts once, matching how the call is graded.
+  const ordered = rows.slice().sort((a, b) =>
+    String(a.set).localeCompare(String(b.set)) || (a.position - b.position));
   const seen = new Set();
-  const sids = rows
-    .slice()
-    .sort((a, b) => (String(a.set)).localeCompare(String(b.set)) || (a.position - b.position))
-    .map(r => r.songid)
-    .filter(id => id != null && !seen.has(id) && seen.add(id));
+  const sids = ordered.map(r => r.songid).filter(id => id != null && !seen.has(id) && seen.add(id));
+
+  // Slot codes, using the SAME encoding build.py's classify_show() writes into PLAYS:
+  //   0 S1 open · 1 S1 song · 2 S1 close · 3 S2 open · 4 S2 song · 5 S2 close · 6 encore
+  // Emitting them here is what lets the page ask "did it land where we called it?" from one
+  // code path, whether the show finished last year or is happening right now.
+  //
+  // The catch a finished show does not have: mid-show, the last song of the CURRENT set is not
+  // a set closer — it is just the most recent song. Marking it as a closer would score a call
+  // correct on evidence that does not exist yet. So a set only gets a closer once a later set
+  // has started, and the in-progress set's tail stays "mid".
+  const bySet = new Map();
+  for (const r of ordered) {
+    const k = String(r.set);
+    if (!bySet.has(k)) bySet.set(k, []);
+    bySet.get(k).push(r);
+  }
+  const setKeys = [...bySet.keys()];
+  const slots = new Map();                       // songid -> Set of slot codes
+  const add = (id, c) => { if (!slots.has(id)) slots.set(id, new Set()); slots.get(id).add(c); };
+  setKeys.forEach((k, ki) => {
+    const rs = bySet.get(k);
+    const isEncore = /^e/i.test(k);
+    const base = isEncore ? 6 : (k === '1' ? 0 : 3);
+    const complete = ki < setKeys.length - 1;    // a later set exists, so this one has ended
+    rs.forEach((r, i) => {
+      if (isEncore) { add(r.songid, 6); return; }
+      if (i === 0) add(r.songid, base);
+      else if (complete && i === rs.length - 1 && rs.length > 1) add(r.songid, base + 2);
+      else add(r.songid, base + 1);
+    });
+  });
+  const sl = {};
+  for (const [id, set] of slots) sl[id] = [...set].sort((a, b) => a - b);
 
   let prev = null;
   try { prev = JSON.parse(fs.readFileSync(OUT, 'utf8')); } catch (e) { /* none yet */ }
-  const same = prev && prev.date === date && (prev.sids || []).join(',') === sids.join(',');
+  // Compare slots too, not just the song list: the last song of set 1 is promoted from "mid" to
+  // "closer" the moment set 2 opens, and that is a real change with no new song attached to it.
+  const same = prev && prev.date === date
+    && (prev.sids || []).join(',') === sids.join(',')
+    && JSON.stringify(prev.sl || {}) === JSON.stringify(sl);
   if (same) { console.log(`no change (${sids.length} songs) — skipping write so the Action commits nothing`); process.exit(0); }
 
-  const payload = { date, sids, updated: stampMT() };
+  const payload = { date, sids, sl, updated: stampMT() };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(payload));
 
