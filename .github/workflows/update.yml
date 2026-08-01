@@ -1,10 +1,42 @@
+# .github/workflows/update.yml   —   replaces the existing "Refresh setlist data"
+#
+# THREE changes from the version currently in the repo:
+#
+#   1. It runs on PUSH. Uploading files to GitHub now rebuilds the site by itself. Previously
+#      an upload changed nothing visible — index.html is generated, so a new app_template.html
+#      just sat there until someone remembered to run the workflow by hand. That is the whole
+#      "why didn't my change show up" problem.
+#
+#   2. It runs snapshot.js. THIS WAS MISSING and it is not cosmetic: snapshot.js is what grades
+#      a finished show and commits the official call for the next one. Without it the track
+#      record can never accumulate a single live-graded show, no matter how many builds run.
+#
+#   3. It runs live.js at the end, so a rebuild immediately re-ticks tonight's show instead of
+#      waiting for the next poll.
+#
+# Net effect: upload your files, walk away. One action, not four.
+
 name: Refresh setlist data
 
 on:
+  push:
+    branches: [main]
+    # ONLY source files. This is the loop guard: the job itself commits index.html and data/,
+    # and if those paths triggered it, every run would start another run forever. (GitHub also
+    # refuses to trigger workflows from pushes made with the built-in GITHUB_TOKEN, so this is
+    # the second of two independent protections — belt and braces, because an Actions loop
+    # burns quota fast and is obnoxious to stop.)
+    paths:
+      - 'app_template.html'
+      - 'build.py'
+      - 'consensus.js'
+      - 'grade.js'
+      - 'harness.js'
+      - 'snapshot.js'
+      - 'live.js'
+      - '.github/workflows/update.yml'
   schedule:
-    # 09:00 UTC = 3am MDT / 2am MST. Phish shows finish well before this in Mountain time,
-    # which is what build.py's corpus cutoff keys off — see claude/v17-ui-and-mountain-time.md.
-    - cron: "0 9 * * *"
+    - cron: "0 9 * * *"        # 5am ET / 3am MT — hours after any show has ended
   workflow_dispatch: {}
 
 permissions:
@@ -12,7 +44,7 @@ permissions:
 
 concurrency:
   group: refresh
-  cancel-in-progress: false
+  cancel-in-progress: false    # never kill a half-finished build; it commits real state
 
 jobs:
   refresh:
@@ -24,8 +56,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      # snapshot.js is plain CommonJS with no npm dependencies, but pinning the Node version
-      # keeps the build reproducible instead of tracking whatever the runner image ships.
+      # snapshot.js and live.js are plain Node — no npm install, only built-ins.
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -35,12 +66,20 @@ jobs:
           PHISHNET_API_KEY: ${{ secrets.PHISHNET_API_KEY }}
         run: python build.py
 
-      # Must run AFTER build.py and BEFORE the commit: it reads the freshly built index.html,
-      # grades any show that has now happened, commits the official call for the next one, and
-      # patches index.html so the page ships exactly the log that gets committed. Idempotent —
-      # a re-run grades nothing twice and never re-rolls a call that is already committed.
-      - name: Snapshot and grade predictions
+      # Grades any finished show that now has real setlist data, and commits the official call
+      # for the next one. A graded row is never touched again — that invariant is what makes
+      # the scoreboard resistant to after-the-fact editing, so this must run AFTER build.py
+      # (it reads the freshly built index.html) and BEFORE the commit.
+      - name: Grade and snapshot the track record
         run: node snapshot.js
+
+      # Tick tonight's show if one is in progress. Allowed to fail without failing the build:
+      # a live tick is a nicety, the data refresh is the job.
+      - name: Refresh tonight's live ticks
+        continue-on-error: true
+        env:
+          PHISHNET_API_KEY: ${{ secrets.PHISHNET_API_KEY }}
+        run: node live.js
 
       - name: Commit if anything changed
         run: |
@@ -50,6 +89,9 @@ jobs:
           if git diff --staged --quiet; then
             echo "No new shows — nothing to commit."
           else
-            git commit -m "Refresh setlist data ($(TZ=America/Denver date +%Y-%m-%d))"
+            git commit -m "Refresh setlist data ($(TZ=America/New_York date +%Y-%m-%d))"
+            # The live poller may have pushed while this was building. Rebase rather than
+            # force: its commit is real state we do not want to throw away.
+            git pull --rebase --autostash origin ${{ github.ref_name }} || true
             git push
           fi
