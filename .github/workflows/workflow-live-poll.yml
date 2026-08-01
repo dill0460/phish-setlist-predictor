@@ -1,0 +1,67 @@
+# .github/workflows/live-poll.yml
+#
+# A SECOND workflow, separate from "Refresh setlist data" on purpose. The daily build fetches
+# ~44 years of setlists, re-mines every table and refits calibration; running that every ten
+# minutes would hammer phish.net and, worse, would keep dragging the in-progress setlist toward
+# the stats window. This one makes a single API call and touches nothing but the live file.
+#
+# Keep the existing daily workflow exactly as it is (cron '0 9 * * *' = 3am MDT). Add this
+# alongside it.
+
+name: Live setlist poll
+
+on:
+  schedule:
+    # Every 10 minutes across the show window, in UTC.
+    #
+    #   23:00-07:00 UTC  =  5:00pm - 1:00am Mountain
+    #                    =  7:00pm - 3:00am Eastern
+    #                    =  4:00pm - midnight Pacific
+    #
+    # You asked for 7pm. That is 7pm MOUNTAIN, which is 9pm Eastern — an east-coast show
+    # starting 7:30pm ET would already be most of a set deep before the first poll. The window
+    # starts at 5pm MT instead so a 7pm ET downbeat is covered from the first song. It costs
+    # nothing: on a night with no show, live.js makes one API call, finds no setlist, and exits
+    # without writing or committing anything.
+    - cron: '*/10 23,0-7 * * *'
+  workflow_dispatch:            # manual "Run workflow" for testing
+
+# Two polls must never run at once — they would both patch index.html and race on the push.
+# cancel-in-progress is deliberate: if a run is somehow still going when the next fires, the
+# newer setlist is the one worth having.
+concurrency:
+  group: live-poll
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Poll tonight's setlist
+        env:
+          PHISHNET_API_KEY: ${{ secrets.PHISHNET_API_KEY }}
+        run: node live.js
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name  "github-actions"
+          git config user.email "github-actions@github.com"
+          git add index.html data/live_setlist.json
+          # live.js skips the write when the setlist has not moved, so most polls reach here
+          # with nothing staged and this exits quietly.
+          git diff --staged --quiet && { echo "no change"; exit 0; }
+          git commit -m "live setlist update"
+          # The daily build may have pushed since checkout. Rebase rather than force: the
+          # track record and the corpus are the important state and must not be clobbered by
+          # a poll.
+          git pull --rebase --autostash origin ${{ github.ref_name }}
+          git push
