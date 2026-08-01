@@ -36,16 +36,19 @@ const OUT = path.join(HERE, 'data', 'live_setlist.json');
 const KEY = (process.env.PHISHNET_API_KEY || '').trim();
 const UA = { 'User-Agent': 'phish-setlist-predictor (github.com/dill0460)' };
 
-// Mountain time, the same convention build.py stamps and cuts on: a show on calendar date D
-// anywhere in North America starts and ends inside date D in Mountain time.
-function todayMT() {
+// WHICH SHOW is tonight — Mountain, matching build.py's date boundary and phish.net's own
+// dating of a show by its local start date. NOT Eastern: an 8pm PT show is already past
+// midnight Eastern by its second set, so an Eastern "today" would roll the date over mid-show
+// and start polling for tomorrow's show while tonight's is still playing.
+function showDate() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date());
 }
-function stampMT() {
+// The clock a visitor reads — Eastern, like every other time on the site.
+function stampET() {
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Denver', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
   }).format(new Date());
 }
 
@@ -90,7 +93,7 @@ async function fetchTonight(date) {
 
 (async () => {
   if (!KEY) { console.error('PHISHNET_API_KEY is not set — nothing to poll.'); process.exit(0); }
-  const date = todayMT();
+  const date = showDate();
 
   let rows = [];
   try { rows = await fetchTonight(date); }
@@ -161,7 +164,7 @@ async function fetchTonight(date) {
     && JSON.stringify(prev.sl || {}) === JSON.stringify(sl);
   if (same) { console.log(`no change (${sids.length} songs) — skipping write so the Action commits nothing`); process.exit(0); }
 
-  const payload = { date, sids, sl, updated: stampMT() };
+  const payload = { date, sids, sl, updated: stampET() };
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(payload));
 

@@ -88,15 +88,26 @@ def in_excluded_range(d):
 
 
 # ----------------------------------------------------------------------------
-# Everything in this build is stamped and cut in MOUNTAIN time.
+# TWO time zones, on purpose. They do different jobs and must not be merged.
 #
-# Not vanity: a Phish show on calendar date D — anywhere in North America — starts and ends
-# inside date D in Mountain time. An 8pm ET show ends around 11:30pm ET, which is 9:30pm MT,
-# still D. A 10pm PT show ends around 12:30am PT, which is 1:30am MT on D+1, and the daily
-# build runs at 3am MT, hours later either way. So "shows dated before today in Mountain
-# time" is exactly "shows that have finished", with no hour-of-day special-casing.
+# DISPLAY = EASTERN. Every clock time a visitor reads is Eastern. It is the band's home zone
+# and where most of the audience is, and one zone everywhere beats a mix.
+#
+# THE DATE BOUNDARY = MOUNTAIN, and this one is not a style choice. A Phish show on calendar
+# date D — anywhere in North America — starts and ends inside date D in Mountain time. An 8pm
+# ET show ends ~11:30pm ET, which is 9:30pm MT, still D. A 10pm PT show ends ~12:30am PT, which
+# is 1:30am MT on D+1. So "shows dated before today in Mountain time" is exactly "shows that
+# have finished", with no hour-of-day special-casing.
+#
+# Doing the boundary in Eastern would REGRESS the v16 bug for west-coast shows: an 8pm PT show
+# is 11pm ET on D, and by 9:30pm PT it is 12:30am ET on D+1 — so mid-show, "today" in Eastern
+# has already rolled over and the in-progress setlist would fall INSIDE the stats window,
+# double-suppressing (gap 0.445x AND run-repeat 0.02x) every song already played that night.
+# phish.net also dates a show by its local start date, which Mountain tracks and Eastern does
+# not. Display and boundaries are different problems; only the display moved.
 # ----------------------------------------------------------------------------
-TZ_NAME = "America/Denver"
+TZ_NAME = "America/Denver"          # date boundary only
+DISPLAY_TZ_NAME = "America/New_York"  # every clock time a human sees
 
 try:
     from zoneinfo import ZoneInfo
@@ -105,9 +116,22 @@ except Exception:                       # no tzdata on the runner — fall back 
     _TZ = timezone(timedelta(hours=-7))
     print(f"  ! {TZ_NAME} unavailable; falling back to fixed UTC-7", file=sys.stderr)
 
+try:
+    from zoneinfo import ZoneInfo as _ZI
+    _DTZ = _ZI(DISPLAY_TZ_NAME)
+except Exception:                       # no tzdata — fall back to fixed EST
+    _DTZ = timezone(timedelta(hours=-5))
+    print(f"  ! {DISPLAY_TZ_NAME} unavailable; falling back to fixed UTC-5", file=sys.stderr)
+
 
 def now_mt():
+    """The DATE-BOUNDARY clock. Use for 'which shows have finished', never for display."""
     return datetime.now(timezone.utc).astimezone(_TZ)
+
+
+def now_et():
+    """The DISPLAY clock. Use for anything a visitor reads."""
+    return datetime.now(timezone.utc).astimezone(_DTZ)
 
 
 # ----------------------------------------------------------------------------
@@ -514,17 +538,24 @@ def mine_longsongs(raw, durations, thresh=10.0):
 
 
 def build_stamp(template_text):
-    """UTC timestamp + a short hash of the template source.
+    """Timestamp + a short hash of the template source. NOT shown to visitors any more —
+    it renders into an HTML comment (see the template footer).
 
-    Without this there is no way to tell a freshly deployed index.html from a
-    CDN-cached one: the template filename never changes, so a stale page looks
-    identical to a current one. The hash covers template-only edits, which would
-    not move a timestamp on their own if the data fetch were skipped.
+    It still has to exist: the template filename never changes, so a CDN-cached index.html is
+    otherwise indistinguishable from a fresh one, and the hash catches template-only edits that
+    would not move a timestamp on their own if the data fetch were skipped. This has been the
+    only reliable deploy check the project has.
     """
     import hashlib
     h = hashlib.sha256(template_text.encode("utf-8")).hexdigest()[:8]
-    n = now_mt()
+    n = now_et()
     return n.strftime("%Y-%m-%d %H:%M ") + n.strftime("%Z") + " · " + h
+
+
+def updated_line():
+    """The human-facing 'last updated', Eastern, no hash and no jargon."""
+    n = now_et()
+    return "Updated " + n.strftime("%b %-d, %-I:%M %p ").replace(" 0", " ") + n.strftime("%Z")
 
 
 def mine_setcounts(raw):
@@ -1291,6 +1322,7 @@ def main():
         "__PAIRS_JSON__": j(pairs),
         "__COOL_JSON__": j(cool),
         "__BUILD_STAMP__": build_stamp(html),
+        "__UPDATED_LINE__": updated_line(),
         "__REENTRY_JSON__": j(reentry),
         "__SEGUES_JSON__": j(segues),
         "__SETCOUNTS_JSON__": j(setcounts),

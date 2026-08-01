@@ -301,6 +301,18 @@
   .set-song.played .tick { color: var(--good); font-weight: 700; }
   .set-song.played .sname .songlink { color: var(--good); font-weight: 700; }
   .set-song.played { background: color-mix(in srgb, var(--good) 9%, transparent); border-radius: 5px; padding-left: 6px; padding-right: 6px; margin: 0 -6px; }
+  /* Three visibly different states, because they are three different claims:
+       ○  not played yet
+       ✓  played — we said it would turn up, and it did
+       ◎  played IN THE SLOT WE CALLED — set 1 opener, set 2 closer, encore
+     Ordering is the hard half of this model, so a slot hit gets a filled row, a left accent bar,
+     a heavier name and a solid badge. It should be obvious at a glance which is which. */
+  .set-song.slot-hit { background: color-mix(in srgb, var(--good) 22%, transparent);
+                       box-shadow: inset 3px 0 0 var(--good); border-radius: 5px;
+                       padding-left: 9px; padding-right: 6px; margin: 0 -6px; }
+  .set-song.slot-hit .sname .songlink { color: var(--good); font-weight: 800; }
+  .set-song.slot-hit .tick { color: var(--good); font-weight: 800; font-size: 13.5px; }
+  .set-song.slot-hit .sprob { color: var(--good); font-weight: 600; }
   .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 7px; vertical-align: baseline; animation: livepulse 1.8s ease-in-out infinite; }
   @keyframes livepulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
   @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
@@ -717,7 +729,13 @@
   </div>
 
   <p class="footer">Built by a phan, for phans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
-  <p class="footer" style="margin-top:6px;opacity:.75">Build <code>__BUILD_STAMP__</code></p>
+  <!-- Build: __BUILD_STAMP__ -->
+  <!-- The build stamp is no longer shown to visitors — it is developer plumbing and meant
+       nothing to anyone reading the site. It stays here as a comment because it is still the
+       ONLY reliable way to tell a freshly deployed page from a CDN-cached one (the template
+       filename never changes, so a stale index.html is otherwise indistinguishable). View
+       source, or Ctrl+F "Build:", to check what is actually live. -->
+  <p class="footer" style="margin-top:6px;opacity:.75">__UPDATED_LINE__</p>
 
 </div>
 
@@ -918,6 +936,12 @@ function placementBadge(p) {
 // The committed official call for a date, if one exists. Both pending and graded entries carry
 // `official`, so a past date returns the call that was locked BEFORE that show — which is what
 // makes picking a date in Advanced show real history rather than a hindsight reconstruction.
+// Committed-at stamps are baked into the log by snapshot.js and can never be rewritten — that
+// permanence is the point of the log. Strip the trailing build hash for display: it is
+// developer plumbing. The timestamp stays, because that is the part that proves when the call
+// was locked, which is the whole trust claim.
+const prettyStamp = s => String(s || '').split('\u00b7')[0].trim();
+
 function officialEntry(date) {
   const es = (PRED_LOG && PRED_LOG.entries) || [];
   const e = es.find(x => x.date === date && x.official && !x.skip);
@@ -1265,7 +1289,7 @@ function syncNextDate() {
       // skipped or failed build UPCOMING[0] is a show that has already happened.
       els.nextDate.value = up.date;
       nextDateWasAuto = true; nextDateAutoVal = up.date;
-      els.nextDateNote.textContent = up.date === todayMT()
+      els.nextDateNote.textContent = up.date === showDate()
         ? `Tonight: ${up.venue}${up.city ? ', ' + up.city : ''} — change it to predict a different night.`
         : 'Defaulting to the next scheduled show — change it to predict a different night.';
       els.nextDateNote.classList.add('auto');
@@ -1282,18 +1306,19 @@ function syncNextDate() {
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
 
-// Today, in Mountain time, computed IN THE BROWSER — deliberately not baked at build time.
+// TONIGHT'S SHOW DATE, computed IN THE BROWSER — deliberately not baked at build time.
 //
 // Everything date-shaped on this page used to key off UPCOMING[0], which is only correct while
 // the build is fresh. The moment a daily build is skipped or fails, UPCOMING[0] is whatever was
 // next when it last ran, and the page confidently targets a show that has already happened.
 // That failure is silent and it is exactly what a visitor notices first.
 //
-// Mountain is the project's convention for a reason (see build.py): a show on calendar date D
-// anywhere in North America starts and ends inside date D in Mountain time, so ">= today in MT"
-// means "tonight's show is still the one to show" right through the encore, and rolls over to
-// tomorrow's only after the night is genuinely over.
-function todayMT() {
+// This is the ONE clock on the site that is not Eastern, and it is not a style slip. A show on
+// calendar date D anywhere in North America starts AND ends inside date D in Mountain time, so
+// ">= today in MT" keeps tonight's show selected right through the encore. In Eastern, an 8pm
+// PT show crosses midnight during its second set and the page would jump to tomorrow's show
+// while tonight's was still playing. Display times are Eastern; this boundary is not.
+function showDate() {
   try {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -1307,7 +1332,7 @@ function todayMT() {
 // instead of a blank page.
 function nextUpcoming() {
   if (!UPCOMING.length) return null;
-  const t = todayMT();
+  const t = showDate();
   return UPCOMING.find(s => s.date >= t) || UPCOMING[UPCOMING.length - 1];
 }
 let RUNPOS_SOURCE = null;
@@ -2695,7 +2720,9 @@ function render() {
         ${arr.map((r, i) => {
           const hit = playedSet ? playedSet.has(r.id) : false;
           const place = placementOf(pl, r.id, setKey, i, arr.length);
-          return `<div class="set-song${hit ? ' played' : ''}"><span class="sname">${playedSet ? `<span class="tick">${hit ? '&#10003;' : '&#9675;'}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${placementBadge(place)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
+          const cls = place === 'slot' ? ' slot-hit' : (hit ? ' played' : '');
+          const gl = place === 'slot' ? '&#9678;' : (hit ? '&#10003;' : '&#9675;');
+          return `<div class="set-song${cls}"><span class="sname">${playedSet ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${placementBadge(place)}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032${r.pred != null ? ' \u00b7 ' + pct(r.pred) + '%' : ''}</span></div>`;
         }).join('')}
       </div>`;
     };
@@ -2716,7 +2743,7 @@ function render() {
     els.setlistGrid.innerHTML = grid;
 
     els.officialNote.classList.remove('hidden');
-    const commit = `Committed by the build on <b>${officialFor.snapAt}</b>`;
+    const commit = `Committed by the build on <b>${prettyStamp(officialFor.snapAt)}</b>`;
     if (pl && pl.live) {
       els.officialNote.innerHTML = `<span class="live-dot"></span><b>Show in progress.</b> `
         + `<b>${hitsIn(allIds)}</b> of <b>${allIds.length}</b> called songs played so far `
@@ -2986,9 +3013,9 @@ function renderTrackRecord() {
   // Prefer the soonest ungraded entry that has not finished yet; if every ungraded entry is in
   // the past, show the MOST RECENT one (awaiting its grade) rather than the oldest.
   const ungraded = live.filter(e => !e.graded && !e.skip);
-  const tMT = todayMT();
-  const pending = ungraded.find(e => e.date >= tMT) || ungraded[ungraded.length - 1] || null;
-  const pendingStale = !!(pending && pending.date < tMT);
+  const tToday = showDate();
+  const pending = ungraded.find(e => e.date >= tToday) || ungraded[ungraded.length - 1] || null;
+  const pendingStale = !!(pending && pending.date < tToday);
   const t = $('trOfficialTitle'), l = $('trOfficialLede'), g = $('trOfficialGrid');
   if (pending) {
     // Tick-off, via the SAME helper the Predicted Setlist tab uses, so one show can never be
@@ -3005,18 +3032,18 @@ function renderTrackRecord() {
       const all = [...pending.official.s1, ...pending.official.s2, ...pending.official.e];
       l.innerHTML = `<span class="live-dot"></span><b>Show in progress.</b> `
         + `<b>${hitsIn(all)}</b> of <b>${all.length}</b> called songs played so far `
-        + `(${playedSet.size} songs on stage). Committed by the build on <b>${pending.snapAt}</b> — `
+        + `(${playedSet.size} songs on stage). Committed by the build on <b>${prettyStamp(pending.snapAt)}</b> — `
         + `the list is fixed; only the ticks move. Updated ${pl.updated || 'just now'}.`;
     } else if (pendingStale) {
       // Every ungraded entry is in the past, so this one is waiting on a build that has not
       // run (or on a setlist phish.net has not posted). Say so rather than presenting a
       // finished show as if it were the next one — a stale headline with no explanation is
       // the thing that makes a track record look untrustworthy.
-      l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b> for <b>${pending.date}</b>, `
+      l.innerHTML = `Committed by the build on <b>${prettyStamp(pending.snapAt)}</b> for <b>${pending.date}</b>, `
         + `which has already happened &mdash; it is still waiting to be graded, which the next `
         + `daily build does automatically once phish.net has posted the setlist.`;
     } else {
-      l.innerHTML = `Committed by the build on <b>${pending.snapAt}</b>. This exact list is what gets graded after the show.`;
+      l.innerHTML = `Committed by the build on <b>${prettyStamp(pending.snapAt)}</b>. This exact list is what gets graded after the show.`;
     }
     const block = (title, ids, setKey) => {
       // Same stable (hashed, not rolled) marks the Predicted Setlist tab shows for this call,
@@ -3026,7 +3053,10 @@ function renderTrackRecord() {
       <div class="set-block"><h3>${title}${pl ? `<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${hitsIn(ids)}/${ids.length}</span>` : ''}</h3>
         ${marked.map((r, i) => {
           const hit = playedSet.has(r.id);
-          return `<div class="set-song${hit ? ' played' : ''}"><span class="sname">${pl ? `<span class="tick">${hit ? '&#10003;' : '&#9675;'}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}${placementBadge(placementOf(pl, r.id, setKey, i, marked.length))}</span></div>`;
+          const place = placementOf(pl, r.id, setKey, i, marked.length);
+          const cls = place === 'slot' ? ' slot-hit' : (hit ? ' played' : '');
+          const gl = place === 'slot' ? '&#9678;' : (hit ? '&#10003;' : '&#9675;');
+          return `<div class="set-song${cls}"><span class="sname">${pl ? `<span class="tick">${gl}</span>` : ''}<span class="songlink" data-sid="${r.id}">${nameOf(r.id)}</span>${segHtml(r.seg)}${placementBadge(place)}</span></div>`;
         }).join('')}
       </div>`;
     };
