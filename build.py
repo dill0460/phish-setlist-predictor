@@ -82,6 +82,26 @@ def assign_run_positions(shows):
 # The hook stays for a genuinely unusable stretch (a benefit show with a guest band, say).
 EXCLUDED_RANGES = []
 
+# ----------------------------------------------------------------------------
+# The NIGHT-SHAPE era. Used by mine_setcounts and mine_longsongs — the tables that
+# describe what a modern night LOOKS like (how many songs per set, how many long jams).
+#
+# This must match the era set_minutes uses (2022+), and for a long time it did not:
+# counts and long-song floors were mined 2009+ while minute budgets were mined 2022+.
+# Modern shows are materially shorter — set 1 mean 8.85 songs (2022+) vs 10.08 (2009+),
+# total 17.97 vs 20.08 — so the builder was asked to fit a 2009-sized song count into a
+# 2022-sized minute budget, and could not. That mismatch, not pool starvation, caused most
+# of the 44% "set finishes under its drawn count" rate; the two errors cancelled on
+# average (count drawn ~1.5 high, fill runs short), which is exactly why it survived
+# unnoticed — the mean was right by accident and only the tail nights (10+4) looked wrong.
+#
+# SONG-BEHAVIOUR miners (reentry, cool-down affinity, run position, segues, closers,
+# jam rate, pairs) stay at 2009+ ON PURPOSE: those measure how songs behave, which is
+# stable across the modern era, and the 3.3x larger sample matters more than recency.
+# Only the night's SHAPE has drifted.
+# ----------------------------------------------------------------------------
+NIGHT_SHAPE_SINCE = "2022-01-01"
+
 
 def in_excluded_range(d):
     return any(lo <= d <= hi for lo, hi in EXCLUDED_RANGES)
@@ -494,12 +514,12 @@ def mine_pairs(raw):
     return rules
 
 
-def mine_longsongs(raw, durations, thresh=10.0):
+def mine_longsongs(raw, durations, thresh=10.0, since=None):
     """How many 10+ minute songs each set actually contains.
 
-    Measured 2009+: only 9.4% of first sets and 2.7% of second sets contain NO song
-    with a median length of 10 minutes or more. The modal first set has two and the
-    modal second set has three. The generator had no notion of this at all, which is
+    Mined over the NIGHT_SHAPE_SINCE era so it describes the same band of shows the
+    minute budgets do. (The original 2009+ measurement: 9.4% of first sets and 2.7% of
+    second sets have no 10+ min song; modal set 1 has two, modal set 2 has three.) The generator had no notion of this at all, which is
     why a low drawn song count produced a set of medium-length filler instead of the
     handful of long jams a short real set is actually made of.
 
@@ -508,10 +528,11 @@ def mine_longsongs(raw, durations, thresh=10.0):
     needing 10.4 min/song cannot be reached by stretching an average pool. The songs
     themselves have to be the long ones, which is what this floor forces.
     """
+    since = since or NIGHT_SHAPE_SINCE
     dnorm = {k.lower(): v["med"] for k, v in durations.items()}
     shows = defaultdict(lambda: defaultdict(list))
     for r in raw:
-        if r["showdate"] < "2009-01-01":
+        if r["showdate"] < since:
             continue
         st = r["set"]
         key = "e" if st in ("e", "E") else ("s%s" % st if st in ("1", "2") else None)
@@ -558,8 +579,8 @@ def updated_line():
     return "Updated " + n.strftime("%b %-d, %-I:%M %p ").replace(" 0", " ") + n.strftime("%Z")
 
 
-def mine_setcounts(raw):
-    """Empirical distribution of distinct songs per set (2009+).
+def mine_setcounts(raw, since=None):
+    """Empirical distribution of distinct songs per set (NIGHT_SHAPE_SINCE era).
 
     The generator previously targeted the MEDIAN of the last 50 shows — a fixed
     10/8/2 with no variance — and then ignored it anyway, filling each set to a
@@ -568,9 +589,10 @@ def mine_setcounts(raw):
     Sampling from this table instead gives the real spread, including the short
     jam-heavy second sets the old code could never generate.
     """
+    since = since or NIGHT_SHAPE_SINCE
     shows = defaultdict(lambda: defaultdict(set))
     for r in raw:
-        if r["showdate"] < "2009-01-01":
+        if r["showdate"] < since:
             continue
         st = r["set"]
         key = "e" if st in ("e", "E") else ("s%s" % st if st in ("1", "2") else None)

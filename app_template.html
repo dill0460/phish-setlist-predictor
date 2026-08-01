@@ -976,6 +976,18 @@ function markSegues(arr, setKey, rand) {
 // Set 1 median is 10 and the 98th percentile is 15 — the old code targeted a fixed
 // median and then let the minute budget override it, so a short-song pool overshot badly.
 const SET_COUNTS = __SETCOUNTS_JSON__;
+// Mean songs per set, derived from the mined CDF rather than hardcoded. Used to convert the
+// minute tables into typical minutes-per-song. Deriving it here is what KEEPS the eras aligned:
+// build.py mines SET_COUNTS and SET_MIN from the same era (NIGHT_SHAPE_SINCE), so any constant
+// computed from both is automatically that era too — the previous hardcoded 7.7/9.2 min-per-song
+// figures were 2009-era and silently disagreed with the 2022+ minute budgets for months.
+function meanSetCount(key, fb) {
+  const t = SET_COUNTS && SET_COUNTS[key];
+  if (!t || !t.cdf || !t.cdf.length) return fb;
+  let mean = 0, prev = 0;
+  for (const [n, c] of t.cdf) { mean += n * (c - prev); prev = c; }
+  return mean;
+}
 // Measured count of 10+ minute songs per set. Only 9.4% of real first sets and 2.7% of
 // second sets contain none, so "at least one long jam per set" is very close to a rule.
 const LONG_SONGS = __LONGSONGS_JSON__;
@@ -1558,7 +1570,10 @@ function compute() {
   // total runs 10 at the extreme low end but only 1% fall below 14 and 2% below 15, so the
   // night is redrawn (bounded, never looped indefinitely) until it clears a floor. Set floors
   // of 6 and 4 stay as the per-set backstop; this is the joint constraint they cannot express.
-  const TOTAL_FLOOR = 15;               // real 2nd percentile; p05 is 16, median 20
+  const TOTAL_FLOOR = 14;               // 2022+ p02 (min 13, p05 15, median 18). Was 15, which
+                                        // was the 2009+ p02 — with counts now mined 2022+, a
+                                        // floor of 15 would top up 2.5% of real-shaped nights
+                                        // that are legitimately short. Real under-14: 0.5%.
   let n1, n2, ne;
   for (let attempt = 0; ; attempt++) {
     n1 = slModeSample ? Math.max(6, sampleSetCount('s1', n1local)) : medSetCount('s1', n1local);
@@ -1882,16 +1897,24 @@ function buildSetlist(rows, n1, n2, ne) {
 
   // encore first
   const enc = [];
-  // Encore size drawn from the real distribution (2022+ shows): 16% one song, 58% two,
-  // 21% three, 5% four — and the whole encore held under its measured 95th-percentile
-  // minutes. The old draw hardcoded "usually 2" with no minutes ceiling, which is how
-  // three 10+ minute bangers once stacked into a 31-minute encore.
-  const encU = Math.random();
-  const encMin = encU < 0.16 ? 1 : encU < 0.735 ? 2 : encU < 0.945 ? 3 : 4;
+  // Encore size: the DRAWN count, from the same mined SET_COUNTS table the two sets use.
+  // This function used to ignore the `ne` it was handed and roll its own size from hardcoded
+  // thresholds (a frozen v4 copy of the same distribution) — two sources for one fact, so the
+  // drawn total and the assembled encore disagreed on ~2 nights in 3, and TOTAL_FLOOR was
+  // being enforced against a number the encore then ignored. The whole encore is still held
+  // under its measured 95th-percentile minutes.
+  const encMin = Math.max(1, ne);
   const encCap = SET_BOUNDS.e[1];
   // The finale is chosen first, weighted by how often a song actually ends a night, so a show
   // never goes out on a breather: across 710 modern shows Waste ended one and Shade none.
-  const fc = pool.filter(r => !used.has(r.id) && r.closer >= 0.08);
+  // Every real show has an encore. If nothing in the pool clears the closer threshold (small
+  // modern pools make this a ~1% event, and it previously shipped an EMPTY encore — a
+  // pre-existing residual on the books since v16), fall back to the strongest closer available
+  // rather than none: a weak encore is real, a missing one is not.
+  let fc = pool.filter(r => !used.has(r.id) && r.closer >= 0.08);
+  if (!fc.length) {
+    fc = pool.filter(r => !used.has(r.id)).sort((a, b) => b.closer - a.closer).slice(0, 3);
+  }
   if (fc.length) {
     const w = fc.map(r => r.closer * Math.pow(r.slotP[6] + 0.02, 1.2) * r.pred);
     const W = w.reduce((a, b) => a + b, 0);
@@ -1937,17 +1960,26 @@ function buildSetlist(rows, n1, n2, ne) {
       rest = rest.filter(r => r.id !== pick.id);
     }
   }
-  // Set 1 carries more songs than set 2 in 81% of shows, and set-2 songs run longer
-  // (9.2 min average vs 7.7). Fill toward per-set song targets rather than by minutes alone.
-  const wantS1More = Math.random() < 0.81;
-  const t1 = n1, t2 = wantS1More ? Math.min(n2, Math.max(4, n1 - 1)) : n2;
+  // Fill toward the DRAWN per-set song targets, untouched. There used to be a rule here
+  // forcing t2 down to n1-1 on 81% of nights ("set 1 carries more songs in 81% of shows") —
+  // but that pattern is already IN the mined marginals: independent draws from the 2022+
+  // SET_COUNTS give P(n1 > n2) = 78.9% against a real 78.6%, measured over 206 shows. The
+  // reduction was double-counting the structure, firing precisely on the ~20% of draws where
+  // the counts legitimately disagree and shaving set 2 below its own drawn count.
+  const t1 = n1, t2 = n2;
   const cap1 = t1 - s1o.length - s1c.length;      // slots left after opener/closer
   const cap2 = t2 - s2o.length - s2c.length;
   // Solve the stretch factor: these counts have to fill these minute budgets, which fixes
-  // the average length the night needs. Set 1 songs average 7.7 min and set 2 songs 9.2.
+  // the average length the night needs. The per-set typical minutes-per-song is DERIVED from
+  // the same-era tables (median set minutes / mean set count) rather than hardcoded — the old
+  // literals (7.7 / 9.2) were 2009-era and understated modern song length, so the stretch
+  // solver systematically over-stretched and fewer songs fit the budget. 2022+ tables give
+  // ~8.2 / ~9.7; fallbacks preserve the old behaviour for a pre-era-fix index.html.
   if (slModeSample && t1 + t2 > 0) {
+    const perSong1 = SET_MIN.s1 / Math.max(1, meanSetCount('s1', SET_MIN.s1 / 7.7));
+    const perSong2 = SET_MIN.s2 / Math.max(1, meanSetCount('s2', SET_MIN.s2 / 9.2));
     const reqAvg = (budget.s1 + budget.s2) / (t1 + t2);
-    const typicalAvg = (7.7 * t1 + 9.2 * t2) / (t1 + t2);
+    const typicalAvg = (perSong1 * t1 + perSong2 * t2) / (t1 + t2);
     setNightStretch(reqAvg, typicalAvg);
     // openers/closers were measured under the previous factor — re-measure them
     m1 = minutesOf(s1o) + minutesOf(s1c);
@@ -1984,9 +2016,13 @@ function buildSetlist(rows, n1, n2, ne) {
     else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) + pull + lengthPull > 0;
     if (toS1 && (!fits1 || full1)) toS1 = false;
     if (!toS1 && (!fits2 || full2)) { if (fits1 && !full1) toS1 = true; else continue; }
-    // Set 2 carrying more songs than set 1 looks plainly wrong, so it simply can't happen.
-    if (!toS1 && s2mid.length + 1 > s1mid.length) toS1 = gap1 > 0 && fits1;
-    if (!toS1 && s2mid.length + 1 > s1mid.length) continue;
+    // There used to be a hard "set 2 may not outnumber set 1" override here. Removed, for
+    // two measured reasons: (1) it flipped songs into set 1 on the MINUTES gap alone, never
+    // checking the count cap — the source of ~6% of nights shipping set 1 over its drawn
+    // count (found by stage tracing: the overflow existed at assembly, before any later
+    // pass); (2) the premise is wrong — set 2 outnumbers set 1 in 9.7% of real 2022+ shows,
+    // and the mined count marginals already reproduce the real joint (P(n1>n2) 78.9% vs
+    // 78.6% real). The cap-gated balancer after countUp still nudges the common shape.
     if (toS1) { s1mid.push(r); m1 += durOf(r); } else { s2mid.push(r); m2 += durOf(r); }
   }
   // Hard floor: no set goes on stage under 60 minutes. If the draw came up short, pull in the
@@ -1994,7 +2030,7 @@ function buildSetlist(rows, n1, n2, ne) {
   // Bonded dependents can't sneak in through the minutes top-up either — Weekapaug and
   // Silent in the Morning aren't terminal-only, so without this they could enter here
   // anchorless and burn a slot before the final invariant pass strips them back out.
-  const spare = rows.filter(r => r.pred > 0 && !used.has(r.id) && !pool.includes(r) && !r.terminalOnly && !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
+  const spare = rows.filter(r => r.pred > 0 && !used.has(r.id) && !pool.includes(r) && !r.terminalOnly && !r.deepDormant && !r.isBustout && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
     .sort((a, b) => b.pred - a.pred);
   // `cap` is the drawn song count for the set. The top-up exists to stop a set finishing
   // absurdly short on minutes, but it must never breach the count — that was the second
@@ -2339,17 +2375,28 @@ function buildSetlist(rows, n1, n2, ne) {
   // Top the show back up from the best remaining eligible songs, into whichever set is
   // furthest below its own drawn count.
   {
+    // Floor 14 = the 2022+ p02 (was a hardcoded 15, the 2009+ figure — a stale twin of the
+    // TOTAL_FLOOR constant in compute(); keep the two in step). And CAP-AWARE: this loop used
+    // to splice into whichever set was "shorter" even when that set was already AT its drawn
+    // count, which pushed sets over cap on ~8% of nights once modern counts (smaller, so
+    // drawn totals of 14-16 are common) made the floor fire more often. A set only receives
+    // when it is genuinely below its own drawn count; if neither is, the night ships as-is —
+    // a floor must not outrank the cap that every other pass respects.
+    const FLOOR_ASM = 14;
     const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
-    if (inShow.size < 15) {
+    if (inShow.size < FLOOR_ASM) {
+      // !isBustout on every refill pool: the "at most one bustout" invariant is enforced by
+      // the selectPool thin-out, and a second one must not re-enter through a side door.
       const pool = rows.filter(r => r.pred > 0 && !inShow.has(r.id) && !r.terminalOnly &&
-          !r.deepDormant && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
+          !r.deepDormant && !r.isBustout && !r.offTheme && !r.runRepeat && !(r.id in BONDED))
         .sort((a, b) => b.pred - a.pred);
       let si = 0;
-      while (inShow.size < 15 && si < pool.length) {
-        const pick = pool[si++];
+      while (inShow.size < FLOOR_ASM && si < pool.length) {
         const short1 = n1 - new Set(sl.set1.map(r => r.id)).size;
         const short2 = n2 - new Set(sl.set2.map(r => r.id)).size;
-        const arr = short1 >= short2 ? sl.set1 : sl.set2;
+        if (short1 <= 0 && short2 <= 0) break;
+        const pick = pool[si++];
+        const arr = (short1 >= short2 && short1 > 0) ? sl.set1 : sl.set2;
         arr.splice(Math.max(1, arr.length - 1), 0, pick);   // never displace the set closer
         inShow.add(pick.id);
       }
@@ -2358,6 +2405,18 @@ function buildSetlist(rows, n1, n2, ne) {
   enforceLongFloor(sl, rows);
   trimNight();
   applyReentry(sl);
+  // Every real show has an encore — the empty-encore residual (on the books since v16) turned
+  // out to be the bond-orphan drop: a lone dependent finale (a Tweezer Reprise whose Tweezer
+  // never placed) is correctly dropped by the invariant passes above, but nothing refilled the
+  // slot. Backfill AFTER every invariant has run, from the strongest closer not already on
+  // stage, so the replacement cannot itself be an orphan or a duplicate.
+  if (!sl.encore.length) {
+    const onStage = new Set([...sl.set1, ...sl.set2].map(r => r.id));
+    const cand = rows.filter(r => r.pred > 0 && !r.offTheme && !r.runRepeat && !onStage.has(r.id)
+      && !(r.id in BONDED) && !r.isBustout && !r.deepDormant)
+      .sort((a, b) => (b.closer * b.pred) - (a.closer * a.pred))[0];
+    if (cand) sl.encore.push(cand);
+  }
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;
 }
