@@ -2202,8 +2202,13 @@ function buildSetlist(rows, n1, n2, ne) {
   // above is a preference the passes can lose; this is the guarantee. A Weekapaug in a
   // different set from its Mike's is a setlist real Phish does not play, so the orphan is
   // dropped rather than shipped in the wrong place.
+  // Tweezer -> Reprise is deliberately NOT in this list. Measured over 297 shows with both:
+  // 69% land in DIFFERENT sets (195 of those with Reprise in the encore), and the same-set
+  // minority is 91% non-adjacent. Forcing Reprise into Tweezer's set — which this pass did
+  // from v20 until 2026-08-01 — mangled the real modal shape on 2 nights in 3. The
+  // chronological pass below (dependent never before its anchor) is the only structure that
+  // pair actually has. Mike's Groove and Horse/Silent are genuinely same-set (98.4% / 100%).
   for (const [ancNm, ...deps] of [["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove'],
-                                  ['Tweezer', 'Tweezer Reprise'],
                                   ['The Horse', 'Silent in the Morning']]) {
     const anc = SONG_ID_BY_NAME.get(ancNm);
     const la = anc != null && findLoc(anc);
@@ -2416,6 +2421,28 @@ function buildSetlist(rows, n1, n2, ne) {
       && !(r.id in BONDED) && !r.isBustout && !r.deepDormant)
       .sort((a, b) => (b.closer * b.pred) - (a.closer * a.pred))[0];
     if (cand) sl.encore.push(cand);
+  }
+  // Mike's Groove spacing, the last word on the subject because it only REORDERS: with
+  // I Am Hydrogen absent, Mike's Song runs directly into Weekapaug in just 0.8% of real
+  // same-set pairings (4 of 502) — the near-universal shape is one song sandwiched between
+  // (78.7%: Hydrogen historically, Simple and friends today). Every earlier pass that
+  // relocates the pair splices them adjacent, so if they ended up touching, slide the
+  // nearest non-bonded neighbour in between. No count or minute changes — pure order.
+  {
+    const groove = (arr) => {
+      const names = arr.map(r => r.name);
+      const mi = names.indexOf("Mike's Song"), wi = names.indexOf('Weekapaug Groove');
+      if (mi < 0 || wi !== mi + 1 || names.includes('I Am Hydrogen') || arr.length < 3) return;
+      const CHAIN_NAMES = new Set(["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove', 'Tweezer', 'Tweezer Reprise', 'The Horse', 'Silent in the Morning']);
+      // prefer the song after Weekapaug; else the one before Mike's
+      let si = -1;
+      if (wi + 1 < arr.length && !CHAIN_NAMES.has(arr[wi + 1].name)) si = wi + 1;
+      else if (mi - 1 >= 0 && !CHAIN_NAMES.has(arr[mi - 1].name)) si = mi - 1;
+      if (si < 0) return;
+      const [spacer] = arr.splice(si, 1);
+      arr.splice(arr.findIndex(r => r.name === 'Weekapaug Groove'), 0, spacer);
+    };
+    groove(sl.set1); groove(sl.set2);
   }
   sl.minutes = { s1: minutesOf(sl.set1), s2: minutesOf(sl.set2), e: minutesOf(sl.encore) };
   return sl;

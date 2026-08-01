@@ -19,60 +19,104 @@ function hashSeed(str) {
   return h >>> 0;
 }
 
-// The canonical groupings that must share a set, in playing order. Same trios/pairs the
-// generator enforces by name (v20): anchor first, dependents after it, all in one set.
+// The canonical groupings, each with the placement rule the DATA supports — not a uniform
+// "same set, contiguous", which was v29's overreach. Measured over the full corpus:
+//   groove   Mike's/Hydrogen/Weekapaug — same set 98.4%. With Hydrogen: M>H>W contiguous
+//            (94% / 100% adjacent). WITHOUT Hydrogen: one song sandwiched between M and W is
+//            the near-universal shape (78.7%; direct M>W is 0.8% — 4 shows in 502).
+//   chrono   Tweezer/Reprise — 69% land in DIFFERENT sets (Reprise: the encore, 195/205),
+//            and the same-set minority is 91% non-adjacent. The ONLY real structure is
+//            chronology: Reprise follows a Tweezer played earlier. Never force the set.
+//   adjacent Horse/Silent — same set 100%, adjacent 100%.
 const CHAINS = [
-  ["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove'],
-  ['Tweezer', 'Tweezer Reprise'],
-  ['The Horse', 'Silent in the Morning'],
+  { names: ["Mike's Song", 'I Am Hydrogen', 'Weekapaug Groove'], mode: 'groove' },
+  { names: ['Tweezer', 'Tweezer Reprise'], mode: 'chrono' },
+  { names: ['The Horse', 'Silent in the Morning'], mode: 'adjacent' },
 ];
 
 // Enforce the chains on an assembled call, IN PLACE. `arrs` is [set1, set2, encore] as id
-// arrays; `idOf` maps a song name to its id (null if unknown). Rules, all deterministic:
-//   - the ANCHOR's set is home; any chain member in a different set moves to home,
-//     placed with the anchor in chain order (so an anchor that closes a set hands the
-//     closer slot to its dependent — Mike's Song then Weekapaug closing is the real shape);
-//   - each move is count-neutral where possible: the last unbonded non-opener song of the
-//     home set is swapped into the vacated slot (consensus mids are sorted strongest-first,
-//     so the last is the weakest — and taking it cannot displace the opener call, which is
-//     graded on s1[0]);
-//   - already-satisfied chains are left byte-identical (idempotent).
+// arrays; `idOf` maps names to ids. Deterministic throughout (a re-run commits an identical
+// call); count-neutral swaps take the last unbonded song — never index 0 of set 1, which is
+// the graded opener; already-satisfied chains are left byte-identical.
 function enforceChains(arrs, idOf) {
   const findArr = id => arrs.find(a => a.includes(id)) || null;
-  const chainIds = CHAINS.map(c => c.map(idOf));
-  const bonded = new Set(chainIds.flat().filter(x => x != null));
-  for (const ids of chainIds) {
-    const anc = ids[0];
-    if (anc == null) continue;
-    const home = findArr(anc);
-    if (!home) continue;
-    const present = ids.filter(id => id != null && findArr(id));
-    if (present.length < 2) continue;
+  const bonded = new Set(CHAINS.flatMap(c => c.names).map(idOf).filter(x => x != null));
 
-    // 1. Move strays into the anchor's set, swapping the weakest resident out to keep sizes.
-    for (const id of present) {
-      const cur = findArr(id);
-      if (cur === home) continue;
-      const oldIdx = cur.indexOf(id);
-      cur.splice(oldIdx, 1);
-      let swap = -1;
-      for (let i = home.length - 1; i >= 1; i--) {       // never take index 0: the opener call
-        if (!bonded.has(home[i])) { swap = i; break; }
-      }
-      if (swap >= 0) {
-        const [out] = home.splice(swap, 1);
-        cur.splice(Math.min(oldIdx, cur.length), 0, out);
-      }
-      home.push(id);                                     // position fixed in step 2
-    }
-
-    // 2. Canonical order: the chain sits contiguously where the anchor sat, anchor first.
-    const seq = ids.filter(id => id != null && home.includes(id));
+  const moveToHome = (id, home) => {          // count-neutral cross-set move
+    const cur = findArr(id);
+    if (cur === home) return;
+    const oldIdx = cur.indexOf(id);
+    cur.splice(oldIdx, 1);
+    let swap = -1;
+    for (let i = home.length - 1; i >= 1; i--) if (!bonded.has(home[i])) { swap = i; break; }
+    if (swap >= 0) { const [out] = home.splice(swap, 1); cur.splice(Math.min(oldIdx, cur.length), 0, out); }
+    home.push(id);
+  };
+  const placeSeq = (home, anc, seq) => {      // chain contiguous at the anchor's position
     const others = home.filter(id => !seq.includes(id));
     let before = 0;
     for (const id of home) { if (id === anc) break; if (others.includes(id)) before++; }
     home.length = 0;
     home.push(...others.slice(0, before), ...seq, ...others.slice(before));
+  };
+
+  for (const { names, mode } of CHAINS) {
+    const ids = names.map(idOf);
+    const anc = ids[0];
+    if (anc == null || !findArr(anc)) continue;
+    const present = ids.filter(id => id != null && findArr(id));
+    if (present.length < 2) continue;
+    const home = findArr(anc);
+
+    if (mode === 'chrono') {
+      // Reprise only needs to come LATER in the show than Tweezer. If it does, hands off.
+      const dep = present[1];
+      const order = a => arrs.indexOf(a);
+      const da = findArr(dep);
+      const violated = order(da) < order(home) || (da === home && home.indexOf(dep) < home.indexOf(anc));
+      if (!violated) continue;
+      if (da === home) {                       // same set, wrong order: Reprise to the set's end
+        home.splice(home.indexOf(dep), 1);
+        home.push(dep);
+      } else {                                 // earlier set: send it to its modal home, the
+        const encore = arrs[2];                // encore, as the finale (count-neutral swap)
+        da.splice(da.indexOf(dep), 1);
+        let swap = -1;
+        for (let i = encore.length - 1; i >= 0; i--) if (!bonded.has(encore[i])) { swap = i; break; }
+        if (swap >= 0) { const [out] = encore.splice(swap, 1); da.push(out); }
+        encore.push(dep);
+      }
+      continue;
+    }
+
+    // groove / adjacent: same set, canonical order.
+    const satisfied = present.every(id => findArr(id) === home) &&
+      present.every((id, k) => k === 0 || home.indexOf(id) > home.indexOf(present[k - 1]));
+    const hyd = mode === 'groove' ? idOf(names[1]) : null;
+    const hasHyd = hyd != null && findArr(hyd) != null;
+    const mw = mode === 'groove' && !hasHyd;
+    const gapOk = !mw || !satisfied ? false :
+      home.indexOf(present[1]) - home.indexOf(present[0]) >= 2;   // sandwich already in place
+    if (satisfied && (!mw || gapOk)) continue;
+
+    for (const id of present) moveToHome(id, home);
+    placeSeq(home, anc, present);
+
+    // Mike's Groove without Hydrogen: slide one non-chain neighbour between M and W —
+    // direct M>W is a 0.8% event and should not be what a committed call shows.
+    if (mw && home.length >= 3) {
+      const mi = home.indexOf(present[0]), wi = home.indexOf(present[1]);
+      if (wi === mi + 1) {
+        let si = -1;
+        if (wi + 1 < home.length && !bonded.has(home[wi + 1])) si = wi + 1;
+        else if (mi - 1 >= 1 && !bonded.has(home[mi - 1])) si = mi - 1;   // never the opener
+        else if (mi - 1 === 0 && home !== arrs[0] && !bonded.has(home[0])) si = 0;
+        if (si >= 0) {
+          const [spacer] = home.splice(si, 1);
+          home.splice(home.indexOf(present[1]), 0, spacer);
+        }
+      }
+    }
   }
   return arrs;
 }

@@ -139,13 +139,18 @@ check('durOf changes across nights for a wide-spread song', () => {
 
 check('night stretch solves toward its target', () => {
   const s = E.SONGS.filter(x => x.durq && x.durq[4] / x.durq[2] > 1.4)[0];
-  // durOf() is 60% fresh randomness per draw (NIGHT_STRETCH_W = 0.4), so comparing two
-  // SINGLE draws was a coin-weighted test that failed on correct code whenever the dice
-  // said so. Compare the MEANS over 200 draws each way — the stretch signal is ~0.7 min on
-  // a jam vehicle and the noise on a 200-draw mean is ~0.1, so this is decisive.
-  const avg = (n) => { let t = 0; for (let i = 0; i < 200; i++) t += E.durOf(s); return t / 200; };
-  E.setNightStretch(1.3, 1.0); const long = avg();
-  E.setNightStretch(0.8, 1.0); const short = avg();
+  // durOf() memoises per night (DUR_CACHE), so repeated calls inside one night return one
+  // cached sample — and a single sample is 60% fresh randomness (NIGHT_STRETCH_W = 0.4),
+  // which made this a coin-weighted test that failed correct code. Reset the night each
+  // iteration and compare 200-night MEANS: the stretch signal is ~0.7 min on a jam vehicle,
+  // the noise on the mean ~0.1.
+  const avg = (ratio) => {
+    let t = 0;
+    for (let i = 0; i < 200; i++) { E.newNightLengths(); E.setNightStretch(ratio, 1.0); t += E.durOf(s); }
+    return t / 200;
+  };
+  const long = avg(1.3), short = avg(0.8);
+  E.newNightLengths();
   return long <= short + 0.15 ? `stretch had no effect (means ${long.toFixed(2)} vs ${short.toFixed(2)})` : null;
 });
 
