@@ -153,18 +153,44 @@ function buildConsensus(E, opts = {}) {
   const med = (k, fb) => (E.SET_COUNTS && E.SET_COUNTS[k] && E.SET_COUNTS[k].med) || fb;
   const n1 = med('s1', 10), n2 = med('s2', 8), ne = med('e', 2);
 
-  // Selection: rank by consensus appearance count; each song claims its modal set.
+  // Selection: each set is filled from ITS OWN appearance ranking across the draws — a song
+  // earns a set-1 seat by how often it actually appeared in set 1, not by global rank plus a
+  // modal-set fallback. The old scheme let jam vehicles that missed a set-2 seat OVERFLOW
+  // into set 1 (the committed 8/1 call carried Piper — 3% of its modern appearances are
+  // set 1 — as a first-set song), displacing genuinely set-1-typical picks. Measured cost of
+  // this scheme: ~0.28 expected song hits per show (~5%); bought: set-lean composition that
+  // matches real shows (set 1 75% vs real 74%, set 2 31% vs 33%) instead of 69/34 with
+  // overflow artifacts. The committed top-20 list remains the pure accuracy instrument —
+  // this changes only which structured SETLIST is claimed. Scarce sets pick first (encore,
+  // then set 2) so the big set never strip-mines their small candidate cohorts.
   const ranked = [...stat.entries()].sort((a, b) => b[1].n - a[1].n);
   const s1 = [], s2 = [], e = [];
   const inShow = new Set();
-  for (const [id, t] of ranked) {
-    if (inShow.has(id)) continue;
-    const pref = t.e >= t.s1 && t.e >= t.s2 ? [e, s1, s2] : (t.s1 >= t.s2 ? [s1, s2, e] : [s2, s1, e]);
-    const caps = new Map([[s1, n1], [s2, n2], [e, ne]]);
-    for (const arr of pref) {
-      if (arr.length < caps.get(arr)) { arr.push(id); inShow.add(id); break; }
+  {
+    const sel = [[e, ne, 'e'], [s2, n2, 's2'], [s1, n1, 's1']];
+    const modal = t => (t.e >= t.s1 && t.e >= t.s2) ? 'e' : (t.s1 >= t.s2 ? 's1' : 's2');
+    for (const [arr, cap, key] of sel) {
+      // Pass 1, MODAL-GUARDED: only songs whose modal location is this set. Without the
+      // guard, scarce-first seating drafted 46 Days — the night's #1 song and a set-1
+      // opener — into the encore purely because its encore count topped that (small)
+      // ranking. A seat claim needs both: appeared here often, AND here is its home.
+      for (const relax of [false, true]) {
+        const byKey = [...stat.entries()]
+          .filter(([id, t]) => !inShow.has(id) && t[key] > 0 && (relax || modal(t) === key))
+          .sort((a, b) => b[1][key] - a[1][key] || b[1].n - a[1].n);
+        for (const [id] of byKey) {
+          if (arr.length >= cap) break;
+          arr.push(id); inShow.add(id);
+        }
+        if (arr.length >= cap) break;
+      }
+      if (arr.length < cap) {                     // cohort fully dry (tiny pools): global rank
+        for (const [id] of ranked) {
+          if (arr.length >= cap) break;
+          if (!inShow.has(id)) { arr.push(id); inShow.add(id); }
+        }
+      }
     }
-    if (s1.length >= n1 && s2.length >= n2 && e.length >= ne) break;
   }
 
   // Bond invariant on the final pick: a dependent whose anchor didn't make the consensus is

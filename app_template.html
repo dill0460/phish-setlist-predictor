@@ -1944,6 +1944,9 @@ function buildSetlist(rows, n1, n2, ne) {
   // remaining songs fill the two sets to their minute budgets, S1-leaning first
   const coolEligible = r => BREATHERS.has(r.id) && !r.terminalOnly && durOf(r) < 8.5 && r.jamRate < 0.15;
   const lean = r => r.slotP[1] - r.slotP[4];
+  // Weight of a song's own slot history in the s1-vs-s2 decision. At 1.0 the minutes terms
+  // drowned it out and generated set 2 leaned 47% s1-typical against a real 33%.
+  const LEAN_W = 4;
   // Jams first, filler after — the fill order is how a night is actually built. With a flat
   // order, a 14-minute song reached the front of the queue only after the budgets were mostly
   // spent, so it was shed by the overshoot guard on most of the nights that drew it: measured
@@ -2021,7 +2024,7 @@ function buildSetlist(rows, n1, n2, ne) {
     else if (full2) toS1 = true;
     else if (gap1 <= 0) toS1 = false;
     else if (gap2 <= 0) toS1 = true;
-    else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) + pull + lengthPull > 0;
+    else toS1 = (gap1 - gap2) * 1.4 + (cnt1 - cnt2) * 0.5 + lean(r) * LEAN_W + pull + lengthPull > 0;
     if (toS1 && (!fits1 || full1)) toS1 = false;
     if (!toS1 && (!fits2 || full2)) { if (fits1 && !full1) toS1 = true; else continue; }
     // There used to be a hard "set 2 may not outnumber set 1" override here. Removed, for
