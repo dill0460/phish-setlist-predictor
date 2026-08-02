@@ -1944,7 +1944,15 @@ function buildSetlist(rows, n1, n2, ne) {
   // remaining songs fill the two sets to their minute budgets, S1-leaning first
   const coolEligible = r => BREATHERS.has(r.id) && !r.terminalOnly && durOf(r) < 8.5 && r.jamRate < 0.15;
   const lean = r => r.slotP[1] - r.slotP[4];
-  let rest = pool.filter(r => !used.has(r.id) && !r.terminalOnly).sort((a, b) => lean(b) - lean(a));
+  // Jams first, filler after — the fill order is how a night is actually built. With a flat
+  // order, a 14-minute song reached the front of the queue only after the budgets were mostly
+  // spent, so it was shed by the overshoot guard on most of the nights that drew it: measured
+  // at 500 draws, 13+ minute songs reached the stage at 0.7x their own probability (Ruby
+  // Waves: drawn 121 times, played 34) while 9-11 minute songs collected the freed slots at
+  // 1.2x. Long songs claim their minutes while the room still exists; the lean sort still
+  // decides s1-vs-s2 within each tier.
+  let rest = pool.filter(r => !used.has(r.id) && !r.terminalOnly)
+    .sort((a, b) => (durOf(b) >= 11) - (durOf(a) >= 11) || lean(b) - lean(a));
   const s1mid = [], s2mid = [];
   let m1 = minutesOf(s1o) + minutesOf(s1c), m2 = minutesOf(s2o) + minutesOf(s2c);
 
@@ -2501,11 +2509,32 @@ function enforceLongFloor(sl, rows) {
     // minutes to a night whose budget had already been fixed. Swapping in BOTH directions
     // reproduces the mined distribution instead of its upper envelope.
     const wantLong = have < want;
-    const cands = rows
-      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly &&
-                   !(r.id in BONDED) && isLong(r) === wantLong)
+    // offTheme/runRepeat: suppressed songs keep a tiny nonzero pred so the odds table can
+    // display them (v7), so pred > 0 alone is NOT an eligibility check — this is the same
+    // side-door class v7 closed in six other pools. Argmax ordering used to mask the gap
+    // here (suppressed songs sat at the bottom, never reached); the weighted draw does not.
+    let cands = rows
+      .filter(r => !inShow.has(r.id) && r.pred > 0 && !r.terminalOnly && !r.offTheme &&
+                   !r.runRepeat && !r.isBustout && !r.deepDormant && !(r.id in BONDED) &&
+                   isLong(r) === wantLong)
       .sort((a, b) => b.pred - a.pred);
     if (!cands.length) continue;
+    // WEIGHTED draw, not argmax, in realistic mode — the same principle every other slot in
+    // the engine follows. Argmax here meant the single highest-probability jam won the long
+    // slot on essentially every night it was eligible: measured over 500 draws, Oblivion
+    // reached the stage at 1.45x its own probability while every other 12+ minute jam was
+    // taxed to 0.3-0.5x (Ruby Waves: in the pool 121 times, on stage 34). A set only carries
+    // 2-3 longs, so whoever the floor prefers IS the long-jam marginal.
+    if (slModeSample && cands.length > 1) {
+      const bag = cands.slice(), drawn = [];
+      while (bag.length) {
+        let W = 0; for (const r of bag) W += r.pred;
+        let x = Math.random() * W, i = 0;
+        for (; i < bag.length - 1; i++) { x -= bag[i].pred; if (x <= 0) break; }
+        drawn.push(bag.splice(i, 1)[0]);
+      }
+      cands = drawn;
+    }
 
     for (let ci = 0; have !== want && ci < cands.length; ci++) {
       let victim = -1;
