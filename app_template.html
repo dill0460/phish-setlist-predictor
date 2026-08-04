@@ -1118,9 +1118,73 @@ function addYears(dateStr, yearsBack) {
   return new Date(d.getTime() - yearsBack * 365.25 * 86400e3).toISOString().slice(0, 10);
 }
 function gapMult(gap) { return GAP_MULT[Math.min(Math.max(gap, 1), 20)]; }
+// ---------------------------------------------------------------------------
+// v33 — the calendar-break correction.
+//
+// GAP_MULT above counts SHOWS since a song was last played. The band appears to count
+// DAYS. Those come apart hard whenever a break intervenes: measured 2009+ over 179,766
+// song-show opportunity pairs, a song played at the immediately preceding show comes back
+// at 0.10x the base rate if that show was under two weeks ago, and 1.43x if it was 46+
+// days ago. A 14x swing that a single 0.445x cannot represent, and 14% of all short-gap
+// decisions fall in the post-break regime.
+//
+// DAY_HAZ is a RESIDUAL relative to the gap-only rate for the same gap bucket, so it
+// composes with GAP_MULT instead of replacing it and averages to ~1.0 within each bucket.
+// That matters: the dynamic calibration and gapAdj are both fit per gap bucket, so a
+// mean-1 residual redistributes inside a bucket without shifting the level they correct.
+// (Raw rates here would double-count the gap curve — the v22 segue lesson.)
+//
+// Songs already played earlier in the SAME venue run are excluded from the FIT — they are
+// priced by RUN_REPEAT_MULT and counting them here would apply the no-repeat rule twice
+// (the v16 double-suppression bug, one layer down). See daygap.py.
+//
+// Walk-forward, hazard fit strictly on pre-test data, top-20 hits:
+//   fit<2022, test 2022-2026 (n=211): 4.938 -> 5.711  (+0.773 +/- 0.110, t=+7.03)
+//   fit<2024, test 2024-2026 (n=116): 4.888 -> 5.888  (+1.000 +/- 0.172, t=+5.82)
+// For scale, the model's whole measured edge over phish.net's published Trey's Notebook
+// rule is +0.06 (t=0.4) — this is about an order of magnitude larger.
+//
+// Null-safe: an index.html built before this table existed leaves DAY_HAZ null and every
+// lookup returns 1, which is exactly current behaviour.
+// ---------------------------------------------------------------------------
+const DAY_HAZ = __DAYHAZ_JSON__;
+const DAY_HAZ_MULT = (DAY_HAZ && DAY_HAZ.mult) || null;
+const DAY_HAZ_GAPE = (DAY_HAZ && DAY_HAZ.gapEdges) || [];
+const DAY_HAZ_DAYE = (DAY_HAZ && DAY_HAZ.dayEdges) || [];
+function daysBetween(a, b) {
+  if (!a || !b) return null;
+  return Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
+}
+// The show this scoring pass is aiming at. In backtest mode that is simply the next show on
+// record; at the live edge it is whatever date the user is predicting, falling back to today.
+function targetDateFor(A) {
+  if (A < SHOW_DATES.length - 1) return SHOW_DATES[A + 1];
+  try { if (typeof els !== 'undefined' && els.nextDate && els.nextDate.value) return els.nextDate.value; }
+  catch (e) { /* harness / no DOM */ }
+  return new Date().toISOString().slice(0, 10);
+}
+function dayHazMult(showGap, dayGap) {
+  if (!DAY_HAZ_MULT || dayGap == null || !(showGap > 0)) return 1;
+  let gb = -1;
+  for (let i = 0; i < DAY_HAZ_GAPE.length; i++) {
+    if (showGap >= DAY_HAZ_GAPE[i][0] && showGap < DAY_HAZ_GAPE[i][1]) { gb = i; break; }
+  }
+  if (gb < 0) return 1;
+  let db = DAY_HAZ_DAYE.length - 1;
+  for (let i = 0; i < DAY_HAZ_DAYE.length; i++) {
+    if (dayGap >= DAY_HAZ_DAYE[i][0] && dayGap < DAY_HAZ_DAYE[i][1]) { db = i; break; }
+  }
+  const m = DAY_HAZ_MULT[gb + ',' + db];
+  return m > 0 ? m : 1;
+}
+
 
 // ---------- core scorer: raw prediction for the show AFTER show index A ----------
-function rawScoresAt(A, settings) {
+function rawScoresAt(A, settings, targetDate) {
+  // targetDate drives the calendar-break correction. Defaulted rather than required so
+  // every existing call site keeps working untouched: in backtests the default IS the
+  // show being predicted, and at the live edge it reads the date the user picked.
+  targetDate = targetDate || targetDateFor(A);
   // returns Map sid -> {freq, gap, gm, raw}
   const { halflife } = settings;
   let startIdx;
@@ -1147,13 +1211,18 @@ function rawScoresAt(A, settings) {
     const denom = PW[A + 1] - PW[eff];
     const freq = denom > 0 ? wP / denom : 0;
     const allHi = upperBound(idxs, A);
-    let gap = null, gm = null, raw = freq;
+    let gap = null, gm = null, raw = freq, dayGap = null, dayAdj = 1;
     if (allHi > 0) {
       gap = A - idxs[allHi - 1];
-      gm = gapMult(gap + 1);
+      // `gap` counts shows BETWEEN, so the true show-gap is gap + 1 — same convention
+      // gapMult has always used.
+      const showGap = gap + 1;
+      dayGap = daysBetween(SHOW_DATES[idxs[allHi - 1]], targetDate);
+      dayAdj = dayHazMult(showGap, dayGap);
+      gm = gapMult(showGap) * dayAdj;
       raw = Math.min(1, freq * gm);
     }
-    out.set(song.id, { freq, gap, gm, raw, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
+    out.set(song.id, { freq, gap, gm, raw, dayGap, dayAdj, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
   }
   return out;
 }
@@ -1412,6 +1481,7 @@ function compute() {
         id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null, durq: song.durq || null,
         showsPlayed: s.showsPlayed, showsInWindow: s.showsInWindow,
         freq: s.freq, gap: s.gap, gapMult: s.gm, raw: s.raw,
+        dayGap: s.dayGap, dayAdj: s.dayAdj,
         pred: calibrateWith(cal.pts, s.raw)
               * (s.gap != null && cal.gapAdj ? cal.gapAdj[gapBucket(s.gap)] : 1)
               * ((s.gap != null && cal.ratioAdj && s.showsPlayed > 0 && s.showsInWindow > 0)

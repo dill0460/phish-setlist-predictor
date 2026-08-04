@@ -20,6 +20,15 @@ import time
 import bisect
 import statistics
 from collections import defaultdict, Counter
+
+# v33 calendar-break hazard. Optional by design: if daygap.py is missing the build
+# still succeeds and the site falls back to the one-dimensional gap curve, rather
+# than failing a nightly Action over an enhancement.
+try:
+    from daygap import mine_day_hazard
+except Exception as _e:                       # pragma: no cover
+    mine_day_hazard = None
+    print(f"  ! daygap.py unavailable ({_e}) — shipping without the day hazard")
 from datetime import date, datetime, timedelta, timezone
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
@@ -1286,12 +1295,21 @@ def main():
     locked = mine_date_locked(raw)
     minutes = set_minutes(shows_list, songs, plays)
     cal = fit_static_calibration(shows_list, songs, plays, GAP_MULT)
+    # Day-aware gap residual. Fit on 2019+ on purpose — the effect is a property of
+    # MODERN touring (short segments, destination runs, residencies) and is absent
+    # in 2015-2018. Same era-scoping reasoning as NIGHT_SHAPE_SINCE.
+    print("Mining calendar-break hazard...")
+    dayhaz = mine_day_hazard(shows_list, plays) if mine_day_hazard else {}
+    if dayhaz:
+        print(f"  day hazard: {len(dayhaz['mult'])} cells from {dayhaz['n']:,} "
+              f"opportunity pairs since {dayhaz['since']}")
 
     os.makedirs(CACHE, exist_ok=True)
     for name, obj in [("shows", shows_list), ("songs", songs), ("plays", plays),
                       ("pair_rules", pairs), ("cool_affinity", cool), ("run_position", runpos),
                       ("set_affinity", setaff), ("tour_opener", touropen), ("closer_score", closer), ("jam_rate", jamrate), ("breathers", breathers),
                       ("date_locked", locked), ("set_minutes", minutes), ("calibration", cal),
+                      ("day_hazard", dayhaz),
                       ("upcoming", upcoming)]:
         with open(os.path.join(CACHE, f"{name}.json"), "w") as f:
             json.dump(obj, f, separators=(",", ":"))
@@ -1361,6 +1379,7 @@ def main():
         "__LIVE_JSON__": j(live),
         "__SETMIN_JSON__": j(minutes),
         "__STATIC_CAL_JSON__": j(cal),
+        "__DAYHAZ_JSON__": j(dayhaz),
         "__LATEST_DATE__": shows_list[-1]["date"],
         "__SHOW_COUNT__": f"{len(shows_list):,}",
         "__SONG_COUNT__": f"{len(songs):,}",
