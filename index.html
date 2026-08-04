@@ -728,13 +728,13 @@
   </div>
 
   <p class="footer">Built by a phan, for phans &mdash; not affiliated with Phish or Phish Inc. Setlist data: <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> (the volunteer-run Mockingbird Foundation &mdash; <a href="https://phish.net/donate" target="_blank" rel="noopener">donate</a>). Song lengths: <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a>. Rebuilt automatically every day.</p>
-  <!-- Build: 2026-08-04 12:28 EDT · e346e734 -->
+  <!-- Build: 2026-08-04 16:54 EDT · 30b0dda4 -->
   <!-- The build stamp is no longer shown to visitors — it is developer plumbing and meant
        nothing to anyone reading the site. It stays here as a comment because it is still the
        ONLY reliable way to tell a freshly deployed page from a CDN-cached one (the template
        filename never changes, so a stale index.html is otherwise indistinguishable). View
        source, or Ctrl+F "Build:", to check what is actually live. -->
-  <p class="footer" style="margin-top:6px;opacity:.75">Updated Aug 4, 12:28 PM EDT</p>
+  <p class="footer" style="margin-top:6px;opacity:.75">Updated Aug 4, 4:54 PM EDT</p>
 
 </div>
 
@@ -1028,7 +1028,7 @@ const JAM_RATE = {"208":0.086,"161":0.083,"110":0.343,"483":0.061,"538":0.224,"2
 // and the structural signals can't tell a ballad from a short fast song: NICU is 98.6% mid-set,
 // exactly like Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint.
 const BREATHERS = new Set([19,32,34,51,64,68,88,94,132,159,177,193,194,297,316,333,338,393,419,473,493,495,507,513,542,573,582,642,649,741,1370,2417,2423,2571,2627,2697,2907,2932,3212]);
-const UPCOMING = [{"date":"2026-09-04","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 1 of 3","runPos":"open"},{"date":"2026-09-05","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 2 of 3","runPos":"middle"},{"date":"2026-09-06","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 3 of 3","runPos":"close"},{"date":"2027-01-27","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 1 of 4","runPos":"open"},{"date":"2027-01-28","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 2 of 4","runPos":"middle"},{"date":"2027-01-29","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 3 of 4","runPos":"middle"},{"date":"2027-01-30","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 4 of 4","runPos":"close"}];     // scheduled shows from phish.net, refreshed on each build
+const UPCOMING = [{"date":"2026-09-04","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 1 of 3","runPos":"open"},{"date":"2026-09-05","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 2 of 3","runPos":"middle"},{"date":"2026-09-06","venue":"Dick's Sporting Goods Park","city":"Commerce City","state":"CO","runN":"night 3 of 3","runPos":"close"},{"date":"2026-10-02","venue":"Boardwalk Hall","city":"Atlantic City","state":"NJ","runN":"night 1 of 3","runPos":"open"},{"date":"2026-10-03","venue":"Boardwalk Hall","city":"Atlantic City","state":"NJ","runN":"night 2 of 3","runPos":"middle"},{"date":"2026-10-04","venue":"Boardwalk Hall","city":"Atlantic City","state":"NJ","runN":"night 3 of 3","runPos":"close"},{"date":"2026-10-06","venue":"Allianz Amphitheater at Riverfront","city":"Richmond","state":"VA","runN":"night 1 of 2","runPos":"none"},{"date":"2026-10-07","venue":"Allianz Amphitheater at Riverfront","city":"Richmond","state":"VA","runN":"night 2 of 2","runPos":"none"},{"date":"2026-10-09","venue":"VyStar Veterans Memorial Arena","city":"Jacksonville","state":"FL","runN":"single night","runPos":"none"},{"date":"2026-10-10","venue":"Orion Amphitheater","city":"Huntsville","state":"AL","runN":"night 1 of 2","runPos":"none"},{"date":"2026-10-11","venue":"Orion Amphitheater","city":"Huntsville","state":"AL","runN":"night 2 of 2","runPos":"none"},{"date":"2027-01-27","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 1 of 4","runPos":"open"},{"date":"2027-01-28","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 2 of 4","runPos":"middle"},{"date":"2027-01-29","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 3 of 4","runPos":"middle"},{"date":"2027-01-30","venue":"Moon Palace","city":"Cancun","state":"Quintana Roo","runN":"night 4 of 4","runPos":"close"}];     // scheduled shows from phish.net, refreshed on each build
 // The public track record. Written by snapshot.js in the Action, never by hand: each upcoming
 // show gets ONE committed official call (consensus of 500 seeded draws at default settings),
 // graded on the first build after the show, never re-rolled and never re-graded. Backfill
@@ -1118,9 +1118,73 @@ function addYears(dateStr, yearsBack) {
   return new Date(d.getTime() - yearsBack * 365.25 * 86400e3).toISOString().slice(0, 10);
 }
 function gapMult(gap) { return GAP_MULT[Math.min(Math.max(gap, 1), 20)]; }
+// ---------------------------------------------------------------------------
+// v33 — the calendar-break correction.
+//
+// GAP_MULT above counts SHOWS since a song was last played. The band appears to count
+// DAYS. Those come apart hard whenever a break intervenes: measured 2009+ over 179,766
+// song-show opportunity pairs, a song played at the immediately preceding show comes back
+// at 0.10x the base rate if that show was under two weeks ago, and 1.43x if it was 46+
+// days ago. A 14x swing that a single 0.445x cannot represent, and 14% of all short-gap
+// decisions fall in the post-break regime.
+//
+// DAY_HAZ is a RESIDUAL relative to the gap-only rate for the same gap bucket, so it
+// composes with GAP_MULT instead of replacing it and averages to ~1.0 within each bucket.
+// That matters: the dynamic calibration and gapAdj are both fit per gap bucket, so a
+// mean-1 residual redistributes inside a bucket without shifting the level they correct.
+// (Raw rates here would double-count the gap curve — the v22 segue lesson.)
+//
+// Songs already played earlier in the SAME venue run are excluded from the FIT — they are
+// priced by RUN_REPEAT_MULT and counting them here would apply the no-repeat rule twice
+// (the v16 double-suppression bug, one layer down). See daygap.py.
+//
+// Walk-forward, hazard fit strictly on pre-test data, top-20 hits:
+//   fit<2022, test 2022-2026 (n=211): 4.938 -> 5.711  (+0.773 +/- 0.110, t=+7.03)
+//   fit<2024, test 2024-2026 (n=116): 4.888 -> 5.888  (+1.000 +/- 0.172, t=+5.82)
+// For scale, the model's whole measured edge over phish.net's published Trey's Notebook
+// rule is +0.06 (t=0.4) — this is about an order of magnitude larger.
+//
+// Null-safe: an index.html built before this table existed leaves DAY_HAZ null and every
+// lookup returns 1, which is exactly current behaviour.
+// ---------------------------------------------------------------------------
+const DAY_HAZ = {"gapEdges":[[1,2],[2,3],[3,4],[4,6],[6,9],[9,13],[13,21],[21,31],[31,61]],"dayEdges":[[0,15],[15,46],[46,1000000000]],"mult":{"0,0":0.15,"0,1":2.2893,"0,2":3.2788,"1,0":0.2728,"1,1":2.2933,"1,2":2.6883,"2,0":0.5366,"2,1":1.3864,"2,2":2.0228,"3,0":0.7549,"3,1":1.154,"3,2":1.3585,"4,0":1.0415,"4,1":1.1619,"4,2":0.9118,"5,0":1.1069,"5,1":0.9474,"5,2":0.9978,"6,1":1.0533,"6,2":0.9893,"7,2":1.0042,"8,2":1.0},"since":"2019-01-01","n":73519};
+const DAY_HAZ_MULT = (DAY_HAZ && DAY_HAZ.mult) || null;
+const DAY_HAZ_GAPE = (DAY_HAZ && DAY_HAZ.gapEdges) || [];
+const DAY_HAZ_DAYE = (DAY_HAZ && DAY_HAZ.dayEdges) || [];
+function daysBetween(a, b) {
+  if (!a || !b) return null;
+  return Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
+}
+// The show this scoring pass is aiming at. In backtest mode that is simply the next show on
+// record; at the live edge it is whatever date the user is predicting, falling back to today.
+function targetDateFor(A) {
+  if (A < SHOW_DATES.length - 1) return SHOW_DATES[A + 1];
+  try { if (typeof els !== 'undefined' && els.nextDate && els.nextDate.value) return els.nextDate.value; }
+  catch (e) { /* harness / no DOM */ }
+  return new Date().toISOString().slice(0, 10);
+}
+function dayHazMult(showGap, dayGap) {
+  if (!DAY_HAZ_MULT || dayGap == null || !(showGap > 0)) return 1;
+  let gb = -1;
+  for (let i = 0; i < DAY_HAZ_GAPE.length; i++) {
+    if (showGap >= DAY_HAZ_GAPE[i][0] && showGap < DAY_HAZ_GAPE[i][1]) { gb = i; break; }
+  }
+  if (gb < 0) return 1;
+  let db = DAY_HAZ_DAYE.length - 1;
+  for (let i = 0; i < DAY_HAZ_DAYE.length; i++) {
+    if (dayGap >= DAY_HAZ_DAYE[i][0] && dayGap < DAY_HAZ_DAYE[i][1]) { db = i; break; }
+  }
+  const m = DAY_HAZ_MULT[gb + ',' + db];
+  return m > 0 ? m : 1;
+}
+
 
 // ---------- core scorer: raw prediction for the show AFTER show index A ----------
-function rawScoresAt(A, settings) {
+function rawScoresAt(A, settings, targetDate) {
+  // targetDate drives the calendar-break correction. Defaulted rather than required so
+  // every existing call site keeps working untouched: in backtests the default IS the
+  // show being predicted, and at the live edge it reads the date the user picked.
+  targetDate = targetDate || targetDateFor(A);
   // returns Map sid -> {freq, gap, gm, raw}
   const { halflife } = settings;
   let startIdx;
@@ -1147,13 +1211,18 @@ function rawScoresAt(A, settings) {
     const denom = PW[A + 1] - PW[eff];
     const freq = denom > 0 ? wP / denom : 0;
     const allHi = upperBound(idxs, A);
-    let gap = null, gm = null, raw = freq;
+    let gap = null, gm = null, raw = freq, dayGap = null, dayAdj = 1;
     if (allHi > 0) {
       gap = A - idxs[allHi - 1];
-      gm = gapMult(gap + 1);
+      // `gap` counts shows BETWEEN, so the true show-gap is gap + 1 — same convention
+      // gapMult has always used.
+      const showGap = gap + 1;
+      dayGap = daysBetween(SHOW_DATES[idxs[allHi - 1]], targetDate);
+      dayAdj = dayHazMult(showGap, dayGap);
+      gm = gapMult(showGap) * dayAdj;
       raw = Math.min(1, freq * gm);
     }
-    out.set(song.id, { freq, gap, gm, raw, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
+    out.set(song.id, { freq, gap, gm, raw, dayGap, dayAdj, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
   }
   return out;
 }
@@ -1412,6 +1481,7 @@ function compute() {
         id: song.id, name: song.name, debut: song.debut, last: song.last, dur: song.dur || null, durq: song.durq || null,
         showsPlayed: s.showsPlayed, showsInWindow: s.showsInWindow,
         freq: s.freq, gap: s.gap, gapMult: s.gm, raw: s.raw,
+        dayGap: s.dayGap, dayAdj: s.dayAdj,
         pred: calibrateWith(cal.pts, s.raw)
               * (s.gap != null && cal.gapAdj ? cal.gapAdj[gapBucket(s.gap)] : 1)
               * ((s.gap != null && cal.ratioAdj && s.showsPlayed > 0 && s.showsInWindow > 0)
