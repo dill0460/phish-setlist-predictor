@@ -121,6 +121,57 @@ function enforceChains(arrs, idOf) {
   return arrs;
 }
 
+// ---------------------------------------------------------------------------
+// COMPLETE THE PAIRS: anchor present, dependent missing (v34).
+//
+// The bond check in buildConsensus only guarded ONE direction: a dependent whose anchor missed
+// the cut gets replaced. It never guarded the other: an ANCHOR that makes the cut while its
+// dependent loses its seat. That is the same marginals-destroy-joint-structure bug as v20 and
+// v29, in the one direction nobody checked. Observed: the committed 2026-10-03 call opened set 2
+// with Mike's Song and carried no Weekapaug Groove, although Weekapaug sat in the night's own
+// top 20 (it simply lost its set-2 seat to higher-ranked songs, because seats are assigned song
+// by song). The log shows the same orphan on 2024-07-31, 2025-06-20, 2025-07-20 and 2026-07-19.
+// Tweezer without its Reprise (the AC N1 call) is the same defect.
+//
+// Real conditionals, so the modal call must carry the dependent: P(Weekapaug | Mike's) = 0.96,
+// P(Silent | Horse) = 0.93, P(Reprise | Tweezer) = 0.78 in 2022+ (0.85 since 2009). All well over
+// 0.5, i.e. a consensus that holds the anchor and not the dependent is the minority shape.
+//
+// The dependent takes the weakest unprotected, unbonded song's seat in the destination set (the
+// anchor's own set; the encore for the Reprise), so set sizes hold. Skipped when the dependent is
+// already in the call or is ruled out (played earlier in the run). Deterministic.
+// `weak(id)`: lower = weaker. `protect(id, arr)`: true = never evict (opener / closer).
+// ---------------------------------------------------------------------------
+const PAIRS = [
+  { anc: "Mike's Song", dep: 'Weekapaug Groove', dest: 'anchorSet', gap: 2 },   // one song sandwiched (78.7%)
+  { anc: 'The Horse', dep: 'Silent in the Morning', dest: 'anchorSet', gap: 1 },  // back to back (100%)
+  { anc: 'Tweezer', dep: 'Tweezer Reprise', dest: 'encore' },                     // finale
+];
+function completePairs(arrs, idOf, o = {}) {
+  const added = [];
+  const findArr = id => arrs.find(a => a.includes(id)) || null;
+  const bonded = new Set([...CHAINS.flatMap(c => c.names), ...PAIRS.flatMap(p => [p.anc, p.dep])]
+    .map(idOf).filter(x => x != null));
+  for (const { anc, dep, dest, gap } of PAIRS) {
+    const a = idOf(anc), d = idOf(dep);
+    if (a == null || d == null || !findArr(a) || findArr(d)) continue;
+    if (o.blocked && o.blocked(d)) continue;
+    const home = dest === 'encore' ? arrs[2] : findArr(a);
+    let victim = -1, vw = Infinity;
+    for (let i = home.length - 1; i >= 0; i--) {       // ties go to the later seat
+      const id = home[i];
+      if (bonded.has(id) || (o.protect && o.protect(id, home))) continue;
+      const w = o.weak ? o.weak(id) : 0;
+      if (w < vw) { vw = w; victim = i; }
+    }
+    if (victim >= 0) home.splice(victim, 1);           // else: no safe seat to free, count +1
+    if (dest === 'encore') home.push(d);
+    else home.splice(Math.min(home.indexOf(a) + gap, home.length), 0, d);   // beside the anchor, real spacing
+    added.push({ dep: dep, anchor: anc });
+  }
+  return added;
+}
+
 function buildConsensus(E, opts = {}) {
   const draws = opts.draws || 500;
   if (opts.seed != null && E.setSeed) E.setSeed(opts.seed);
@@ -200,9 +251,13 @@ function buildConsensus(E, opts = {}) {
   const BONDS = [['Tweezer Reprise', 'Tweezer'], ['Weekapaug Groove', "Mike's Song"], ['Silent in the Morning', 'The Horse'], ['I Am Hydrogen', "Mike's Song"]];
   const nameOf = id => (rowById.get(id) || E.SONGS.find(s => s.id === id) || {}).name || String(id);
   const idOf = nm => { const s = E.SONGS.find(x => x.name === nm); return s ? s.id : null; };
+  // v34: while a Tweezer sits unpaid earlier in the run, a Tweezer-less Reprise is the point,
+  // not an orphan (RUN_DEBT_STATE is set by the compute() above).
+  const owedDep = (E.RUN_DEBT_STATE && E.RUN_DEBT_STATE.owed) ? E.RUN_DEBT_STATE.depId : null;
   for (const [depNm, ancNm] of BONDS) {
     const dep = idOf(depNm), anc = idOf(ancNm);
     if (dep == null || anc == null || !inShow.has(dep) || inShow.has(anc)) continue;
+    if (owedDep != null && dep === owedDep) continue;
     for (const arr of [s1, s2, e]) {
       const i = arr.indexOf(dep);
       if (i < 0) continue;
@@ -228,6 +283,15 @@ function buildConsensus(E, opts = {}) {
   const s2o = order(s2, 'open2', 'close2');
   const eo = e.slice().sort((x, y) => (stat.get(x)?.finale || 0) - (stat.get(y)?.finale || 0)); // finale last
 
+  // Anchor present, dependent missing: seat the dependent (see COMPLETE THE PAIRS above). Runs
+  // AFTER ordering so the dependent lands at its real spacing from the anchor instead of wherever
+  // the vote sort would put it, and so the opener / closer seats are known and protected.
+  const pairsAdded = completePairs([s1o, s2o, eo], idOf, {
+    weak: id => stat.get(id)?.n || 0,
+    protect: (id, arr) => arr[arr.length - 1] === id || (arr !== eo && arr[0] === id),
+    blocked: id => { const r = rowById.get(id); return !r || r.runRepeat || r.offTheme || r.pred <= 0.002; },
+  });
+
   // SAME-SET + ORDERING invariant on the assembled call — the aggregation counterpart of the
   // generator's v20 makeRoom fix, which this assembler never got. Selection above gives each
   // song its MODAL set independently, and marginal votes can split a pair even though every
@@ -248,8 +312,8 @@ function buildConsensus(E, opts = {}) {
   return {
     set1: withNames(s1o), set2: withNames(s2o), encore: withNames(eo),
     top20: c.rows.slice().sort((a, b) => b.pred - a.pred).slice(0, 20).map(r => ({ id: r.id, name: r.name, p: +r.pred.toFixed(4) })),
-    open5, draws,
+    open5, draws, pairsAdded,
   };
 }
 
-module.exports = { buildConsensus, hashSeed, enforceChains, CHAINS };
+module.exports = { buildConsensus, hashSeed, enforceChains, completePairs, CHAINS };

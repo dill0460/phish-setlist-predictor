@@ -50,7 +50,8 @@ function drawNights(n, mutate) {
     if (mutate) mutate();
     const c = E.compute();
     const sl = E.buildSetlist(c.rows, c.n1, c.n2, c.ne);
-    out.push({ sl, n1: c.n1, n2: c.n2, ne: c.ne, rows: c.rows });
+    out.push({ sl, n1: c.n1, n2: c.n2, ne: c.ne, rows: c.rows,
+               owedDep: (E.RUN_DEBT_STATE && E.RUN_DEBT_STATE.owed) ? E.RUN_DEBT_STATE.depId : null });
   }
   return out;
 }
@@ -248,8 +249,12 @@ const BONDS = [['Tweezer Reprise', 'Tweezer'], ['Weekapaug Groove', "Mike's Song
 check('no bonded dependent appears without its anchor', () => {
   for (const d of NIGHTS) {
     const names = new Set(all(d).map(r => r.name));
-    for (const [dep, anc] of BONDS)
-      if (names.has(dep) && !names.has(anc)) return `${dep} present without ${anc}`;
+    for (const [dep, anc] of BONDS) {
+      if (!(names.has(dep) && !names.has(anc))) continue;
+      const depRow = d.rows.find(r => r.name === dep);
+      if (d.owedDep != null && depRow && depRow.id === d.owedDep) continue;   // v34: run-owed Reprise
+      return `${dep} present without ${anc}`;
+    }
   }
   return null;
 });

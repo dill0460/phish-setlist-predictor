@@ -522,6 +522,7 @@
         <details><summary>Patterns layered on top</summary>
           <div class="dbody">
             <p><b>Inseparable pairs</b> &mdash; Mike's Song &rarr; Weekapaug Groove (same set, songs in between), The Horse &rarr; Silent in the Morning (back to back), Tweezer &rarr; Tweezer Reprise (later in the night). Nine such pairs are mined from history and drawn as single units, so the partner arrives at its true conditional rate instead of doubling the pair's odds.</p>
+            <p><b>The Reprise can be owed across nights</b> &mdash; Tweezer &rarr; Reprise is a same-night pair only until a Tweezer ends a night without one. Then the Reprise is outstanding for the rest of the run: when a Tweezer has gone unpaid earlier in the run, the closing night has collected the Reprise 15 of 16 times since 2009 (Dick's 2026 is the latest), one night from the end only 3 of 13, earlier only 0 of 13, and when it does arrive it is the encore about 83% of the time. While a Reprise is owed the page prices it at those smoothed rates, drops the same-night Tweezer requirement for that one song, and says so in the banner above the setlist.</p>
             <p><b>Songs that share a set</b> &mdash; thirteen further pairs turn up in the same set well beyond chance: Tweezer + Piper (2.6&times;), Also Sprach + Piper (2.6&times;), Slave + Light (2.7&times;), Funky Bitch + The Moma Dance (3.2&times;), Harry Hood + Twist (2.2&times;). They nudge set assignment rather than forcing it.</p>
             <p><b>Where a song lives</b> &mdash; each song carries its own history across seven slots (set 1 opener/song/closer, set 2 opener/song/closer, encore). Songs that only ever land as closers or encores are barred from mid-set outright: Tweezer Reprise is 92% encore-or-set-2-closer, and it will never appear in the middle of a set here. Slots are filled by weighted draw, not by the single best fit &mdash; real encores draw on 193 different songs, and the five most common cover only 21% of them.</p>
             <p><b>Set length in minutes</b> &mdash; sets fill to time (~73 min, ~67 min, ~15 min encore), not to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs.</p>
@@ -1027,6 +1028,7 @@ const SET_MIN = __SETMIN_JSON__;    // typical set minutes (s1/s2/e), each with 
                                      // recomputed from 2022+ shows on every build
 const DATE_LOCKED = __DATELOCK_JSON__;  // songid -> "MM-DD" it is essentially only ever played on
 const RUN_POS = __RUNPOS_JSON__;        // {open|close: {songid: multiplier}} — measured, length-normalised
+const RUN_DEBT_MINED = __RUNDEBT_JSON__;  // {final|one|early|enc: [hits, trials]} — Tweezer left unpaid, Reprise collected later in the run
 const SET_AFF = __SETAFF_JSON__;        // pairs that share a set more often than chance
 const RUN_LEN = { open: 18.0, middle: 19.5, close: 21.4 };  // songs per show by run position
 const TOUR_OPEN = __TOUROPEN_JSON__;    // set-1 warm-up songs on the first night of a tour
@@ -1067,13 +1069,83 @@ for (const r of PAIR_RULES) if (r.pAB >= 0.9) BONDED[r.b] = { anchor: r.a, p: r.
 // nudge a mined conditional below the 0.9 bonding threshold and silently unbond a pair that
 // physically cannot separate — a Reprise without its Tweezer is not a setlist, it's a bug.
 // Conditionals measured directly: Mike's Song plays without Weekapaug in 4% of shows since
-// 1990; next-night Reprises exist but same-night Tweezer-less Reprises essentially don't.
+// 1990. CORRECTION (v34): this comment used to claim same-night Tweezer-less Reprises "essentially
+// don't" exist. They do: 24 nights since 2009 (7 since 2022), P(Tweezer | Reprise) = 0.81 in 2022+,
+// not 0.95, and 16 of the 22 orphan nights in multi-night runs fall while a Tweezer from earlier
+// in the same run is still unpaid. The hard bond is a ONE-NIGHT view; the run-level view is the
+// RUN_DEBT block below, which suspends this bond while a Reprise is outstanding.
 const SONG_ID_BY_NAME = new Map(SONGS.map(s => [s.name, s.id]));
 for (const [an, bn, p] of [["Tweezer", "Tweezer Reprise", 0.95],
                            ["Mike's Song", "Weekapaug Groove", 0.96],
                            ["The Horse", "Silent in the Morning", 0.93]]) {
   const a = SONG_ID_BY_NAME.get(an), b = SONG_ID_BY_NAME.get(bn);
   if (a != null && b != null) { delete BONDED[a]; BONDED[b] = { anchor: a, p }; }
+}
+
+// Snapshot of the full bond table; compute() restores it every call before deciding whether a
+// Reprise debt suspends the Tweezer->Reprise bond for this target night.
+const BONDED_CANON = Object.assign({}, BONDED);
+
+// ---------------------------------------------------------------------------
+// Run-level Reprise debt (v34).
+//
+// A Tweezer that ends a night with no Reprise leaves the Reprise OUTSTANDING for the rest of the
+// venue run. Measured over 2009+ multi-night runs (build.py mine_run_debt), entering a night with
+// the debt unpaid: closing night 15/16 paid incl. Dick's 2026 (Wilson 95% ~0.72-0.99; 10/11 since 2015), one night
+// left 3/13, earlier 0/13; and a paid Reprise lands in the encore ~83% of the time (15/18). In 3-night
+// runs where night 1 had Tweezer and no Reprise: 8/8 paid by the end, 6 of them on night 3.
+// Dick's 2026 is the textbook case (Tweezer 9/5, Reprise 9/6 as the encore finale).
+//
+// While the debt is outstanding the engine (a) replaces the generic gap-hazard probability for the
+// Reprise with the mined conditional for the nights remaining, (b) re-points its slot profile at
+// the encore, and (c) SUSPENDS the Tweezer->Reprise bond, because the bond's whole job is to drop
+// a Reprise whose Tweezer is not in the same setlist - exactly the state the band is in. Every
+// BONDED consumer (pool draw, orphan passes, the final bond check) then treats it as an ordinary
+// terminal-slot song with no per-site exemption to forget. compute() restores the bond table on
+// entry, so the suspension never outlives the target night it was computed for.
+//
+// Smoothing is Laplace (k+1)/(n+2): a 15-trial cell is never read as a certainty.
+// ---------------------------------------------------------------------------
+const RUN_DEBT_DEFAULT = { anchor: 'Tweezer', dep: 'Tweezer Reprise',
+                           final: [15, 16], one: [3, 13], early: [0, 13], enc: [15, 18] };
+const RUN_DEBT = RUN_DEBT_MINED && RUN_DEBT_MINED.final ? RUN_DEBT_MINED : RUN_DEBT_DEFAULT;
+const laplace = c => (c[0] + 1) / (c[1] + 2);
+let RUN_DEBT_STATE = { owed: false };    // what compute() last decided; read by the hero line and tests
+
+function restoreBonds() {
+  for (const k of Object.keys(BONDED)) delete BONDED[k];
+  Object.assign(BONDED, BONDED_CANON);
+}
+
+// Walks the venue run back from the target the same way runMateSongs does (same venue, <= 3 days
+// apart) and replays the debt state machine in show order. `runN` is the target's own
+// "night k of n" string, which gives the nights remaining.
+function runDebtFor(targetVenue, targetDate, asOfIdx, runN) {
+  const none = { owed: false };
+  const aId = SONG_ID_BY_NAME.get(RUN_DEBT.anchor), dId = SONG_ID_BY_NAME.get(RUN_DEBT.dep);
+  if (aId == null || dId == null || !targetVenue || !targetDate) return none;
+  const dayDiff = (a, b) => (new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000;
+  const idxs = [];
+  let nextDate = targetDate;
+  for (let j = asOfIdx; j >= 0; j--) {
+    if (SHOWS[j].venue !== targetVenue) break;
+    if (dayDiff(SHOWS[j].date, nextDate) > 3) break;
+    nextDate = SHOWS[j].date;
+    idxs.push(j);
+  }
+  idxs.reverse();
+  let owed = false, since = null;
+  for (const j of idxs) {
+    const at = SONGS_AT_IDX.get(j) || new Set();
+    if (at.has(dId)) { owed = false; since = null; }
+    else if (at.has(aId)) { owed = true; if (since == null) since = SHOWS[j].date; }
+  }
+  if (!owed) return none;
+  const m = /night\s+(\d+)\s+of\s+(\d+)/i.exec(runN || '');
+  const left = m ? Math.max(0, (+m[2]) - (+m[1])) : null;        // nights AFTER the target night
+  const cell = left === 0 ? RUN_DEBT.final : (left === 1 || left == null) ? RUN_DEBT.one : RUN_DEBT.early;
+  return { owed: true, anchorId: aId, depId: dId, since, left, cell,
+           p: laplace(cell), pEnc: laplace(RUN_DEBT.enc) };
 }
 
 const SHOW_DATES = SHOWS.map(s => s.date);
@@ -1561,13 +1633,17 @@ function compute() {
   // Within-run no-repeat: if the show being predicted is night 2+ of a venue run, the songs
   // already played earlier in that run are all but off the table (measured 0.3% recurrence).
   let runMates = new Set(), themePool = null;
+  restoreBonds();                 // a previous call's Reprise-debt suspension must never leak into this one
+  RUN_DEBT_STATE = { owed: false };
+  let debt = { owed: false };
   {
     const d = els.nextDate.value;
-    let tv = null, td = null;
-    if (d && UPCOMING_BY_DATE.has(d)) { const u = UPCOMING[UPCOMING_BY_DATE.get(d)]; tv = u.venue; td = u.date; }
-    else if (d && DATE_IDX.has(d)) { const s = SHOWS[DATE_IDX.get(d)]; tv = s.venue; td = s.date; }
-    else if (asOfIdx >= 0 && asOfIdx < SHOWS.length - 1) { const s = SHOWS[asOfIdx + 1]; tv = s.venue; td = s.date; }
+    let tv = null, td = null, tn = null;
+    if (d && UPCOMING_BY_DATE.has(d)) { const u = UPCOMING[UPCOMING_BY_DATE.get(d)]; tv = u.venue; td = u.date; tn = u.runN; }
+    else if (d && DATE_IDX.has(d)) { const s = SHOWS[DATE_IDX.get(d)]; tv = s.venue; td = s.date; tn = s.runN; }
+    else if (asOfIdx >= 0 && asOfIdx < SHOWS.length - 1) { const s = SHOWS[asOfIdx + 1]; tv = s.venue; td = s.date; tn = s.runN; }
     runMates = runMateSongs(tv, td, asOfIdx);
+    debt = runDebtFor(tv, td, asOfIdx, tn);
     themePool = els.themeYear.value ? (SONGS_BY_YEAR.get(els.themeYear.value) || null) : null;
     if (runMates.size || themePool) {
       let before = 0;
@@ -1613,6 +1689,27 @@ function compute() {
     }
   }
 
+  // Reprise debt: replace the generic probability with the mined conditional and suspend the
+  // bond (see the RUN_DEBT block). Mass is conserved: the probability added to the Reprise is
+  // taken back proportionally from everything else, because a night does not get longer just
+  // because a Reprise is owed. Date-locked / zeroed rows stay untouched.
+  if (debt.owed) {
+    const rep = rows.find(r => r.id === debt.depId);
+    if (rep && !rep.dateBlocked && !rep.offTheme) {
+      const before = rows.reduce((s, r) => s + r.pred, 0);
+      const old = rep.pred;
+      const target = Math.max(old, debt.p);
+      if (before - old > 0 && target > old) {
+        const f = (before - target) / (before - old);
+        for (const r of rows) if (r !== rep && r.pred > 0) r.pred *= f;
+      }
+      rep.pred = target;
+      rep.owedReprise = true; rep.runRepeat = false; rep.locked = true;
+      delete BONDED[debt.depId];
+      RUN_DEBT_STATE = { owed: true, depId: debt.depId, p: target, left: debt.left, since: debt.since, cell: debt.cell, pEnc: debt.pEnc };
+    }
+  }
+
   // "bustout" is a return after a long absence — threshold is in shows, user-adjustable
   const bustGap = parseInt(els.bustGap.value, 10);
   for (const r of rows) if (r.gap != null && r.gap >= bustGap) r.isBustout = true;
@@ -1630,6 +1727,19 @@ function compute() {
     r.closer = CLOSER[r.id] != null ? CLOSER[r.id] : 0.05;
     r.jamRate = JAM_RATE[r.id] != null ? JAM_RATE[r.id] : 0.12;
     r.dur = r.dur != null ? r.dur : null;
+  }
+
+  if (RUN_DEBT_STATE.owed) {
+    // A collected Reprise lands in the encore ~83% of the time; the remainder is a set-2 closer.
+    // terminalOnly was already derived from the song's full history above and stays true.
+    const rep = rows.find(r => r.id === RUN_DEBT_STATE.depId);
+    if (rep) {
+      const e = RUN_DEBT_STATE.pEnc, rest = 1 - e;
+      rep.slotP = [0.002, 0.002, 0.002, 0.002, 0.004, rest * 0.9, e];
+      const tot = rep.slotP.reduce((a, b) => a + b, 0);
+      rep.slotP = rep.slotP.map(v => v / tot);
+      rep.bestSlot = 6; rep.bestSlotP = rep.slotP[6];
+    }
   }
 
   const recent = SHOWS.slice(Math.max(0, asOfIdx - 49), asOfIdx + 1);
@@ -1680,7 +1790,7 @@ function selectPool(rows, total) {
     if (r.pred <= 0) continue;
     if (r.id in BONDED) continue;              // dependents ride with their anchor
     if (r.offTheme || r.runRepeat) continue;
-    if (Math.random() < r.pred) chosen.push(r);
+    if (Math.random() < r.pred) { chosen.push(r); if (r.owedReprise) r.locked = true; }
   }
   // bonded partners come along at their conditional rates
   const inPool = new Set(chosen.map(r => r.id));
@@ -1705,7 +1815,9 @@ function selectPool(rows, total) {
   // a tiny but nonzero pred (never fully zeroed, so the probability table can still show a
   // number), and a low-minutes night would otherwise pull them in through this side door even
   // though the whole point of the theme/run-repeat control is to keep them off the setlist.
-  const spare = rows.filter(r => r.pred > 0 && !inPool.has(r.id) && !(r.id in BONDED) && !r.deepDormant && !r.offTheme && !r.runRepeat);
+  // owedReprise: its one door into a night is the Bernoulli draw above, priced at the mined rate;
+  // letting the minutes top-up re-roll it by weight would inflate it past that rate.
+  const spare = rows.filter(r => r.pred > 0 && !inPool.has(r.id) && !(r.id in BONDED) && !r.owedReprise && !r.deepDormant && !r.offTheme && !r.runRepeat);
   while (mins(chosen) < NEED_MIN && spare.length) {
     const W = spare.reduce((s, r) => s + r.pred, 0);
     let x = Math.random() * W, k = 0;
@@ -1722,6 +1834,10 @@ function applyPairPoolRules(pool, rows, total) {
   const T = 0.65;
   for (const rule of PAIR_RULES) {
     if (rule.b in BONDED && slModeSample) continue;   // handled at draw time
+    // An outstanding Reprise is collected without its Tweezer by definition; the "b without a"
+    // branch below would otherwise strip it from the pool (it is no longer in BONDED, so the
+    // line above no longer shields it).
+    if (byId.get(rule.b) && byId.get(rule.b).owedReprise) continue;
     const aIn = inPool.has(rule.a), bIn = inPool.has(rule.b);
     const ra = byId.get(rule.a), rb = byId.get(rule.b);
     if (aIn && !bIn && rule.pBA >= T && rb && rb.freq > 0 && !rb.offTheme && !rb.runRepeat) {
@@ -2865,7 +2981,8 @@ function render() {
     + `A <b>statistically honest guess</b> at the next Phish setlist, built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983 and refreshed daily from phish.net &mdash; it knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.`;
   // Conditions that materially change the prediction get their own line, but only while active.
   els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
-    + (runMates.size && themePool ? '<br>' : '')
+    + (RUN_DEBT_STATE.owed ? `${runMates.size ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Reprise owed: ${RUN_DEBT.anchor} went unpaid earlier in this run, so <b>${RUN_DEBT.dep}</b> is live at <b>${(RUN_DEBT_STATE.p * 100).toFixed(0)}%</b>${RUN_DEBT_STATE.left === 0 ? ' on the closing night' : ''} (${RUN_DEBT_STATE.cell[0]} of ${RUN_DEBT_STATE.cell[1]} comparable nights since ${RUN_DEBT_MINED && RUN_DEBT_MINED.since ? RUN_DEBT_MINED.since.slice(0, 4) : '2009'}), most often as the encore finale.</span>` : '')
+    + ((runMates.size || RUN_DEBT_STATE.owed) && themePool ? '<br>' : '')
     + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;

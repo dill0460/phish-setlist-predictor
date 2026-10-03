@@ -19,7 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 const { buildEngine } = require('./harness.js');
-const { buildConsensus, hashSeed, enforceChains } = require('./consensus.js');
+const { buildConsensus, hashSeed, enforceChains, completePairs } = require('./consensus.js');
 const { gradeEntry } = require('./grade.js');
 
 const HERE = __dirname;
@@ -56,10 +56,41 @@ let changed = false;
     if (e.graded || e.skip || !e.official) continue;
     const beforeJson = JSON.stringify([e.official.s1, e.official.s2, e.official.e]);
     const arrs = [e.official.s1, e.official.s2, e.official.e];
+
+    // v34: an anchor with no dependent (Mike's Song without Weekapaug, Tweezer without Reprise)
+    // is a structurally impossible call too (96% / 78-85% real conditionals) and is the one
+    // repair that changes the SONG LIST, so it is fenced hard:
+    //   - never once the show has begun (data/live_setlist.json carries tonight's songs, or the
+    //     date is already past): after the first song, editing a call is editing the answer key;
+    //   - never when the dependent was already played earlier in the run;
+    //   - the displaced song is the weakest by the entry's own committed top-20 (absent = weakest),
+    //     never the set-1 opener (the graded call) nor a set's closer.
+    // Reported loudly, every time, so the change is never silent.
+    const nowMs = process.env.SNAPSHOT_NOW ? Date.parse(process.env.SNAPSHOT_NOW) : Date.now();   // override is for tests
+    const todayMT = new Date(nowMs - 6 * 3600e3).toISOString().slice(0, 10);   // MST-ish; conservative
+    let live = null; try { live = JSON.parse(fs.readFileSync(path.join(HERE, 'data', 'live_setlist.json'), 'utf8')); } catch (x) {}
+    const started = e.date < todayMT || (live && live.date === e.date && (live.sids || []).length > 0);
+    if (!started) {
+      const top = e.top20 || [];
+      const runMates = new Set();
+      {
+        const j0 = E.SHOWS.findIndex(s2 => s2.date === e.date);
+        const isRun = (j) => E.SHOWS[j] && E.SHOWS[j].venue === e.venue;
+        for (let j = (j0 >= 0 ? j0 : E.SHOWS.length) - 1; j >= 0 && isRun(j) &&
+             (new Date(E.SHOWS[j + 1] ? E.SHOWS[j + 1].date : e.date) - new Date(E.SHOWS[j].date)) / 864e5 <= 3; j--)
+          for (const p of (byDate.get(E.SHOWS[j].date) || [])) runMates.add(p.sid);
+      }
+      const added = completePairs(arrs, idOfName, {
+        weak: id => { const k = top.indexOf(id); return k < 0 ? 0 : 21 - k; },
+        protect: (id, arr) => (arr === arrs[0] && arr[0] === id) || arr[arr.length - 1] === id,
+        blocked: id => runMates.has(id),
+      });
+      for (const a of added) console.log(`REPAIRED ${e.date}: committed call had ${a.anchor} without ${a.dep}; ${a.dep} seated (weakest unprotected song displaced)`);
+    }
     enforceChains(arrs, idOfName);
     if (JSON.stringify(arrs) !== beforeJson) {
       changed = true;
-      console.log(`repaired bond placement in the committed call for ${e.date} (song list unchanged)`);
+      console.log(`repaired committed call for ${e.date}: ${JSON.stringify(arrs.map(a => a.length))} songs per set`);
     }
   }
 }

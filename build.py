@@ -1077,6 +1077,93 @@ def mine_run_position(raw, modern="2009-01-01"):
     return out
 
 
+def mine_run_debt(raw, modern="2009-01-01", anchor="Tweezer", dep="Tweezer Reprise",
+                  upcoming=None, today=None):
+    """Run-level Reprise debt: what happens to a Tweezer that was NOT closed with its Reprise.
+
+    The same-night bond (Reprise only ever follows a Tweezer played the same night) is a
+    one-night view of something the band actually does across a venue run: a Tweezer that
+    goes unpaid on night k leaves the Reprise outstanding, and it is collected later in the
+    run, overwhelmingly on the closing night and overwhelmingly as the encore finale.
+    Dick's 2026 (Tweezer 9/5, Reprise 9/6 encore) is a clean instance.
+
+    State machine per multi-night run (same venue, gaps <= 3 days, matching
+    assign_run_positions): `owed` turns on after a night with the anchor and no dep, turns off
+    when the dep is played. For every night entered while owed, tally P(dep played) by nights
+    remaining after that night (0 = closing night, 1 = one more to go, 2+ = earlier), and for
+    every paid night, how often it landed in the encore.
+
+    A run that is still IN PROGRESS must not be tallied: its newest night in the corpus is not a
+    closing night, and counting it as one books an unpaid night-2-of-3 as a failed closing night
+    (found in testing: it dragged the closing-night rate 0.889 -> 0.842 the morning after night 2).
+    The last run is therefore dropped when an upcoming show continues it (same venue, <= 3 days
+    on), or, if the schedule fetch came back empty, when it ended within 3 days of today.
+
+    Returns raw [hits, trials] pairs, NOT rates: the template smooths them (Laplace) so a
+    15-trial cell is never read as a certainty, and the page can quote the real counts.
+    Also reports the same-night orphan rate (dep without anchor) the old hardwired bond
+    denied existed, for the record in the methodology.
+    """
+    venues, songs_at, enc_at = {}, defaultdict(set), defaultdict(set)
+    for r in raw:
+        if r["showdate"] < modern:
+            continue
+        venues[r["showdate"]] = r["venue"]
+        songs_at[r["showdate"]].add(r["song"])
+        if str(r["set"]).startswith("e"):
+            enc_at[r["showdate"]].add(r["song"])
+    dates = sorted(venues)
+    if not dates:
+        return None
+    to_d = lambda s: date(*map(int, s.split("-")))
+    runs, cur = [], [dates[0]]
+    for prev, d in zip(dates, dates[1:]):
+        if venues[d] == venues[prev] and (to_d(d) - to_d(prev)).days <= 3:
+            cur.append(d)
+        else:
+            runs.append(cur)
+            cur = [d]
+    runs.append(cur)
+    last = runs[-1]
+    cont = any(u.get("venue") == venues[last[-1]] and 0 < (to_d(u["date"]) - to_d(last[-1])).days <= 3
+               for u in (upcoming or []))
+    if not upcoming:
+        t = today or now_mt().date()
+        cont = (t - to_d(last[-1])).days <= 3
+    if cont:
+        runs = runs[:-1]
+    tally = {"final": [0, 0], "one": [0, 0], "early": [0, 0], "enc": [0, 0]}
+    orphan = [0, 0]                       # [dep-without-anchor nights, dep nights]
+    for d in dates:
+        if dep in songs_at[d]:
+            orphan[1] += 1
+            if anchor not in songs_at[d]:
+                orphan[0] += 1
+    for run in runs:
+        if len(run) < 2:
+            continue
+        owed = False
+        for k, d in enumerate(run):
+            T, R = anchor in songs_at[d], dep in songs_at[d]
+            if owed:
+                left = len(run) - k - 1
+                key = "final" if left == 0 else ("one" if left == 1 else "early")
+                tally[key][1] += 1
+                if R:
+                    tally[key][0] += 1
+                    tally["enc"][1] += 1
+                    if dep in enc_at[d]:
+                        tally["enc"][0] += 1
+            if R:
+                owed = False
+            elif T:
+                owed = True
+    out = {"anchor": anchor, "dep": dep, "since": modern, "orphan": orphan, **tally}
+    print(f"  run debt ({anchor} -> {dep}): closing night {tally['final']}, one-left {tally['one']}, "
+          f"earlier {tally['early']}, paid-in-encore {tally['enc']}, same-night orphans {orphan}")
+    return out
+
+
 def mine_set_affinity(raw, pair_rules, modern="2009-01-01"):
     """Pairs that turn up in the same set well beyond chance (excluding the hard pairs)."""
     existing = {frozenset((r["a"], r["b"])) for r in pair_rules}
@@ -1278,6 +1365,7 @@ def main():
     print("Mining patterns...")
     pairs = mine_pairs(raw)
     runpos = mine_run_position(raw)
+    rundebt = mine_run_debt(raw, upcoming=upcoming)
     setaff = mine_set_affinity(raw, pairs)
     cool = mine_cool_affinity(raw, durations)
     print("Mining reentrant songs...")
@@ -1306,7 +1394,7 @@ def main():
 
     os.makedirs(CACHE, exist_ok=True)
     for name, obj in [("shows", shows_list), ("songs", songs), ("plays", plays),
-                      ("pair_rules", pairs), ("cool_affinity", cool), ("run_position", runpos),
+                      ("pair_rules", pairs), ("cool_affinity", cool), ("run_position", runpos), ("run_debt", rundebt),
                       ("set_affinity", setaff), ("tour_opener", touropen), ("closer_score", closer), ("jam_rate", jamrate), ("breathers", breathers),
                       ("date_locked", locked), ("set_minutes", minutes), ("calibration", cal),
                       ("day_hazard", dayhaz),
@@ -1369,6 +1457,7 @@ def main():
         "__LONGSONGS_JSON__": j(longsongs),
         "__DATELOCK_JSON__": j(locked),
         "__RUNPOS_JSON__": j(runpos),
+        "__RUNDEBT_JSON__": j(rundebt),
         "__SETAFF_JSON__": j(setaff),
         "__TOUROPEN_JSON__": j(touropen),
         "__CLOSER_JSON__": j(closer),

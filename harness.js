@@ -31,7 +31,7 @@ function extractJsonTables(indexHtml) {
   const inline = {
     __PAIRS_JSON__: 'PAIR_RULES', __COOL_JSON__: 'COOL_AFF', __REENTRY_JSON__: 'REENTRY',
     __SETCOUNTS_JSON__: 'SET_COUNTS', __LONGSONGS_JSON__: 'LONG_SONGS',
-    __DATELOCK_JSON__: 'DATE_LOCKED', __RUNPOS_JSON__: 'RUN_POS',
+    __DATELOCK_JSON__: 'DATE_LOCKED', __RUNPOS_JSON__: 'RUN_POS', __RUNDEBT_JSON__: 'RUN_DEBT_MINED',
     __SETAFF_JSON__: 'SET_AFF', __TOUROPEN_JSON__: 'TOUR_OPEN',
     __CLOSER_JSON__: 'CLOSER', __JAMRATE_JSON__: 'JAM_RATE',
     __BREATHERS_JSON__: 'BREATHERS', __UPCOMING_JSON__: 'UPCOMING',
@@ -142,7 +142,8 @@ function buildEngine(templatePath, indexPath) {
               durOf, durMedian, sampleQuantiles, sampleSetCount, sampleLongFloor,
               setNightStretch, newNightLengths, enforceLongFloor, applyReentry,
               SET_COUNTS, LONG_SONGS, LONG_THRESH, REENTRY, REENTRY_BY_SID,
-              SONGS, SHOWS, SET_BOUNDS, NIGHT_STRETCH_W,
+              SONGS, SHOWS, SET_BOUNDS, NIGHT_STRETCH_W, BONDED, restoreBonds, RUN_DEBT, runDebtFor,
+              get RUN_DEBT_STATE() { return RUN_DEBT_STATE; },
               get slModeSample() { return slModeSample; },
               setSampleMode(v) { slModeSample = v; } };
   `);
