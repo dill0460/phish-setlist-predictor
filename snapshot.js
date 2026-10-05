@@ -31,7 +31,7 @@ const E = buildEngine(TPL, IDX);
 const idx = fs.readFileSync(IDX, 'utf8');
 const PLAYS = JSON.parse(idx.match(/id=['"]plays-data['"][^>]*>([\s\S]*?)<\/script>/)[1]);
 const UPCOMING = (() => {
-  const m = idx.match(/const UPCOMING = ([\s\S]*?);[ \t]*(?:\/\/[^\n]*)?\n/);
+  const m = idx.match(/const UPCOMING = ([\s\S]*?);[ \t\r]*(?:\/\/[^\n]*)?\n/);   // \r: CRLF-safe
   return m ? JSON.parse(m[1]) : [];
 })();
 
@@ -139,7 +139,7 @@ if (changed) {
   fs.writeFileSync(LOG, JSON.stringify(log));
   // Patch the built page so it ships what was committed. Anchored to the const declaration;
   // fails loudly if the template shape changes rather than shipping a stale log.
-  const re = /const PRED_LOG = [\s\S]*?;[ \t]*(?:\/\/[^\n]*)?\n/;
+  const re = /const PRED_LOG = [\s\S]*?;[ \t\r]*(?:\/\/[^\n]*)?\n/;   // \r: CRLF-safe
   if (!re.test(idx)) { console.error('FATAL: PRED_LOG declaration not found in index.html'); process.exit(1); }
   fs.writeFileSync(IDX, idx.replace(re, `const PRED_LOG = ${JSON.stringify(log)};\n`));
   console.log(`wrote ${LOG} (${log.entries.length} entries) and patched index.html`);

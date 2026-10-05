@@ -50,7 +50,9 @@ function extractJsonTables(indexHtml) {
     // trailing line comment before the newline. Anchoring on a bare `;\n` is wrong:
     // several of these declarations carry an inline `// ...` note after the semicolon,
     // and a lazy match would then run on and swallow the next declaration whole.
-    const tail = ';[ \\t]*(?://[^\\n]*)?\\n';
+    // `\r` is allowed before the newline: an index.html written on Windows has CRLF line endings,
+    // and without it every lookup ran on into the next declaration ("STATIC_CAL already declared").
+    const tail = ';[ \\t\\r]*(?://[^\\n]*)?\\n';
     let m = indexHtml.match(new RegExp(`const ${name} = new Set\\(([\\s\\S]*?)\\)${tail}`));
     if (m) { out[ph] = m[1]; continue; }
     m = indexHtml.match(new RegExp(`const ${name} = ([\\s\\S]*?)${tail}`));
