@@ -1354,10 +1354,12 @@ function fitCalibration(asOfIdx, settings) {
     // above it — a bias the score-only calibration cannot see. Run-mates are left out of this
     // fit entirely; the within-run no-repeat rule prices those separately.
     const obsRaw = [], obsG = [], obsR = [], obsHit = [];
+    const nights = [];        // per eval night: its observations, and its run-mates (for the final fit)
     for (const T of evals) {
       const scores = rawScoresAt(T - 1, settings);
       const played = SONGS_AT_IDX.get(T) || new Set();
       const mates = runMateSongs(SHOWS[T].venue, SHOWS[T].date, T - 1);
+      const night = { idx: [], mates: [] };
       for (const [sid, s] of scores) {
         if (s.raw <= 0) continue;
         for (let b = 0; b < edges.length - 1; b++) {
@@ -1366,14 +1368,18 @@ function fitCalibration(asOfIdx, settings) {
             break;
           }
         }
-        if (s.gap != null && !mates.has(sid)) {
+        if (s.gap != null) {
+          const avg = s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null;
+          const rb = avg > 0 ? ratioBucket(s.gap / avg) : -1;
+          if (mates.has(sid)) { night.mates.push([s.raw, gapBucket(s.gap), rb]); continue; }
           obsRaw.push(s.raw);
           obsG.push(gapBucket(s.gap));
-          const avg = s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null;
-          obsR.push(avg > 0 ? ratioBucket(s.gap / avg) : -1);
+          obsR.push(rb);
           obsHit.push(played.has(sid) ? 1 : 0);
+          night.idx.push(obsRaw.length - 1);
         }
       }
+      nights.push(night);
     }
     // isotonic (PAVA) on non-empty bins
     let blocks = bins.filter(b => b[0] >= 30).map(b => [b[1] / b[0], b[2] / b[0], b[0]]);
@@ -1410,10 +1416,92 @@ function fitCalibration(asOfIdx, settings) {
     }
     const ratioAdj = RATIO_BUCKETS.map(r =>
       (rN[r] < 200 || !(rP[r] > 0)) ? 1 : Math.max(0.4, Math.min(2.2, rH[r] / rP[r])));
-    result = { pts, gapAdj, ratioAdj, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
+    // FINAL pass, fit on the number the page actually shows. The curve above is fit on the raw
+    // score and the two corrections are then MULTIPLIED on top, each fit on a bucket average, so
+    // nothing ever checked the product: songs shown at 45-60% played 38% of the time, 60-80% 59%,
+    // 80%+ 67% (150-show backtest). This maps the finished probability — after the run-night
+    // redistribution compute() applies, rebuilt here for every eval night from its own
+    // run-mates — to how often songs at that number really played. Monotone, so the ranking
+    // (and the top-20) cannot move; only the stated percentages do.
+    const adjOf = (raw, g, rb) => calibrateWith(pts, raw) * gapAdj[g] * (rb >= 0 ? ratioAdj[rb] : 1);
+    const fx = [], fy = [];
+    for (const night of nights) {
+      let ps = night.idx.map(i => adjOf(obsRaw[i], obsG[i], obsR[i]));
+      if (night.mates.length) {
+        const freed = night.mates.reduce((s, m) => s + adjOf(m[0], m[1], m[2]), 0) * (1 - RUN_REPEAT_MULT);
+        ps = oddsScaleTo(ps, ps.reduce((a, b) => a + b, 0) + freed);
+      }
+      ps.forEach((p, k) => { fx.push(p); fy.push(obsHit[night.idx[k]]); });
+    }
+    // 150 per bin, not 40: the top bands hold only a few dozen songs per 120 shows, and at 40 the
+    // map chased their noise (60-80% still read 67% -> 44%). A logistic (two-number) map was also
+    // tried and lost — its single slope is set by the thousands of near-zero songs and it
+    // stretched the top instead of shrinking it (Brier +0.046 against this pass's -0.043).
+    const final = isoMap(fx, fy, [0, .005, .01, .02, .03, .05, .075, .10, .15, .20, .25, .30, .40, .50, .65, 1.01], 150);
+    result = { pts, gapAdj, ratioAdj, final, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
   }
   calCache.set(key, result);
   return result;
+}
+// Scale probabilities by one common factor in ODDS space until they sum to `target`. Odds
+// saturate toward 1 instead of clipping, so two songs only land on the same number if they
+// had the same odds to begin with. Shared by the run-night redistribution and its calibration.
+function oddsScaleTo(ps, target, cap = 0.96) {
+  // a zero (a date-locked song off its date) stays exactly zero
+  const odds = ps.map(p => { if (!(p > 0)) return 0; const q = Math.min(0.995, Math.max(1e-6, p)); return q / (1 - q); });
+  const sumAt = lambda => odds.reduce((s, o) => s + (lambda * o) / (1 + lambda * o), 0);
+  if (!(target > ps.reduce((a, b) => a + b, 0))) return ps.slice();
+  let lo = 1, hi = 1;
+  while (sumAt(hi) < target && hi < 1e15) hi *= 4;
+  for (let iter = 0; iter < 60; iter++) {
+    const mid = (lo + hi) / 2;
+    if (sumAt(mid) < target) lo = mid; else hi = mid;
+  }
+  return odds.map(o => Math.min(cap, (hi * o) / (1 + hi * o)));
+}
+// Isotonic (pool-adjacent-violators) map from predicted to observed rate. Bins too thin to trust
+// are merged into their lower neighbour rather than dropped, so the top of the board is fit on
+// real outcomes instead of a straight-line guess.
+function isoMap(xs, ys, edges, minN) {
+  const bins = edges.slice(0, -1).map(() => [0, 0, 0]);
+  for (let i = 0; i < xs.length; i++) {
+    for (let b = 0; b < edges.length - 1; b++) {
+      if (xs[i] >= edges[b] && xs[i] < edges[b + 1]) { bins[b][0]++; bins[b][1] += xs[i]; bins[b][2] += ys[i]; break; }
+    }
+  }
+  const merged = [];
+  for (const b of bins) {
+    if (!b[0]) continue;
+    if (merged.length && merged[merged.length - 1][0] < minN) { const m = merged[merged.length - 1]; m[0] += b[0]; m[1] += b[1]; m[2] += b[2]; }
+    else merged.push(b.slice());
+  }
+  while (merged.length > 1 && merged[merged.length - 1][0] < minN) {
+    const t = merged.pop(), m = merged[merged.length - 1]; m[0] += t[0]; m[1] += t[1]; m[2] += t[2];
+  }
+  let blocks = merged.map(b => [b[1] / b[0], b[2] / b[0], b[0]]);
+  let i = 0;
+  while (i < blocks.length - 1) {
+    if (blocks[i][1] > blocks[i + 1][1]) {
+      const [x1, y1, w1] = blocks[i], [x2, y2, w2] = blocks[i + 1];
+      blocks.splice(i, 2, [(x1 * w1 + x2 * w2) / (w1 + w2), (y1 * w1 + y2 * w2) / (w1 + w2), w1 + w2]);
+      i = Math.max(0, i - 1);
+    } else i++;
+  }
+  return blocks.length >= 3 ? blocks.map(b => [b[0], b[1]]) : null;
+}
+// Apply the final map. Below its first point it scales proportionally; above its last it keeps
+// the last segment's slope (clamped to 0..1), so the map stays strictly increasing everywhere.
+function applyFinal(fin, p) {
+  if (!fin || !(p > 0)) return p;
+  const [x0, y0] = fin[0];
+  if (p <= x0) return y0 * p / x0;
+  for (let i = 0; i < fin.length - 1; i++) {
+    const [xa, ya] = fin[i], [xb, yb] = fin[i + 1];
+    if (p <= xb) return xb > xa ? ya + (yb - ya) * (p - xa) / (xb - xa) : yb;
+  }
+  const [xa, ya] = fin[fin.length - 2], [xb, yb] = fin[fin.length - 1];
+  const slope = Math.max(0, Math.min(1, (yb - ya) / Math.max(1e-9, xb - xa)));
+  return Math.min(0.95, yb + slope * (p - xb));
 }
 function calibrateWith(pts, p) {
   if (p <= 0) return 0;
@@ -1713,18 +1801,18 @@ function compute() {
         else eligible.push(r);
       }
       const target = before - suppressedAfter;
-      const eligibleBefore = eligible.reduce((s, r) => s + r.pred, 0);
-      if (eligible.length && target > eligibleBefore) {
-        const odds = eligible.map(r => { const p = Math.min(0.995, Math.max(1e-6, r.pred)); return p / (1 - p); });
-        const sumAt = lambda => odds.reduce((s, o) => s + (lambda * o) / (1 + lambda * o), 0);
-        let lo = 1, hi = 1;
-        while (sumAt(hi) < target && hi < 1e15) hi *= 4;
-        for (let iter = 0; iter < 60; iter++) {
-          const mid = (lo + hi) / 2;
-          if (sumAt(mid) < target) lo = mid; else hi = mid;
-        }
-        eligible.forEach((r, i) => { r.pred = Math.min(0.96, (hi * odds[i]) / (1 + hi * odds[i])); });
+      if (eligible.length) {
+        const scaled = oddsScaleTo(eligible.map(r => r.pred), target);
+        eligible.forEach((r, i) => { r.pred = scaled[i]; });
       }
+    }
+  }
+  // Final calibration (see fitCalibration): the finished number, mapped to how often songs at
+  // that number really played. Suppressed rows keep their deliberately tiny values.
+  if (cal.final) {
+    for (const r of rows) {
+      if (r.deepDormant || r.runRepeat || r.offTheme || r.dateBlocked) continue;
+      r.pred = applyFinal(cal.final, r.pred);
     }
   }
 
