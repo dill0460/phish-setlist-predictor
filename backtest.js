@@ -5,10 +5,12 @@
 //   node backtest.js                       probabilities + official call + realism
 //   node backtest.js --quick               probabilities only (about a minute)
 //   node backtest.js --fetch-phishin       refresh the phish.in cache used for realism
+//                                          (--phishin-since YYYY-MM-DD to go further back)
 //
 // Options: --shows N (default 150)   --official N (default 60)   --draws N (default 200)
 //          --template FILE   --index FILE   --json FILE (also write the numbers as JSON)
 //          --salt X   re-seed the official-call draws, to measure how much of a change is luck
+//          --consensus FILE   use another consensus.js (e.g. the previous commit's)
 //
 // WALK-FORWARD, like the live site: every target show is predicted with the stats window
 // ending at the show BEFORE it, at the default settings, so nothing from the night being
@@ -34,7 +36,9 @@
 const fs = require('fs');
 const path = require('path');
 const { buildEngine } = require('./harness.js');
-const { buildConsensus, hashSeed } = require('./consensus.js');
+const argv0 = process.argv.slice(2), ci = argv0.indexOf('--consensus');
+// --consensus FILE runs an older consensus.js (for before/after comparisons of the official call)
+const { buildConsensus, hashSeed } = require(ci >= 0 ? require('path').resolve(argv0[ci + 1]) : './consensus.js');
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : d; };
@@ -48,6 +52,7 @@ const DRAWS = parseInt(opt('draws', '200'), 10);
 const SALT = opt('salt', '');                     // re-seeds the official-call draws (noise check)
 const CACHE_DIR = path.join(HERE, '.backtest-cache');
 const PHISHIN = opt('phishin', path.join(CACHE_DIR, 'phishin.json'));
+const PHISHIN_SINCE = opt('phishin-since', '2019-01-01');   // how far back --fetch-phishin goes
 
 async function fetchPhishin() {
   const UA = { 'User-Agent': 'phish-setlist-predictor backtest (github.com/dill0460)' };
@@ -61,12 +66,12 @@ async function fetchPhishin() {
   };
   let cache = {}; try { cache = JSON.parse(fs.readFileSync(PHISHIN, 'utf8')); } catch (e) { /* first run */ }
   const dates = [];
-  for (let page = 1; page <= 20; page++) {
+  for (let page = 1; page <= 40; page++) {
     const j = await get(`https://phish.in/api/v2/shows?per_page=100&page=${page}&sort=date:desc`);
     const shows = (j && j.shows) || [];
     if (!shows.length) break;
     let stop = false;
-    for (const s of shows) { if (s.date < '2019-01-01') { stop = true; break; } dates.push(s.date); }
+    for (const s of shows) { if (s.date < PHISHIN_SINCE) { stop = true; break; } dates.push(s.date); }
     if (stop) break;
   }
   let n = 0;
@@ -144,7 +149,7 @@ function main() {
   // ---- 2. official call (consensus) ---------------------------------------------------------
   if (NOFF > 0) {
     const f0 = Math.max(1, N - NOFF);
-    let hit = 0, called = 0, nailed = 0, close = 0, slot = 0, conc = 0, pairs = 0, ofN = 0;
+    let hit = 0, called = 0, nailed = 0, close = 0, slot = 0, conc = 0, pairs = 0, ofN = 0, mconc = 0, mpairs = 0;
     const perOfficial = [];
     for (let t = f0; t < N; t++) {
       const tgt = target(t);
@@ -170,13 +175,19 @@ function main() {
           for (let a = 0; a < both.length; a++) for (let b2 = a + 1; b2 < both.length; b2++) {
             pairs++; if (real.get(both[a]) < real.get(both[b2])) conc++;
           }
+          // middle only: neither song was called as the opener or closer of its set
+          const mid = ids.slice(1, -1).filter(id => real.has(id));
+          for (let a = 0; a < mid.length; a++) for (let b2 = a + 1; b2 < mid.length; b2++) {
+            mpairs++; if (real.get(mid[a]) < real.get(mid[b2])) mconc++;
+          }
         }
       }
       ofN++;
     }
     out.official = { shows: ofN, draws: DRAWS, called: +(called / ofN).toFixed(2), hits: +(hit / ofN).toFixed(2),
       precision: +(100 * hit / called).toFixed(1), openerNailed: nailed, openerTop5: close,
-      exactSpots: +(slot / ofN).toFixed(2), orderAgreement: pairs ? +(100 * conc / pairs).toFixed(1) : null, orderPairs: pairs };
+      exactSpots: +(slot / ofN).toFixed(2), orderAgreement: pairs ? +(100 * conc / pairs).toFixed(1) : null, orderPairs: pairs,
+      middleOrderAgreement: mpairs ? +(100 * mconc / mpairs).toFixed(1) : null, middlePairs: mpairs };
     out.perOfficial = perOfficial;
   }
 
@@ -266,6 +277,7 @@ function print(o) {
     console.log(`    opener                      nailed ${f.openerNailed}, in top-5 ${f.openerTop5}`);
     console.log(`    exact named spots per show  ${f.exactSpots}`);
     console.log(`    running-order agreement     ${f.orderAgreement == null ? 'n/a (no phish.in cache)' : f.orderAgreement + '% of ' + f.orderPairs + ' song pairs (50% = coin flip)'}`);
+    if (f.middleOrderAgreement != null) console.log(`      middle songs only         ${f.middleOrderAgreement}% of ${f.middlePairs} pairs`);
   }
   if (o.realism) {
     console.log(`\n  REALISM  generated nights vs the last 100 real shows`);

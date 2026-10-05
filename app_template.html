@@ -2257,6 +2257,26 @@ function durOf(r) {
 function durMedian(r) { return r && r.dur != null ? r.dur : DEFAULT_DUR; }
 
 function minutesOf(arr) { return arr.reduce((s, r) => s + durOf(r), 0); }
+
+// RUNNING ORDER beyond the opener and closer. The middle of each set used to be sorted by
+// probability — the likeliest song played second, the least likely played last — which is not how
+// a set is built. SONG_POS (build.py mine_song_positions) holds where each song usually sits among
+// the middle slots: 0 = right after the opener, 1 = right before the closer (Down with Disease 0.16
+// and Harry Hood 0.82 in set 2; AC/DC Bag 0.13 and Split Open and Melt 0.80 in set 1). A song
+// with no history sits mid-set. A realistic night draws each song's slot around its own habit with
+// the spread real songs show (sd 0.29 — position habits are real but loose); the ranked view and
+// the official call use the habit itself.
+const SONG_POS = __SONGPOS_JSON__;
+const POS_SPREAD = 0.29;
+function posHabit(r, setKey) {
+  const e = SONG_POS && SONG_POS[r.id] && SONG_POS[r.id][setKey === 's1' ? '1' : '2'];
+  return e ? e[0] : 0.5;
+}
+function orderByHabit(arr, setKey) {
+  const g = () => { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const key = new Map(arr.map(r => [r, posHabit(r, setKey) + (slModeSample ? POS_SPREAD * g() : 0)]));
+  return arr.sort((a, b) => key.get(a) - key.get(b));
+}
 // Abramowitz-Stegun 7.1.26, |error| < 1.5e-7 — enough to turn a z-score into a share of nights.
 function erf(x) {
   const t = 1 / (1 + 0.3275911 * Math.abs(x));
@@ -2280,11 +2300,11 @@ function realMin(setKey, m) {
 function cooldownOrder(arr) {
   if (arr.length < 5) return arr;
   const first = arr[0], last = arr[arr.length - 1];
-  let pool = arr.slice(1, -1);
+  // the middle in running-order (habit) order; it used to be re-sorted by probability here
+  let pool = orderByHabit(arr.slice(1, -1), 's2');
   const out = [];
   const halfway = Math.floor(pool.length / 2);
   while (pool.length) {
-    pool.sort((a, b) => b.pred - a.pred);
     const cur = pool.shift();
     out.push(cur);
     if (durOf(cur) >= 10 && out.length >= halfway && pool.length) {
@@ -2667,22 +2687,11 @@ function buildSetlist(rows, n1, n2, ne) {
     dest.push(dep);
   }
 
-  s1mid.sort((a, b) => b.pred - a.pred);
-  // Set 2 is long-form: don't stack short songs next to each other. Interleave so a short song
-  // sits between longer ones wherever the draw allows.
-  s2mid.sort((a, b) => b.pred - a.pred);
-  const longs = s2mid.filter(r => durOf(r) >= 8), shorts = s2mid.filter(r => durOf(r) < 8);
-  if (longs.length && shorts.length) {
-    const woven = [];
-    const every = Math.max(1, Math.round(longs.length / (shorts.length + 1)));
-    let si = 0;
-    longs.forEach((r, i) => {
-      woven.push(r);
-      if (si < shorts.length && (i + 1) % every === 0 && i < longs.length - 1) woven.push(shorts[si++]);
-    });
-    while (si < shorts.length) woven.splice(Math.max(0, woven.length - 1), 0, shorts[si++]);
-    s2mid.length = 0; s2mid.push(...woven);
-  }
+  // Running order (see RUNNING ORDER). Set 2's breather placement is cooldownOrder()'s job. (A
+  // long/short interleave used to sit here; cooldownOrder re-sorted the middle straight after it,
+  // so it never reached a setlist, and it was removed.)
+  orderByHabit(s1mid, 's1');
+  orderByHabit(s2mid, 's2');
 
   enc.sort((a, b) => a.closer - b.closer);   // an encore builds — the biggest closer lands last
   // Hard structural rule after the sort: no long banger in a lead slot. A >10-minute song

@@ -182,7 +182,8 @@ function buildConsensus(E, opts = {}) {
   const c = E.compute();
   const stat = new Map(); // sid -> counts
   const get = id => {
-    if (!stat.has(id)) stat.set(id, { n: 0, s1: 0, s2: 0, e: 0, open1: 0, close1: 0, open2: 0, close2: 0, finale: 0 });
+    if (!stat.has(id)) stat.set(id, { n: 0, s1: 0, s2: 0, e: 0, open1: 0, close1: 0, open2: 0, close2: 0, finale: 0,
+                                      pos1: 0, posN1: 0, pos2: 0, posN2: 0 });
     return stat.get(id);
   };
 
@@ -195,6 +196,11 @@ function buildConsensus(E, opts = {}) {
     // appearance: counting it gave a song two votes in one night, and in another set.
     sl.set1.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s1++; if (j === 0) t.open1++; if (j === sl.set1.length - 1) t.close1++; });
     sl.set2.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s2++; if (j === 0) t.open2++; if (j === sl.set2.length - 1) t.close2++; });
+    // where each song sat among the middle slots (0 = after the opener, 1 = before the closer)
+    for (const [arr, k] of [[sl.set1, '1'], [sl.set2, '2']]) {
+      const mid = arr.slice(1, -1).filter(r => !r.reentry);
+      mid.forEach((r, j) => { const t = get(r.id); t['pos' + k] += mid.length > 1 ? j / (mid.length - 1) : 0.5; t['posN' + k]++; });
+    }
     sl.encore.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.e++; if (j === sl.encore.length - 1) t.finale++; });
   }
 
@@ -272,17 +278,21 @@ function buildConsensus(E, opts = {}) {
 
   // Ordering inside each set: opener = the pick most often drawn as that set's opener,
   // closer likewise, middles by consensus count. Encore: the finale-est song lands last.
-  const order = (arr, openKey, closeKey) => {
+  // Middles in running order: the average slot each song was drawn into across the draws (it used
+  // to be the vote count, which put the most likely song second whatever its habit). A song never
+  // drawn into this set's middle sits mid-set; ties fall back to the vote count.
+  const order = (arr, openKey, closeKey, k) => {
     if (arr.length < 2) return arr;
-    const by = k => (x, y) => (stat.get(y)?.[k] || 0) - (stat.get(x)?.[k] || 0);
+    const by = key => (x, y) => (stat.get(y)?.[key] || 0) - (stat.get(x)?.[key] || 0);
     const rest = arr.slice();
     rest.sort(by(openKey)); const opener = rest.shift();
     rest.sort(by(closeKey)); const closer = rest.pop();
-    rest.sort((x, y) => (stat.get(y)?.n || 0) - (stat.get(x)?.n || 0));
+    const at = id => { const t = stat.get(id); return t && t['posN' + k] ? t['pos' + k] / t['posN' + k] : 0.5; };
+    rest.sort((x, y) => (at(x) - at(y)) || ((stat.get(y)?.n || 0) - (stat.get(x)?.n || 0)));
     return [opener, ...rest, ...(closer != null ? [closer] : [])];
   };
-  const s1o = order(s1, 'open1', 'close1');
-  const s2o = order(s2, 'open2', 'close2');
+  const s1o = order(s1, 'open1', 'close1', '1');
+  const s2o = order(s2, 'open2', 'close2', '2');
   const eo = e.slice().sort((x, y) => (stat.get(x)?.finale || 0) - (stat.get(y)?.finale || 0)); // finale last
 
   // Anchor present, dependent missing: seat the dependent (see COMPLETE THE PAIRS above). Runs

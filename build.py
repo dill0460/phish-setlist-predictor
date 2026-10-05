@@ -1323,6 +1323,49 @@ def mine_set_affinity(raw, pair_rules, modern="2009-01-01"):
     return out
 
 
+SONG_POS_SINCE = "2009-01-01"
+SONG_POS_PRIOR = 4          # pseudo-observations at the middle of the set (0.5)
+
+
+def mine_song_positions(raw, since=None):
+    """Where in a set each song is usually played — the running order beyond opener and closer.
+
+    For every set 1 and set 2 with 4+ songs, each MIDDLE song (not the opener, not the closer —
+    those slots are chosen separately) gets a relative position r = 0 for the slot right after the
+    opener through r = 1 for the slot right before the closer. Per song and set: the mean r, shrunk
+    toward 0.5 by SONG_POS_PRIOR pseudo-observations so a song seen three times cannot pin itself to
+    one end, and the number of observations. A repeat later in the same set (a reentry) is not a
+    position of its own; the first appearance is used.
+
+    Returns {songid: {"1": [mean, n], "2": [mean, n]}} with a set present only when observed."""
+    since = since or SONG_POS_SINCE
+    sets = defaultdict(list)
+    for r in raw:
+        st = str(r.get("set", ""))
+        if r["showdate"] < since or st not in ("1", "2"):
+            continue
+        sets[(r["showdate"], st)].append((int(r["position"]), r["songid"]))
+    acc = defaultdict(lambda: [0.0, 0])
+    for (d, st), rs in sets.items():
+        order, seen = [], set()
+        for _, sid in sorted(rs):
+            if sid not in seen:
+                seen.add(sid)
+                order.append(sid)
+        n = len(order)
+        if n < 4:
+            continue
+        for i in range(1, n - 1):
+            a = acc[(order[i], st)]
+            a[0] += (i - 1) / (n - 3)
+            a[1] += 1
+    out = defaultdict(dict)
+    for (sid, st), (tot, n) in acc.items():
+        out[str(sid)][st] = [round((tot + 0.5 * SONG_POS_PRIOR) / (n + SONG_POS_PRIOR), 3), n]
+    print(f"  running-order profiles for {len(out)} songs (since {since})")
+    return dict(out)
+
+
 def mine_tour_openers(raw, openers=None, modern="2009-01-01"):
     """Warm-up songs: set 1 of the first show of a tour, after time off.
 
@@ -1505,6 +1548,7 @@ def main():
     print("Mining long-song floors...")
     longsongs = mine_longsongs(raw, durations)
     touropen = mine_tour_openers(raw, {s["date"] for s in shows_list if s.get("tourOpen")})
+    songpos = mine_song_positions(raw)
     closer = mine_closers(raw)
     jamrate = mine_jam_rate(raw)
     breathers = breather_ids(songs)
@@ -1526,7 +1570,7 @@ def main():
                       ("pair_rules", pairs), ("cool_affinity", cool), ("run_position", runpos), ("run_debt", rundebt),
                       ("set_affinity", setaff), ("tour_opener", touropen), ("closer_score", closer), ("jam_rate", jamrate), ("breathers", breathers),
                       ("date_locked", locked), ("set_minutes", minutes), ("calibration", cal),
-                      ("day_hazard", dayhaz), ("realtime", realtime),
+                      ("day_hazard", dayhaz), ("realtime", realtime), ("song_positions", songpos),
                       ("upcoming", upcoming)]:
         with open(os.path.join(CACHE, f"{name}.json"), "w") as f:
             json.dump(obj, f, separators=(",", ":"))
@@ -1599,6 +1643,7 @@ def main():
         "__STATIC_CAL_JSON__": j(cal),
         "__DAYHAZ_JSON__": j(dayhaz),
         "__REALTIME_JSON__": j(realtime),
+        "__SONGPOS_JSON__": j(songpos),
         "__LATEST_DATE__": shows_list[-1]["date"],
         "__SHOW_COUNT__": f"{len(shows_list):,}",
         "__SONG_COUNT__": f"{len(songs):,}",
