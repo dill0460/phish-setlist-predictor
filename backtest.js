@@ -194,7 +194,10 @@ function main() {
         const sl = E.buildSetlist(c.rows, c.n1, c.n2, c.ne);
         const d = a => new Set(a.map(r => r.id)).size;
         gen.songs.push(d([...sl.set1, ...sl.set2, ...sl.encore])); gen.s1.push(d(sl.set1)); gen.s2.push(d(sl.set2)); gen.e.push(d(sl.encore));
-        gen.m1.push(sl.minutes.s1); gen.m2.push(sl.minutes.s2); if (sl.minutes.s1 > sl.minutes.s2) gen.s1longer++;
+        // compared in REAL time when the engine can convert (see realMin in the template)
+        const rm = (k, m) => (E.realMin ? E.realMin(k, m) : m);
+        const m1 = rm('s1', sl.minutes.s1), m2 = rm('s2', sl.minutes.s2);
+        gen.m1.push(m1); gen.m2.push(m2); if (m1 > m2) gen.s1longer++;
         const a2 = sl.set2; let li = 0; a2.forEach((r, j) => { if (E.durMedian(r) > E.durMedian(a2[li])) li = j; });
         gen.longPos2[Math.min(4, Math.floor(5 * li / Math.max(1, a2.length - 1)))]++;
         if (a2.length && E.durMedian(a2[0]) >= 10) gen.open2long++;

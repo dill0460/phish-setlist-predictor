@@ -38,7 +38,7 @@ function extractJsonTables(indexHtml) {
     __SETMIN_JSON__: 'SET_MIN', __STATIC_CAL_JSON__: 'STATIC_CAL',
     __DAYHAZ_JSON__: 'DAY_HAZ',
     __PREDLOG_JSON__: 'PRED_LOG', __LIVE_JSON__: 'LIVE_SET',
-    __SEGUES_JSON__: 'SEGUES',
+    __SEGUES_JSON__: 'SEGUES', __REALTIME_JSON__: 'REALTIME',
   };
   // A table can legitimately be absent: index.html may predate a table the template
   // introduced. Substituting null lets the engine load anyway (the guarded code paths
@@ -145,7 +145,10 @@ function buildEngine(templatePath, indexPath) {
               SONGS, SHOWS, SET_BOUNDS, NIGHT_STRETCH_W, BONDED, restoreBonds, RUN_DEBT, runDebtFor,
               get RUN_DEBT_STATE() { return RUN_DEBT_STATE; },
               get slModeSample() { return slModeSample; },
-              setSampleMode(v) { slModeSample = v; } };
+              setSampleMode(v) { slModeSample = v; },
+              // newer engine pieces; null when the template predates them
+              MIN_SHAPE: typeof MIN_SHAPE !== 'undefined' ? MIN_SHAPE : null,
+              realMin: typeof realMin !== 'undefined' ? realMin : null };
   `);
   const api = mod();
   api.__missing__ = missing;

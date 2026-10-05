@@ -390,8 +390,14 @@ def fetch_upcoming(recent_shows=None):
 
 
 def fetch_durations():
-    """Median song length (minutes) from phish.in, modern era only. Optional."""
+    """Median song length (minutes) from phish.in, modern era only. Optional.
+
+    Also returns each show's REAL set lengths, {date: [set1, set2, encore]} in minutes, from the same
+    tracks (no extra requests). Only shows whose every track has audio and a length, and that have
+    both a Set 1 and a Set 2, are kept: a show with missing audio would read as a short night."""
     agg = defaultdict(list)
+    per_show = defaultdict(lambda: [0.0, 0.0, 0.0])
+    broken = set()
     page = 1
     while page <= 60:
         url = f"https://phish.in/api/v2/tracks?per_page=500&page={page}&sort=date:desc"
@@ -405,9 +411,20 @@ def fetch_durations():
             break
         stop = False
         for t in tracks:
-            if not t.get("duration") or not t.get("show_date"):
+            d = t.get("show_date")
+            if d and d >= "2009-01-01":
+                if not t.get("duration") or t.get("audio_status") not in (None, "complete"):
+                    broken.add(d)
+                else:
+                    sn = str(t.get("set_name") or "")
+                    k = 0 if sn == "Set 1" else (2 if sn.startswith("Encore") else (1 if sn.startswith("Set") else None))
+                    if k is None:
+                        broken.add(d)           # soundcheck or an unlabeled track: not a clean night
+                    else:
+                        per_show[d][k] += t["duration"] / 60000.0
+            if not t.get("duration") or not d:
                 continue
-            if t["show_date"] < "2009-01-01":
+            if d < "2009-01-01":
                 stop = True
                 break
             for s in t.get("songs") or []:
@@ -445,6 +462,35 @@ def fetch_durations():
             "n": len(mins),
         }
     print(f"  durations for {len(out)} songs")
+    show_min = {d: [round(v, 1) for v in m] for d, m in per_show.items()
+                if d not in broken and m[0] > 0 and m[1] > 0}
+    print(f"  real set lengths for {len(show_min)} shows")
+    return out, show_min
+
+
+def realtime_factors(show_min, shows_list, songs, plays, last_n=100):
+    """Real track time over the builder's planning minutes, per set, on the last `last_n` shows that
+    have clean audio. The builder plans a set as the sum of its songs' MEDIAN lengths; real sets run
+    longer because jams stretch past the median (2022+: set 1 x1.09, set 2 x1.16, encore x0.97).
+    The page multiplies its displayed minutes by these. Counted exactly the way set_minutes() and the
+    template count a set: a song in set 1 at all is set 1; otherwise encore if it closed the night."""
+    dur = {s["id"]: s.get("dur") for s in songs}
+    model = defaultdict(lambda: [0.0, 0.0, 0.0])
+    for p in plays:
+        d = dur.get(p["sid"])
+        d = d if d is not None else 7.2           # the template's DEFAULT_DUR
+        k = 0 if any(c <= 2 for c in p["sl"]) else (2 if 6 in p["sl"] else 1)
+        model[p["date"]][k] += d
+    dates = [s["date"] for s in shows_list if s["date"] in show_min and model[s["date"]][0] > 0
+             and model[s["date"]][1] > 0][-last_n:]
+    if len(dates) < 20:
+        return None
+    out = {"n": len(dates), "since": dates[0]}
+    for k, name in ((0, "s1"), (1, "s2"), (2, "e")):
+        real = sum(show_min[d][k] for d in dates)
+        plan = sum(model[d][k] for d in dates if show_min[d][k] > 0 or k < 2)
+        out[name] = round(real / plan, 3) if plan > 0 else 1.0
+    print(f"  real-time factors (last {out['n']} shows with audio): set 1 x{out['s1']}, set 2 x{out['s2']}, encore x{out['e']}")
     return out
 
 
@@ -1405,10 +1451,10 @@ def main():
 
     print("Fetching song durations from phish.in...")
     try:
-        durations = fetch_durations()
+        durations, show_min = fetch_durations()
     except Exception as e:
         print(f"  ! durations unavailable ({e}) — continuing without them", file=sys.stderr)
-        durations = {}
+        durations, show_min = {}, {}
 
     # Dump the duration distributions to a plain CSV next to index.html. This is a
     # diagnostic artifact, not an input: it makes the sampled-length tuning inspectable
@@ -1464,6 +1510,7 @@ def main():
     breathers = breather_ids(songs)
     locked = mine_date_locked(raw)
     minutes = set_minutes(shows_list, songs, plays)
+    realtime = realtime_factors(show_min, shows_list, songs, plays)
     cal = fit_static_calibration(shows_list, songs, plays, GAP_MULT)
     # Day-aware gap residual. Fit on 2019+ on purpose — the effect is a property of
     # MODERN touring (short segments, destination runs, residencies) and is absent
@@ -1479,7 +1526,7 @@ def main():
                       ("pair_rules", pairs), ("cool_affinity", cool), ("run_position", runpos), ("run_debt", rundebt),
                       ("set_affinity", setaff), ("tour_opener", touropen), ("closer_score", closer), ("jam_rate", jamrate), ("breathers", breathers),
                       ("date_locked", locked), ("set_minutes", minutes), ("calibration", cal),
-                      ("day_hazard", dayhaz),
+                      ("day_hazard", dayhaz), ("realtime", realtime),
                       ("upcoming", upcoming)]:
         with open(os.path.join(CACHE, f"{name}.json"), "w") as f:
             json.dump(obj, f, separators=(",", ":"))
@@ -1551,6 +1598,7 @@ def main():
         "__SETMIN_JSON__": j(minutes),
         "__STATIC_CAL_JSON__": j(cal),
         "__DAYHAZ_JSON__": j(dayhaz),
+        "__REALTIME_JSON__": j(realtime),
         "__LATEST_DATE__": shows_list[-1]["date"],
         "__SHOW_COUNT__": f"{len(shows_list):,}",
         "__SONG_COUNT__": f"{len(songs):,}",

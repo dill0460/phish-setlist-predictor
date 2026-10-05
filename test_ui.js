@@ -279,13 +279,16 @@ check('cool-down badge only ever renders in set 2', () => {
   return null;
 });
 
-check('set 1 : set 2 minute ratio stays in the measured 0.73-1.58 band', () => {
+check('set 1 : set 2 minute ratio stays in the measured band', () => {
+  // The band is the last 100 shows' 5th-95th percentile (MIN_SHAPE, in the builder's own units);
+  // an older template without it uses the fixed 2022+ band, 0.73-1.58. Same small headroom either way.
+  const B = (E.MIN_SHAPE && E.MIN_SHAPE.band) || { lo: 0.73, hi: 1.58 };
   let out = 0;
   for (const d of NIGHTS) {
     const { s1, s2 } = d.sl.minutes;
     if (!s2) continue;
     const r = s1 / s2;
-    if (r < 0.70 || r > 1.62) out++;
+    if (r < B.lo - 0.03 || r > B.hi + 0.04) out++;
   }
   // 0.73-1.58 is the 5th-95th percentile of real nights, so ~10% of REAL shows sit outside
   // it by construction. Asserting 5% demanded more regularity than reality has.
