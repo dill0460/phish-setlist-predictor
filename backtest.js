@@ -106,6 +106,7 @@ function main() {
   const edges = [0.30, 0.45, 0.60, 0.80, 1.01];
   const bins = edges.slice(0, -1).map(() => [0, 0, 0]);
   let top20 = 0, brier = 0, expSongs = 0, actSongs = 0;
+  const perShow = [];                                         // for paired before/after comparisons
   const grp = { 'after a 14+ day break': [0, 0, 0, 0], 'later night of a run': [0, 0, 0, 0], 'other': [0, 0, 0, 0] };
   for (let t = first; t < N; t++) {
     const tgt = target(t);
@@ -122,6 +123,7 @@ function main() {
     for (const id of pl) if (!ids.has(id)) b += 1;           // played with no row at all: p = 0
     const h = c.rows.slice().sort((a, b2) => b2.pred - a.pred).slice(0, 20).filter(r => pl.has(r.id)).length;
     top20 += h; brier += b; expSongs += sp; actSongs += pl.size;
+    perShow.push([tgt.date, h, +b.toFixed(4)]);
     const days = (new Date(tgt.date) - new Date(S[t - 1].date)) / 864e5;
     const g = days >= 14 ? 'after a 14+ day break' : (/night [2-9]/.test(tgt.runN || '') ? 'later night of a run' : 'other');
     grp[g][0]++; grp[g][1] += sp; grp[g][2] += pl.size; grp[g][3] += h;
@@ -133,6 +135,7 @@ function main() {
   out.played = +(actSongs / n).toFixed(2);
   out.groups = Object.fromEntries(Object.entries(grp).filter(([, v]) => v[0]).map(([k, v]) =>
     [k, { shows: v[0], expected: +(v[1] / v[0]).toFixed(2), played: +(v[2] / v[0]).toFixed(2), top20: +(v[3] / v[0]).toFixed(2) }]));
+  out.perShow = perShow;
   out.topBands = bins.map((b, k) => ({ band: `${Math.round(edges[k] * 100)}-${Math.round(Math.min(1, edges[k + 1]) * 100)}%`,
     n: b[0], predicted: b[0] ? +(100 * b[1] / b[0]).toFixed(1) : null, actual: b[0] ? +(100 * b[2] / b[0]).toFixed(1) : null }));
 

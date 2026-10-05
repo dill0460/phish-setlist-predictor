@@ -1306,6 +1306,27 @@ function rawScoresAt(A, settings, targetDate) {
     }
     out.set(song.id, { freq, gap, gm, raw, dayGap, dayAdj, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
   }
+  // The calendar-break correction re-ranks songs WITHIN a night, but it must not change how
+  // many songs the night holds. It is a residual that averages 1.0 across all nights, not
+  // within one: after a long break every recently played song is in the "real break" column
+  // at once (up to 3x), and nothing on that night is marked down to pay for it. Measured over
+  // the last 150 shows, nights after a 14+ day break expected 20.1 songs and got 14.1. So the
+  // night is rescaled to the total it had before the day correction — the re-ranking survives,
+  // the inflation does not. Applied every night (short-gap nights are rescaled UP the same
+  // way), because that beat deflate-only on both measures: top-20 5.807 -> 6.013 vs 5.840,
+  // Brier 14.613 -> 14.473 vs 14.489 (backtest.js, 150 shows).
+  {
+    let s0 = 0, s1 = 0;
+    for (const s of out.values()) {
+      if (s.gap == null || !(s.dayAdj > 0)) continue;
+      s0 += Math.min(1, s.freq * s.gm / s.dayAdj); s1 += s.raw;
+    }
+    const k = s1 > 0 ? s0 / s1 : 1;
+    if (k !== 1) for (const s of out.values()) {
+      if (s.gap == null) continue;
+      s.gm *= k; s.dayAdj *= k; s.raw = Math.min(1, s.freq * s.gm);
+    }
+  }
   return out;
 }
 
