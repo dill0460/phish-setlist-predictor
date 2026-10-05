@@ -773,7 +773,10 @@ const EXCLUDED_RANGES = [];
 const inExcludedRange = d => EXCLUDED_RANGES.some(([lo, hi]) => d >= lo && d <= hi);
 // Gap buckets for the gap-conditional calibration correction below.
 const GAP_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-const gapBucket = g => g <= 5 ? g : g <= 9 ? 6 : g <= 14 ? 7 : g <= 19 ? 8 : 9;
+// Bucket 9 starts at gap 19 (shows BETWEEN), which is show-gap 20 — exactly where GAP_MULT drops
+// from 0.644 to 0.222. It used to start at 20, so the one cell of bucket 8 that sat past the cliff
+// shared a correction with four cells that did not, and was under-predicted ~3x.
+const gapBucket = g => g <= 5 ? g : g <= 9 ? 6 : g <= 14 ? 7 : g <= 18 ? 8 : 9;
 // "Overdue" only means anything relative to a song's OWN rhythm: eight shows out is a long time
 // for something that turns up every four, and nothing at all for something that turns up every
 // twenty. The absolute-gap correction above cannot tell those apart, and measurement says the
