@@ -1193,6 +1193,19 @@ function runMateSongs(targetVenue, targetDate, asOfIdx) {
   return out;
 }
 const DEBUT_IDX = new Map(SONGS.map(s => [s.id, DATE_IDX.get(s.debut) ?? 0]));
+// The night being predicted: an announced show, a show on record, or (backtesting) the show that
+// really came next. A made-up date after the last show still gets the 14-day layoff rule, which
+// is all that is known about it.
+function targetShowFor(asOfIdx) {
+  const d = els.nextDate.value;
+  if (d && UPCOMING_BY_DATE.has(d)) return UPCOMING[UPCOMING_BY_DATE.get(d)];
+  if (d && DATE_IDX.has(d)) return SHOWS[DATE_IDX.get(d)];
+  if (asOfIdx >= 0 && asOfIdx < SHOWS.length - 1) return SHOWS[asOfIdx + 1];
+  if (d && asOfIdx >= 0 && d > SHOW_DATES[asOfIdx]) {
+    return { date: d, tourOpen: daysBetween(SHOW_DATES[asOfIdx], d) >= TOUR_OPEN_GAP_DAYS };
+  }
+  return null;
+}
 
 function lowerBound(arr, t) { let a=0,b=arr.length; while(a<b){const m=(a+b)>>1; if(arr[m]<t)a=m+1; else b=m;} return a; }
 function upperBound(arr, t) { let a=0,b=arr.length; while(a<b){const m=(a+b)>>1; if(arr[m]<=t)a=m+1; else b=m;} return a; }
@@ -1599,6 +1612,28 @@ function syncNextDate() {
 // a show that already happened, or one on the announced schedule. Both carry a real runPos/runN
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
+// TOUR OPENERS — a known fact from the schedule, like run position. phish.net names every tour
+// ("2026 Fall Tour", "2027 Mexico"), so the opener is simply the first show of a tour name not
+// seen before. One-off shows are all filed as "Not Part of a Tour"; one counts as an opener only
+// after 14+ days off, which is the layoff the warm-up effect is about. build.py stamps the same
+// rule onto SHOWS and UPCOMING (`tourOpen`); it is re-derived here only when an older build did
+// not, and with no tour name at all a 14+ day gap stands in for the schedule.
+const NO_TOUR = 'Not Part of a Tour';
+const TOUR_OPEN_GAP_DAYS = 14;
+{
+  const seen = new Set();
+  let prevDate = null;
+  const mark = s => {
+    if (s.tourOpen == null) {
+      const gap = prevDate ? daysBetween(prevDate, s.date) : Infinity;
+      s.tourOpen = (!s.tour || s.tour === NO_TOUR) ? gap >= TOUR_OPEN_GAP_DAYS : !seen.has(s.tour);
+    }
+    if (s.tour) seen.add(s.tour);
+    prevDate = s.date;
+  };
+  SHOWS.forEach(mark);
+  UPCOMING.filter(u => u.date > (SHOW_DATES[SHOW_DATES.length - 1] || '')).forEach(mark);
+}
 
 // TONIGHT'S SHOW DATE, computed IN THE BROWSER — deliberately not baked at build time.
 //
@@ -1752,11 +1787,24 @@ function compute() {
   }
   // measured run-position effects (share-of-slots basis, so show length is already controlled for)
   const runPos = els.runPos.value;
-  if (runPos === 'tour') {
-    // after a layoff they lean on warm-up songs in set 1
+  // After a layoff they lean on warm-up songs in set 1. This table was mined on every build but
+  // never applied: it hung off a runPos value of 'tour' that nothing ever set. The target night's
+  // tour-opener flag comes from the schedule (see TOUR OPENERS above).
+  //
+  // TOUR_OPEN_WEIGHT scales that boost (0 = off, 1 = the mined multiplier, applied as m^weight).
+  // It is OFF, by measurement. Tested honestly — warm-up table mined only on shows before the test
+  // window, 150-show walk-forward on the cleaned data — the full boost cost top-20 -0.18 +/- 0.15
+  // and Brier +0.25 +/- 0.12 on the 17 tour openers, and half strength (0.5) still cost
+  // -0.12 +/- 0.15. The mined multipliers (2-2.5x on five songs) do not hold up in 2023-26: Ghost
+  // did open-night well (47% vs 20%), Stash went the other way (12% vs 20%), and the post-break
+  // handling already lifts these songs. Detection stays on — it is a fact about the night, shown
+  // in the header — and the boost is one number away if a later re-test says otherwise.
+  const TOUR_OPEN_WEIGHT = 0;
+  const tgtShow = targetShowFor(asOfIdx);
+  if (tgtShow && tgtShow.tourOpen && TOUR_OPEN && TOUR_OPEN_WEIGHT > 0) {
     for (const r of rows) {
       const m = TOUR_OPEN[r.id];
-      if (m) { r.runMult = m; r.pred = Math.min(1, r.pred * m); }
+      if (m) { r.tourMult = Math.pow(m, TOUR_OPEN_WEIGHT); r.pred = Math.min(1, r.pred * r.tourMult); }
     }
   }
   if (runPos === 'open' || runPos === 'close') {
@@ -1929,7 +1977,8 @@ function compute() {
   }
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
-  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
+  const tourOpen = !!(tgtShow && tgtShow.tourOpen);
+  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow };
 }
 
 // ---------- setlist assembly ----------
@@ -3130,7 +3179,7 @@ function ratioCell(r) {
 }
 
 function render() {
-  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool } = compute();
+  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow } = compute();
   LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
   // Name the actual show being predicted, not just the cutoff date it comes after.
@@ -3153,7 +3202,8 @@ function render() {
   // Conditions that materially change the prediction get their own line, but only while active.
   els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
     + (RUN_DEBT_STATE.owed ? `${runMates.size ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Reprise owed: ${RUN_DEBT.anchor} went unpaid earlier in this run, so <b>${RUN_DEBT.dep}</b> is live at <b>${(RUN_DEBT_STATE.p * 100).toFixed(0)}%</b>${RUN_DEBT_STATE.left === 0 ? ' on the closing night' : ''} (${RUN_DEBT_STATE.cell[0]} of ${RUN_DEBT_STATE.cell[1]} comparable nights since ${RUN_DEBT_MINED && RUN_DEBT_MINED.since ? RUN_DEBT_MINED.since.slice(0, 4) : '2009'}), most often as the encore finale.</span>` : '')
-    + ((runMates.size || RUN_DEBT_STATE.owed) && themePool ? '<br>' : '')
+    + (tourOpen ? `${runMates.size || RUN_DEBT_STATE.owed ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Tour opener${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR ? ` (${tgtShow.tour})` : ''}: the first night of the tour.</span>` : '')
+    + ((runMates.size || RUN_DEBT_STATE.owed || tourOpen) && themePool ? '<br>' : '')
     + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;

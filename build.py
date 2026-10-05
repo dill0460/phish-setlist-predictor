@@ -79,6 +79,30 @@ def assign_run_positions(shows):
                 s["runPos"] = "middle"
     return shows
 
+NO_TOUR = "Not Part of a Tour"
+TOUR_OPEN_GAP_DAYS = 14
+
+
+def assign_tour_openers(shows):
+    """Tag each show (chronological dicts with 'date' and, when known, 'tour') with tourOpen.
+
+    phish.net names every tour ("2026 Fall Tour", "2027 Mexico"), so the opener is the first show of
+    a tour name not seen before. One-off shows all share the name "Not Part of a Tour" and count as
+    an opener only after TOUR_OPEN_GAP_DAYS off. With no tour name at all (a schedule entry the API
+    returned without one) the same day-gap rule stands in. The template applies the identical rule
+    when an older build left the flag off, and mine_tour_openers() measures with it."""
+    to_d = lambda s: date(*map(int, s.split("-")))
+    seen, prev = set(), None
+    for s in shows:
+        gap = (to_d(s["date"]) - to_d(prev)).days if prev else 10 ** 6
+        tour = s.get("tour") or ""
+        s["tourOpen"] = (gap >= TOUR_OPEN_GAP_DAYS) if (not tour or tour == NO_TOUR) else (tour not in seen)
+        if tour:
+            seen.add(tour)
+        prev = s["date"]
+    return shows
+
+
 # Date ranges kept OUT of the calibration fit. Deliberately EMPTY.
 #
 # An earlier version excluded three whole 2026 tour names ("2026 Summer Tour", "2026 Sphere",
@@ -352,7 +376,9 @@ def fetch_upcoming(recent_shows=None):
             continue
         seen.add(d)
         out.append({"date": d, "venue": r.get("venue") or "", "city": r.get("city") or "",
-                    "state": r.get("state") or r.get("country") or ""})
+                    "state": r.get("state") or r.get("country") or "",
+                    # the shows endpoint calls it tour_name; the setlists endpoint, tourname
+                    "tour": r.get("tour_name") or r.get("tourname") or ""})
     # Prepend the tail of real history so a run already underway (night 1 already happened)
     # is recognized as continuing rather than mistaken for a fresh opening night.
     context = [{"date": s["date"], "venue": s["venue"]} for s in (recent_shows or [])[-6:]]
@@ -1251,8 +1277,12 @@ def mine_set_affinity(raw, pair_rules, modern="2009-01-01"):
     return out
 
 
-def mine_tour_openers(raw, modern="2009-01-01"):
-    """Warm-up songs: set 1 of the first show of a tour, after time off."""
+def mine_tour_openers(raw, openers=None, modern="2009-01-01"):
+    """Warm-up songs: set 1 of the first show of a tour, after time off.
+
+    `openers` is the set of tour-opener dates from assign_tour_openers(), the same rule the site
+    uses to flag the night being predicted. (It used to take the earliest date of each tour name,
+    which counted only one "Not Part of a Tour" show in all of 2009+ as an opener.)"""
     tours, s1, names = defaultdict(list), defaultdict(set), {}
     for r in raw:
         if r["showdate"] < modern:
@@ -1261,7 +1291,7 @@ def mine_tour_openers(raw, modern="2009-01-01"):
         tours[r["tourname"]].append(r["showdate"])
         if r["set"] == "1":
             s1[r["showdate"]].add(r["songid"])
-    firsts = {min(ds) for ds in tours.values()}
+    firsts = set(openers) if openers is not None else {min(ds) for ds in tours.values()}
     fc, oc, tf, to = Counter(), Counter(), 0, 0
     for d, ss in s1.items():
         if d in firsts:
@@ -1398,6 +1428,7 @@ def main():
     print("Shaping...")
     shows_list, songs, plays = shape(raw, durations)
     assign_run_positions(shows_list)   # every historical show gets its real run position — known, not guessed
+    assign_tour_openers(shows_list)    # and whether it opened a tour — from phish.net's tour names
     print(f"  {len(shows_list)} shows, {len(songs)} songs, {len(plays)} (song, show) records")
 
     print("Fetching upcoming shows...")
@@ -1406,6 +1437,12 @@ def main():
     except Exception as e:
         print(f"  ! upcoming unavailable ({e})", file=sys.stderr)
         upcoming = []
+    # Tour openers on the schedule, judged against the WHOLE history (a tour name seen before is
+    # not new). Re-running over history leaves its flags unchanged; only the upcoming ones are new.
+    assign_tour_openers(shows_list + upcoming)
+    for u in upcoming:
+        if u.get("tourOpen"):
+            print(f"  tour opener ahead: {u['date']} {u['venue']} ({u.get('tour') or 'no tour name'})")
 
     print("Mining patterns...")
     pairs = mine_pairs(raw)
@@ -1421,7 +1458,7 @@ def main():
     setcounts = mine_setcounts(raw)
     print("Mining long-song floors...")
     longsongs = mine_longsongs(raw, durations)
-    touropen = mine_tour_openers(raw)
+    touropen = mine_tour_openers(raw, {s["date"] for s in shows_list if s.get("tourOpen")})
     closer = mine_closers(raw)
     jamrate = mine_jam_rate(raw)
     breathers = breather_ids(songs)
