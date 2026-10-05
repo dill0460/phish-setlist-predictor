@@ -4,6 +4,7 @@
 //
 //   node backtest.js                       probabilities + official call + realism
 //   node backtest.js --quick               probabilities only (about a minute)
+//   node backtest.js --quick --realism     probabilities + realism, no official call
 //   node backtest.js --fetch-phishin       refresh the phish.in cache used for realism
 //                                          (--phishin-since YYYY-MM-DD to go further back)
 //
@@ -49,6 +50,7 @@ const IDX = opt('index', path.join(HERE, 'index.html'));
 const NSHOWS = parseInt(opt('shows', '150'), 10);
 const NOFF = flag('quick') ? 0 : parseInt(opt('official', '60'), 10);
 const DRAWS = parseInt(opt('draws', '200'), 10);
+const NIGHTS_PER = parseInt(opt('nights', '6'), 10);   // generated nights per target for realism
 const SALT = opt('salt', '');                     // re-seeds the official-call draws (noise check)
 const CACHE_DIR = path.join(HERE, '.backtest-cache');
 const PHISHIN = opt('phishin', path.join(CACHE_DIR, 'phishin.json'));
@@ -192,7 +194,7 @@ function main() {
   }
 
   // ---- 3. realism: generated nights against the last 100 real shows -----------------------
-  if (NOFF > 0) {
+  if (NOFF > 0 || flag('realism')) {
     const L = Math.min(100, N - 1), r0 = N - L;
     const real = { songs: [], s1: [], s2: [], e: [] };
     for (let t = r0; t < N; t++) { const s = S[t]; real.songs.push(s.n1 + s.n2 + s.ne); real.s1.push(s.n1); real.s2.push(s.n2); real.e.push(s.ne); }
@@ -201,7 +203,7 @@ function main() {
     for (let t = r0; t < N; t++) {
       target(t);
       const c = E.compute();
-      for (let k = 0; k < 2; k++) {
+      for (let k = 0; k < NIGHTS_PER; k++) {
         const sl = E.buildSetlist(c.rows, c.n1, c.n2, c.ne);
         const d = a => new Set(a.map(r => r.id)).size;
         gen.songs.push(d([...sl.set1, ...sl.set2, ...sl.encore])); gen.s1.push(d(sl.set1)); gen.s2.push(d(sl.set2)); gen.e.push(d(sl.encore));
