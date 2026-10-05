@@ -1169,6 +1169,70 @@ for (const [sid, arr] of playIdx) {
   playSlots.set(sid, order.map(k => playSlots.get(sid)[k]));
 }
 const SONG_BY_ID = new Map(SONGS.map(s => [s.id, s]));
+
+// ---------------------------------------------------------------------------
+// NIGHT SHAPE — how many songs each set holds, how many long jams, and the shortest believable
+// night — from the LAST 100 SHOWS before the night being predicted, re-derived every compute().
+// build.py's tables (SET_COUNTS, LONG_SONGS: 2022 on) were a fixed era and drifted out of date:
+// 2026 shows ran shorter than 2022-23 ones. A rolling window follows the band, and because it ends
+// at the stats cutoff it is honest in a backtest too (no future show shapes a past prediction).
+// The official call's per-set counts are the medians of this window (consensus.js reads
+// SET_COUNTS), so its length follows as well. The mined tables remain the fallback when fewer than
+// 40 shows are available. Objects are updated in place so consensus.js and the tests see them.
+// ---------------------------------------------------------------------------
+const NIGHT_SHAPE_N = 100;
+let NIGHT_FLOOR = 14;                 // replaced per night by the window's 2nd percentile
+const PLAYS_AT_IDX = new Map();
+for (const p of PLAYS) {
+  const i = DATE_IDX.get(p.date);
+  if (!PLAYS_AT_IDX.has(i)) PLAYS_AT_IDX.set(i, []);
+  PLAYS_AT_IDX.get(i).push(p);
+}
+const shapeCache = new Map();
+function cdfOf(values) {
+  const c = new Map();
+  for (const v of values) c.set(v, (c.get(v) || 0) + 1);
+  const keys = [...c.keys()].sort((a, b) => a - b);
+  let acc = 0;
+  return keys.map(k => { acc += c.get(k) / values.length; return [k, +acc.toFixed(5)]; });
+}
+function applyNightShape(asOfIdx) {
+  let sh = shapeCache.get(asOfIdx);
+  if (!sh) {
+    const lo = Math.max(0, asOfIdx - NIGHT_SHAPE_N + 1), win = [];
+    for (let i = lo; i <= asOfIdx; i++) win.push(i);
+    const pick = k => win.map(i => SHOWS[i][k]).filter(v => v > 0);
+    sh = { n: win.length };
+    for (const [key, k] of [['s1', 'n1'], ['s2', 'n2'], ['e', 'ne']]) {
+      const v = pick(k).sort((a, b) => a - b);
+      sh[key] = v.length >= 40 ? { cdf: cdfOf(v), med: v[Math.floor(v.length / 2)], n: v.length } : null;
+    }
+    const tot = win.map(i => SHOWS[i].n1 + SHOWS[i].n2 + SHOWS[i].ne).filter(v => v > 0).sort((a, b) => a - b);
+    sh.floor = tot.length >= 40 ? tot[Math.floor(0.02 * (tot.length - 1))] : null;
+    const longs = { s1: [], s2: [] };
+    for (const i of win) {
+      const ps = PLAYS_AT_IDX.get(i) || [];
+      let a = 0, b = 0;
+      for (const p of ps) {
+        const sg = SONG_BY_ID.get(p.sid);
+        if (!sg || !(sg.dur >= LONG_THRESH)) continue;
+        if (p.sl.some(c => c <= 2)) a++;
+        if (p.sl.some(c => c >= 3 && c <= 5)) b++;
+      }
+      if (SHOWS[i].n1 > 0) longs.s1.push(a);
+      if (SHOWS[i].n2 > 0) longs.s2.push(b);
+    }
+    for (const key of ['s1', 's2']) {
+      const v = longs[key];
+      sh['long_' + key] = v.length >= 40 ? { cdf: cdfOf(v), zero: +(v.filter(x => x === 0).length / v.length).toFixed(4), n: v.length } : null;
+    }
+    shapeCache.set(asOfIdx, sh);
+  }
+  if (SET_COUNTS) for (const key of ['s1', 's2', 'e']) if (sh[key]) SET_COUNTS[key] = sh[key];
+  if (LONG_SONGS) for (const key of ['s1', 's2']) if (sh['long_' + key]) LONG_SONGS[key] = sh['long_' + key];
+  NIGHT_FLOOR = sh.floor || 14;
+  return sh;
+}
 // songs played at each show, by show index — used for the within-run no-repeat rule
 const SONGS_AT_IDX = new Map();
 for (const p of PLAYS) {
@@ -1707,6 +1771,7 @@ function compute() {
     }
   }
   const cal = fitCalibration(asOfIdx, st);
+  applyNightShape(asOfIdx);
   const scores = rawScoresAt(asOfIdx, st);
 
   // global slot dist + per-song slots within window
@@ -1964,7 +2029,7 @@ function compute() {
   // total runs 10 at the extreme low end but only 1% fall below 14 and 2% below 15, so the
   // night is redrawn (bounded, never looped indefinitely) until it clears a floor. Set floors
   // of 6 and 4 stay as the per-set backstop; this is the joint constraint they cannot express.
-  const TOTAL_FLOOR = 14;               // 2022+ p02 (min 13, p05 15, median 18). Was 15, which
+  const TOTAL_FLOOR = NIGHT_FLOOR;      // the last 100 shows' 2nd percentile (see NIGHT SHAPE). Was 14, the 2022+ p02; 15 before that, which
                                         // was the 2009+ p02 — with counts now mined 2022+, a
                                         // floor of 15 would top up 2.5% of real-shaped nights
                                         // that are legitimately short. Real under-14: 0.5%.
@@ -2798,14 +2863,14 @@ function buildSetlist(rows, n1, n2, ne) {
   // Top the show back up from the best remaining eligible songs, into whichever set is
   // furthest below its own drawn count.
   {
-    // Floor 14 = the 2022+ p02 (was a hardcoded 15, the 2009+ figure — a stale twin of the
-    // TOTAL_FLOOR constant in compute(); keep the two in step). And CAP-AWARE: this loop used
+    // Floor = the rolling last-100-show 2nd percentile, shared with TOTAL_FLOOR in compute() (it was
+    // a hardcoded 14, the 2022+ p02, and before that 15, the 2009+ figure). And CAP-AWARE: this loop used
     // to splice into whichever set was "shorter" even when that set was already AT its drawn
     // count, which pushed sets over cap on ~8% of nights once modern counts (smaller, so
     // drawn totals of 14-16 are common) made the floor fire more often. A set only receives
     // when it is genuinely below its own drawn count; if neither is, the night ships as-is —
     // a floor must not outrank the cap that every other pass respects.
-    const FLOOR_ASM = 14;
+    const FLOOR_ASM = NIGHT_FLOOR;     // same rolling 2nd percentile as TOTAL_FLOOR
     const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
     if (inShow.size < FLOOR_ASM) {
       // !isBustout on every refill pool: the "at most one bustout" invariant is enforced by
