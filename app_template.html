@@ -1362,7 +1362,7 @@ function fitCalibration(asOfIdx, settings) {
       const scores = rawScoresAt(T - 1, settings);
       const played = SONGS_AT_IDX.get(T) || new Set();
       const mates = runMateSongs(SHOWS[T].venue, SHOWS[T].date, T - 1);
-      const night = { idx: [], mates: [] };
+      const night = { idx: [], mates: [], hits: 0 };
       for (const [sid, s] of scores) {
         if (s.raw <= 0) continue;
         for (let b = 0; b < edges.length - 1; b++) {
@@ -1374,11 +1374,12 @@ function fitCalibration(asOfIdx, settings) {
         if (s.gap != null) {
           const avg = s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null;
           const rb = avg > 0 ? ratioBucket(s.gap / avg) : -1;
-          if (mates.has(sid)) { night.mates.push([s.raw, gapBucket(s.gap), rb]); continue; }
+          if (mates.has(sid)) { night.mates.push([s.raw, gapBucket(s.gap), rb]); night.hits += played.has(sid) ? 1 : 0; continue; }
           obsRaw.push(s.raw);
           obsG.push(gapBucket(s.gap));
           obsR.push(rb);
           obsHit.push(played.has(sid) ? 1 : 0);
+          night.hits += played.has(sid) ? 1 : 0;
           night.idx.push(obsRaw.length - 1);
         }
       }
@@ -1427,13 +1428,15 @@ function fitCalibration(asOfIdx, settings) {
     // run-mates — to how often songs at that number really played. Monotone, so the ranking
     // (and the top-20) cannot move; only the stated percentages do.
     const adjOf = (raw, g, rb) => calibrateWith(pts, raw) * gapAdj[g] * (rb >= 0 ? ratioAdj[rb] : 1);
+    // NIGHT TARGET: how many in-rotation songs a night actually holds, averaged over the last 100
+    // shows (see compute()). Debuts and deep bustouts are priced separately and are not in it.
+    const recent = nights.slice(0, 100);
+    const nightTarget = recent.reduce((a, n) => a + n.hits, 0) / Math.max(1, recent.length);
     const fx = [], fy = [];
     for (const night of nights) {
       let ps = night.idx.map(i => adjOf(obsRaw[i], obsG[i], obsR[i]));
-      if (night.mates.length) {
-        const freed = night.mates.reduce((s, m) => s + adjOf(m[0], m[1], m[2]), 0) * (1 - RUN_REPEAT_MULT);
-        ps = oddsScaleTo(ps, ps.reduce((a, b) => a + b, 0) + freed);
-      }
+      const mateMass = night.mates.reduce((s, m) => s + Math.max(0.001, adjOf(m[0], m[1], m[2]) * RUN_REPEAT_MULT), 0);
+      ps = oddsScaleTo(ps, nightTarget - mateMass);
       ps.forEach((p, k) => { fx.push(p); fy.push(obsHit[night.idx[k]]); });
     }
     // 150 per bin, not 40: the top bands hold only a few dozen songs per 120 shows, and at 40 the
@@ -1441,21 +1444,24 @@ function fitCalibration(asOfIdx, settings) {
     // tried and lost — its single slope is set by the thousands of near-zero songs and it
     // stretched the top instead of shrinking it (Brier +0.046 against this pass's -0.043).
     const final = isoMap(fx, fy, [0, .005, .01, .02, .03, .05, .075, .10, .15, .20, .25, .30, .40, .50, .65, 1.01], 150);
-    result = { pts, gapAdj, ratioAdj, final, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
+    result = { pts, gapAdj, ratioAdj, final, nightTarget, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
   }
   calCache.set(key, result);
   return result;
 }
-// Scale probabilities by one common factor in ODDS space until they sum to `target`. Odds
+// Scale probabilities by one common factor in ODDS space until they sum to `target` (up or down). Odds
 // saturate toward 1 instead of clipping, so two songs only land on the same number if they
 // had the same odds to begin with. Shared by the run-night redistribution and its calibration.
 function oddsScaleTo(ps, target, cap = 0.96) {
   // a zero (a date-locked song off its date) stays exactly zero
   const odds = ps.map(p => { if (!(p > 0)) return 0; const q = Math.min(0.995, Math.max(1e-6, p)); return q / (1 - q); });
   const sumAt = lambda => odds.reduce((s, o) => s + (lambda * o) / (1 + lambda * o), 0);
-  if (!(target > ps.reduce((a, b) => a + b, 0))) return ps.slice();
+  const now = ps.reduce((a, b) => a + b, 0);
+  if (!(target > 0) || Math.abs(target - now) < 1e-9) return ps.slice();
+  // bracket lambda on whichever side of 1 the target sits, then bisect
   let lo = 1, hi = 1;
-  while (sumAt(hi) < target && hi < 1e15) hi *= 4;
+  if (target > now) { while (sumAt(hi) < target && hi < 1e15) hi *= 4; }
+  else { while (sumAt(lo) > target && lo > 1e-15) lo /= 4; }
   for (let iter = 0; iter < 60; iter++) {
     const mid = (lo + hi) / 2;
     if (sumAt(mid) < target) lo = mid; else hi = mid;
@@ -1797,17 +1803,39 @@ function compute() {
       // isn't real. Odds (o = p/(1-p)) scaled by one solved lambda and converted back via
       // p' = lambda*o/(1+lambda*o) approach 1 smoothly instead of clipping, so two songs land on
       // the same displayed number only if they had the same odds to begin with.
-      let suppressedAfter = 0;
-      const eligible = [];
-      for (const r of rows) {
-        if (runMates.has(r.id) || r.offTheme || r.deepDormant) suppressedAfter += r.pred;
-        else eligible.push(r);
+      if (!cal.nightTarget) {               // no measured night total (thin history): old rule
+        let suppressedAfter = 0;
+        const eligible = [];
+        for (const r of rows) {
+          if (runMates.has(r.id) || r.offTheme || r.deepDormant) suppressedAfter += r.pred;
+          else eligible.push(r);
+        }
+        const target = before - suppressedAfter;
+        if (eligible.length && target > eligible.reduce((a, r) => a + r.pred, 0)) {
+          const scaled = oddsScaleTo(eligible.map(r => r.pred), target);
+          eligible.forEach((r, i) => { r.pred = scaled[i]; });
+        }
       }
-      const target = before - suppressedAfter;
-      if (eligible.length) {
-        const scaled = oddsScaleTo(eligible.map(r => r.pred), target);
-        eligible.forEach((r, i) => { r.pred = scaled[i]; });
-      }
+    }
+  }
+  // NIGHT TOTAL. Every night is scaled, in odds space, so its in-rotation songs add up to what a
+  // real night holds — measured, the last 100 shows. Before this, nothing held a night's total
+  // to anything: the run-repeat rule handed suppressed mass back (only ever upward), and the
+  // run-position and tour-opener boosts added mass that nothing took away. Measured over 150
+  // shows: one-off nights expected 19.0 songs and played 17.8; nights after a break expected
+  // 14.2 and played 17.4. The run-night redistribution above is the special case of this rule,
+  // so it now only runs when there is no measured target. Ranking within a night is untouched;
+  // suppressed rows (run repeats, off-theme) keep their tiny values and count toward the total.
+  if (cal.nightTarget) {
+    let held = 0;
+    const eligible = [];
+    for (const r of rows) {
+      if (r.deepDormant || r.dateBlocked) continue;
+      if (r.runRepeat || r.offTheme) held += r.pred; else eligible.push(r);
+    }
+    if (eligible.length) {
+      const scaled = oddsScaleTo(eligible.map(r => r.pred), cal.nightTarget - held);
+      eligible.forEach((r, i) => { r.pred = scaled[i]; });
     }
   }
   // Final calibration (see fitCalibration): the finished number, mapped to how often songs at
