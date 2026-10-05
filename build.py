@@ -232,6 +232,7 @@ def fetch_setlists():
     if not rows:
         sys.exit("No setlist rows fetched — check the API key and network access.")
     rows = phish_only(rows)
+    rows = drop_non_concerts(rows)
     before = len({r.get("showdate") for r in rows})
     rows = [r for r in rows if (r.get("showdate") or "") < CUTOFF]
     after = len({r.get("showdate") for r in rows})
@@ -259,6 +260,50 @@ def phish_only(rows):
     if not out:
         sys.exit("Artist filter removed everything — the API's artist fields changed shape; aborting rather than building an empty site.")
     return out
+
+
+# Soundchecks, TV spots and radio sessions sit in phish.net's setlist data as "shows". They are
+# not concerts, and the model was treating them as if they were: the 3-song Moon Palace soundcheck
+# the night before every Mexico run made each run look like five nights (night 1 = a soundcheck),
+# its songs got the 0.02x already-played-this-run penalty for all four real nights, and every gap
+# count shifted by one. Since 2009 there are exactly 20 such entries — Bonnaroo, Bethel Woods,
+# Watkins Glen and Dover soundchecks, the Mexico soundchecks, Fallon/Letterman/NPR Tiny Desk, the
+# Rock Hall induction — and every one has no second set and at most 8 songs. Every real concert in
+# that era has two sets. Two rules, both logged by name so nothing disappears silently:
+#   1. phish.net's own flag: rows marked exclude = 1 (its "excluded from stats").
+#   2. the measured backstop for anything the flag misses: since 2009, no set 2 and <= 8 songs.
+NON_CONCERT_SINCE = "2009-01-01"
+NON_CONCERT_MAX_SONGS = 8
+
+
+def drop_non_concerts(rows):
+    by_show = defaultdict(list)
+    for r in rows:
+        by_show[r.get("showid") or r.get("showdate")].append(r)
+    flagged, backstop = {}, {}
+    for sid, rs in by_show.items():
+        d = rs[0].get("showdate") or ""
+        if any(str(r.get("exclude", 0)) == "1" for r in rs):
+            flagged[sid] = (d, rs[0].get("venue"), "excluded from stats by phish.net")
+        sets = {str(r.get("set", "")).lower() for r in rs}
+        n = len({r.get("songid") for r in rs})
+        if d >= NON_CONCERT_SINCE and "2" not in sets and n <= NON_CONCERT_MAX_SONGS:
+            backstop[sid] = (d, rs[0].get("venue"), f"no second set, {n} song(s)")
+    # Same defensive posture as phish_only(): a rule that suddenly removes a large share of the
+    # corpus means the data changed shape, and a gutted site is worse than a noisy one. Each rule
+    # is capped on its own, so a surprise in phish.net's flag cannot switch off the backstop.
+    cap = 0.05 * max(1, len(by_show))
+    drop = {}
+    for name, found in (("phish.net exclude flag", flagged), ("no-second-set backstop", backstop)):
+        if len(found) > cap:
+            print(f"  ! {name} would drop {len(found)} of {len(by_show)} shows — skipping that rule",
+                  file=sys.stderr)
+        else:
+            for sid, v in found.items():
+                drop.setdefault(sid, v)
+    for sid, (d, venue, why) in sorted(drop.items(), key=lambda kv: kv[1][0]):
+        print(f"  not a concert, left out: {d} {venue} ({why})")
+    return [r for r in rows if (r.get("showid") or r.get("showdate")) not in drop]
 
 
 def fetch_upcoming(recent_shows=None):
