@@ -8,6 +8,7 @@
 //
 // Options: --shows N (default 150)   --official N (default 60)   --draws N (default 200)
 //          --template FILE   --index FILE   --json FILE (also write the numbers as JSON)
+//          --salt X   re-seed the official-call draws, to measure how much of a change is luck
 //
 // WALK-FORWARD, like the live site: every target show is predicted with the stats window
 // ending at the show BEFORE it, at the default settings, so nothing from the night being
@@ -44,6 +45,7 @@ const IDX = opt('index', path.join(HERE, 'index.html'));
 const NSHOWS = parseInt(opt('shows', '150'), 10);
 const NOFF = flag('quick') ? 0 : parseInt(opt('official', '60'), 10);
 const DRAWS = parseInt(opt('draws', '200'), 10);
+const SALT = opt('salt', '');                     // re-seeds the official-call draws (noise check)
 const CACHE_DIR = path.join(HERE, '.backtest-cache');
 const PHISHIN = opt('phishin', path.join(CACHE_DIR, 'phishin.json'));
 
@@ -143,12 +145,15 @@ function main() {
   if (NOFF > 0) {
     const f0 = Math.max(1, N - NOFF);
     let hit = 0, called = 0, nailed = 0, close = 0, slot = 0, conc = 0, pairs = 0, ofN = 0;
+    const perOfficial = [];
     for (let t = f0; t < N; t++) {
       const tgt = target(t);
-      const con = buildConsensus(E, { draws: DRAWS, seed: hashSeed(tgt.date) });
+      const con = buildConsensus(E, { draws: DRAWS, seed: hashSeed(tgt.date + SALT) });
       const pl = played.get(tgt.date) || new Set(), sl = slotsOf.get(tgt.date) || new Map();
       const sets = [['s1', con.set1.map(x => x.id)], ['s2', con.set2.map(x => x.id)], ['e', con.encore.map(x => x.id)]];
-      for (const [, ids] of sets) { called += ids.length; hit += ids.filter(id => pl.has(id)).length; }
+      let h0 = 0;
+      for (const [, ids] of sets) { called += ids.length; h0 += ids.filter(id => pl.has(id)).length; }
+      hit += h0; perOfficial.push([tgt.date, h0]);
       const realOpen = [...sl.entries()].find(([, v]) => v.includes(0));
       if (realOpen && con.set1[0] && con.set1[0].id === realOpen[0]) nailed++;
       else if (realOpen && (con.open5 || []).includes(realOpen[0])) close++;
@@ -172,6 +177,7 @@ function main() {
     out.official = { shows: ofN, draws: DRAWS, called: +(called / ofN).toFixed(2), hits: +(hit / ofN).toFixed(2),
       precision: +(100 * hit / called).toFixed(1), openerNailed: nailed, openerTop5: close,
       exactSpots: +(slot / ofN).toFixed(2), orderAgreement: pairs ? +(100 * conc / pairs).toFixed(1) : null, orderPairs: pairs };
+    out.perOfficial = perOfficial;
   }
 
   // ---- 3. realism: generated nights against the last 100 real shows -----------------------

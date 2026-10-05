@@ -106,7 +106,7 @@ console.log('\n— song length —');
 check('durOf stays within the song\'s own p10..p90', () => {
   for (const d of NIGHTS.slice(0, 60)) {
     for (const r of all(d)) {
-      if (!r.durq) continue;
+      if (!r.durq || r.reentry) continue;   // a reentry's return segment is a measured fraction
       const v = E.durOf(r);
       if (v < r.durq[0] - 1e-6 || v > r.durq[4] + 1e-6)
         return `${r.name} drew ${v.toFixed(1)} outside [${r.durq[0]}, ${r.durq[4]}]`;

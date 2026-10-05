@@ -1951,8 +1951,14 @@ function sampleQuantiles(q, u) {
   return q[2];
 }
 
+// A reentry is one performance split in two, not two performances: the return segment of a
+// woven-in song runs a median 0.19x the song's usual length (p25 0.12, p75 0.35; 80 real
+// reentries 2019+, phish.in track times). Counting the copy at full length double-booked the
+// song's minutes — every generated night over the total-minutes ceiling carried one.
+const REENTRY_RETURN = 0.19;
 function durOf(r) {
   if (!r) return DEFAULT_DUR;
+  if (r.reentry) return REENTRY_RETURN * durOf(Object.assign({}, r, { reentry: false }));
   const key = r.id != null ? r.id : r.name;
   if (DUR_CACHE.has(key)) return DUR_CACHE.get(key);
   let d;
@@ -2834,11 +2840,18 @@ function applyReentry(sl) {
   delete copy.cool;
 
   if (mode === 'crossset') {
-    // second pass lands in the other set / encore
-    const other = pick.key === 'set1' ? 'set2' : 'set1';
-    if (sl[other].length) {
-      const at = 1 + Math.floor(Math.random() * Math.max(1, sl[other].length - 1));
-      sl[other].splice(at, 0, copy);
+    // The second pass lands in a LATER set: set 1 -> set 2, set 2 -> the encore. It used to go
+    // to "the other set", which for a set-2 song meant set 1 — earlier in the night, so the
+    // "repeat" became the first appearance. Measured at 1,500 nights that put a Tweezer Reprise
+    // copy in set 1 ahead of its own Tweezer in set 2.
+    if (pick.key === 'set1') {
+      if (sl.set2.length) {
+        const at = 1 + Math.floor(Math.random() * Math.max(1, sl.set2.length - 1));
+        sl.set2.splice(at, 0, copy);
+      }
+    } else {
+      // ahead of the finale, which stays the last song of the night
+      sl.encore.splice(Math.max(0, sl.encore.length - 1), 0, copy);
     }
     return;
   }

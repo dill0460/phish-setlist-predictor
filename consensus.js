@@ -191,9 +191,11 @@ function buildConsensus(E, opts = {}) {
     const n2 = Math.max(4, E.sampleSetCount('s2', c.n2));
     const ne = Math.max(1, E.sampleSetCount('e', c.ne));
     const sl = E.buildSetlist(c.rows, n1, n2, ne);
-    sl.set1.forEach((r, j) => { const t = get(r.id); t.n++; t.s1++; if (j === 0) t.open1++; if (j === sl.set1.length - 1) t.close1++; });
-    sl.set2.forEach((r, j) => { const t = get(r.id); t.n++; t.s2++; if (j === 0) t.open2++; if (j === sl.set2.length - 1) t.close2++; });
-    sl.encore.forEach((r, j) => { const t = get(r.id); t.n++; t.e++; if (j === sl.encore.length - 1) t.finale++; });
+    // A reentry copy (the return of a woven-in song) is the same performance, not a second
+    // appearance: counting it gave a song two votes in one night, and in another set.
+    sl.set1.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s1++; if (j === 0) t.open1++; if (j === sl.set1.length - 1) t.close1++; });
+    sl.set2.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s2++; if (j === 0) t.open2++; if (j === sl.set2.length - 1) t.close2++; });
+    sl.encore.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.e++; if (j === sl.encore.length - 1) t.finale++; });
   }
 
   const rowById = new Map(c.rows.map(r => [r.id, r]));
