@@ -345,6 +345,30 @@ check('a themed year admits no off-theme song', () => {
 });
 
 // ---------------------------------------------------------------------------
+console.log('\n— stats cutoff —');
+
+check('a past show scores the same whatever "stats through" says', () => {
+  // The night being predicted must never sit inside its own stats window. With stats left at
+  // the latest show, picking a past night used to crush every song played that night to ~0.1%.
+  const keep = { refEnd: E.getSetting('refEnd'), nextDate: E.getSetting('nextDate'), runPos: E.getSetting('runPos') };
+  const N = E.SHOWS.length, tgt = E.SHOWS[N - 1];
+  E.setSetting('nextDate', tgt.date);
+  E.setSetting('runPos', tgt.runPos && tgt.runPos !== 'none' ? tgt.runPos : '');
+  E.setSetting('refEnd', tgt.date);
+  const inside = new Map(E.compute().rows.map(r => [r.id, r.pred]));
+  E.setSetting('refEnd', E.SHOWS[N - 2].date);
+  const clean = new Map(E.compute().rows.map(r => [r.id, r.pred]));
+  Object.entries(keep).forEach(([k, v]) => E.setSetting(k, v));
+  let worst = 0, who = null;
+  for (const [id, p] of clean) {
+    const d = Math.abs(p - (inside.get(id) || 0));
+    if (d > worst) { worst = d; who = id; }
+  }
+  if (inside.size !== clean.size) return `row count differs (${inside.size} vs ${clean.size})`;
+  return worst > 1e-9 ? `${(E.SONGS.find(s => s.id === who) || {}).name} differs by ${(100 * worst).toFixed(1)} points` : null;
+});
+
+// ---------------------------------------------------------------------------
 console.log(`\n${'='.repeat(58)}`);
 console.log(`${pass} passed, ${fail} failed, ${skip} skipped`);
 if (failures.length) {

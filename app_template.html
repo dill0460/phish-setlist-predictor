@@ -1244,7 +1244,9 @@ function targetDateFor(A) {
   return new Date().toISOString().slice(0, 10);
 }
 function dayHazMult(showGap, dayGap) {
-  if (!DAY_HAZ_MULT || dayGap == null || !(showGap > 0)) return 1;
+  // dayGap < 0 means the "last play" is after the target date — only possible when the target
+  // sits inside the stats window, which compute() now prevents. Never read it as a long break.
+  if (!DAY_HAZ_MULT || dayGap == null || dayGap < 0 || !(showGap > 0)) return 1;
   let gb = -1;
   for (let i = 0; i < DAY_HAZ_GAPE.length; i++) {
     if (showGap >= DAY_HAZ_GAPE[i][0] && showGap < DAY_HAZ_GAPE[i][1]) { gb = i; break; }
@@ -1534,7 +1536,23 @@ function getSettings() {
 
 function compute() {
   const st = getSettings();
-  const asOfIdx = upperBound(SHOW_DATES, st.end) - 1;
+  let asOfIdx = upperBound(SHOW_DATES, st.end) - 1;
+  // The stats window must end BEFORE the night being predicted. "Use stats through" is
+  // inclusive, so picking a past show while the stats still ran through (or past) that date
+  // put the answer inside the window: every song played that night was then hit by the
+  // played-last-show multiplier (0.445x), a zero-day calendar gap (0.15x) and the run-repeat
+  // rule (0.02x, because the night counted as an "earlier night" of its own run) — measured,
+  // You Enjoy Myself went from 46% to 0.1% — while songs played AFTER it got a negative day gap
+  // that read as a long break and were boosted ~3x. Clamped silently: the window simply stops
+  // at the last show before the target. Live predictions are untouched (the target is always
+  // after the latest show), and so are snapshots, which always cut the stats the day before.
+  {
+    const d = els.nextDate.value;
+    if (d && asOfIdx >= 0 && d <= SHOW_DATES[asOfIdx]) {
+      asOfIdx = lowerBound(SHOW_DATES, d) - 1;
+      if (asOfIdx >= 0) st.end = SHOW_DATES[asOfIdx];
+    }
+  }
   const cal = fitCalibration(asOfIdx, st);
   const scores = rawScoresAt(asOfIdx, st);
 
