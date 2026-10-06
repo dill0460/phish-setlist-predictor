@@ -106,6 +106,31 @@ set lengths and running order.
   and Mexico run), national anthems at sports games, the 2008 wedding reception and the 2010 Hall
   of Fame induction. The real festival and Mexico shows are all included. Soundcheck songs could
   one day be a hint for the run that follows, but the samples are tiny.
+- **Songs with no recorded length.** 17 regularly played songs (Big Ball Jam, Sneakin' Sally Thru
+  the Alley, La Grange, Cold as Ice, Purple Rain, Suspicious Minds and others) get no track length
+  from phish.in, most likely because phish.in titles them differently. The model then assumes a
+  typical ~7-minute song. That only affects how long a generated set runs, not which songs are
+  picked. Fix: map those titles in `fetch_durations()` in `build.py`.
+
+### Tested and not shipped (October 2026)
+
+Each of these was measured with the walk-forward backtest and left out because it did not help.
+
+- **Re-fitting the percentages to the most recent 20, 40 or 80 shows.** In 2025-26 Phish leaned
+  less on the model's favourites (in 2026, songs shown at 45-60% played about 30% of the time),
+  and a faster-adapting fit would have caught that. But it lost in most other years (2022 went the
+  other way), so overall it gained nothing.
+- **Bangers vs everyday songs.** Big jam songs play about 8% more often than the model says and
+  short everyday songs about 6% less, the same before and after 2023, and overdue everyday songs are
+  the most over-rated. A learned correction for song kind x how overdue gained about 0.03 top-20
+  hits per show (noise) and cost a little on the official call. The "sample a night" mode already
+  matches real setlists' mix (about 5 bangers and 10.5 everyday songs per show); the official call
+  is banger-heavy (about 7.4) because it takes the most likely songs, which is the accuracy-first
+  choice.
+- **A "played twice so far" discount**, like the once-played one. It cost 0.04 top-20 hits per
+  show over 150 shows: a song on its second play is often a new song becoming a regular.
+- **A sharper or flatter spread of odds for each night of a run.** No gain on shows it had not
+  seen.
 
 ## Credits
 
