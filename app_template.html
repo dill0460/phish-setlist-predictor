@@ -528,11 +528,12 @@
             <p><b>Songs that share a set</b> &mdash; thirteen further pairs turn up in the same set well beyond chance: Tweezer + Piper (2.6&times;), Also Sprach + Piper (2.6&times;), Slave + Light (2.7&times;), Funky Bitch + The Moma Dance (3.2&times;), Harry Hood + Twist (2.2&times;). They nudge set assignment rather than forcing it.</p>
             <p><b>Where a song lives</b> &mdash; each song carries its own history across seven slots (set 1 opener/song/closer, set 2 opener/song/closer, encore). Songs that only ever land as closers or encores are barred from mid-set outright: Tweezer Reprise is 92% encore-or-set-2-closer, and it will never appear in the middle of a set here. Slots are filled by weighted draw, not by the single best fit &mdash; real encores draw on 193 different songs, and the five most common cover only 21% of them.</p>
             <p><b>Set length in minutes</b> &mdash; sets fill to time, not just to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs. How many songs each set holds, how long it runs and how set 1 compares with set 2 are all measured on the <b>last 100 shows</b>, so the shape follows the band as it changes. The minutes shown are real track time, calibrated on phish.in recordings (set 2 jams stretch well past their usual length, so a real set 2 runs about a quarter longer than its songs' typical lengths add up to).</p>
-            <p><b>Running order</b> &mdash; beyond the opener and closer, each song has a habit of where it lands in a set: Down with Disease and Tweezer come early in set 2, Harry Hood and Wading in the Velvet Sea late; AC/DC Bag early in set 1, Split Open and Melt late. Sets are ordered by those habits (with a realistic amount of night-to-night variation), not by probability. One honest caveat on the official call: it is the most likely songs for each set, and big jams are each individually likely, so its set 2 usually carries more of them than a real one does. Holding it to a real set's shape was tested and cost about a third of a correct song per show, so the call stays the most-likely list and shows song counts rather than a running time. Tested on every set since mid-2023, the habits alone put a pair of middle songs in the right order 60% of the time in set 1 and 66% in set 2, where a coin flip gets 50%.</p>
+            <p><b>Running order</b> &mdash; beyond the opener and closer, each song has a habit of where it lands in a set: Down with Disease and Tweezer come early in set 2, Harry Hood and Wading in the Velvet Sea late; AC/DC Bag early in set 1, Split Open and Melt late. Sets are ordered by those habits (with a realistic amount of night-to-night variation), not by probability. The official call is built for song accuracy first: it is the songs that come up most often across hundreds of simulated nights, each seated in the set it usually lands in. That gets more songs right than filling each set separately (about +0.18 per show), at the cost of looking a bit less like a typical show &mdash; set 2 usually carries more big jams than a real one &mdash; so it shows song counts rather than a running time. Tested on every set since mid-2023, the habits alone put a pair of middle songs in the right order 60% of the time in set 1 and 66% in set 2, where a coin flip gets 50%.</p>
             <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
             <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar. <b>Tour openers</b> are recognised the same way, from phish.net's tour names (the first show of a new tour, or the first show back after two weeks off). A set of first-night "warm-up" songs was mined for them too, but when tested honestly it made the predictions slightly worse, so tour openers are flagged and not boosted.</p>
             <p><b>No repeats inside a run</b> &mdash; when the show you're predicting is night 2 or later of a stand at one venue, everything already played earlier in that run is all but ruled out. This is the strongest single pattern in the whole dataset: measured across 2009 onward, just <b>0.3%</b> of a night's songs had already appeared earlier in the same run, against <b>17.8%</b> for any three preceding shows. The Baker's Dozen ran thirteen nights and 237 songs with exactly one repeat. Adding this lifted backtested top-20 accuracy from 4.76 to 5.14 songs overall, and to 5.56 on run nights specifically. Ruling songs out doesn't shorten the night, it concentrates it &mdash; a run night actually runs <i>longer</i> than a one-off (18.1 songs against 16.7) &mdash; so the probability taken off the already-played songs is handed back to everything still eligible. Deep into a run that's a large boost for whatever's left; on night 2 it barely moves.</p>
             <p><b>Learned from its own mistakes</b> &mdash; every day the model replays itself on every show since 2010, exactly as it would have predicted each one the day before, and learns what it keeps getting wrong. Two song patterns: within a tour, a song already played <b>once</b> comes back much less than its numbers suggest (about 0.75&times;) while a staple played twice or more comes back more (about 1.2&times;) &mdash; that is how a tour rotates; and a brand-new song's first burst of plays overstates it (about 0.45&times; in its first three months, 0.85&times; in its second year). And kinds of night: tour openers lean on Free, Ghost and Bouncing Around the Room; the first night of a run on Ghost, No Men In No Man's Land and Simple; the last night on Carini, Bathtub Gin and Twist; tour finales and New Year's Eve run longer; and stand-alone runs &mdash; destination runs that are not really a tour, like NYE, Mexico, Sphere and Dick's (filed under the summer tour, but its own thing) &mdash; lean on Free, Ghost, Simple and Tube, with Harry Hood and Ghost at Dick's. Each correction is shrunk toward &ldquo;no change&rdquo; when the evidence is thin, and the header says which kind of night you are looking at. Tested on 150 shows the corrections had never seen: about 0.2 more of the top 20 played per show, and noticeably more honest percentages.</p>
+            <p><b>New Year's Eve and Halloween</b> &mdash; both are always three-set nights. On NYE the third set is the midnight set: it opens with Auld Lang Syne (and a gag nobody can predict), and the song right after Auld Lang Syne is usually the band's big new song of the year &mdash; so that slot gets one specific guess: the newest non-ballad song played most that year, or the year's biggest jam vehicle if there is nothing new (right 2 times in 16 NYEs since 2009, Blaze On and What's Going Through Your Mind, which is about as good as one exact slot gets). On Halloween the second set is the &ldquo;musical costume,&rdquo; a whole album by another band kept secret until the show, so it is left as a placeholder rather than guessed; the band's own songs fill sets 1 and 3.</p>
             <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set in Advanced settings. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
             <p><b>Date-locked songs</b> &mdash; anything played almost exclusively on one calendar date is excluded unless you set the show date to match. Exactly one song qualifies: Auld Lang Syne, 28 of its 29 outings on December 31.</p>
           </div>
@@ -925,6 +926,7 @@ function playedSetFor(date) {
 // directly comparable — "we called it as the set 2 closer, and it closed set 2".
 function calledSlot(setKey, i, n) {
   if (setKey === 'e') return 6;
+  if (setKey === 's3') return 4;          // the corpus files set 3 under set 2: no positional claim
   const base = setKey === 's1' ? 0 : 3;
   if (i === 0) return base;
   if (i === n - 1 && n > 1) return base + 2;
@@ -951,7 +953,8 @@ function placementOf(pl, id, setKey, i, n) {
   if (!actual.length) return 'played';
   const want = calledSlot(setKey, i, n);
   if (PRECISE_SLOTS.has(want) && actual.includes(want)) return 'slot';
-  return actual.some(c => slotSet(c) === setKey) ? 'set' : 'played';
+  const sk = setKey === 's3' ? 's2' : setKey;
+  return actual.some(c => slotSet(c) === sk) ? 'set' : 'played';
 }
 // One badge, one claim: the song was called for a specific spot (opener, closer, encore) and
 // landed there. Nothing for "right set" — a green played row already says it showed up, and a
@@ -970,6 +973,18 @@ function placementBadge(p) {
 // developer plumbing. The timestamp stays, because that is the part that proves when the call
 // was locked, which is the whole trust claim.
 const prettyStamp = s => String(s || '').split('\u00b7')[0].trim();
+
+// The sets of a committed call, in running order: [title, ids, setKey]. A NYE call carries a
+// third set (s3). A Halloween call's set 2 is the musical costume, never predicted (costume:
+// true), and comes back with ids = null so the view can show a placeholder.
+function officialSets(o) {
+  const out = [['Set 1', o.s1 || [], 's1'], ['Set 2', o.costume ? null : (o.s2 || []), 's2']];
+  if (o.s3 && o.s3.length) out.push(['Set 3', o.s3, 's3']);
+  out.push(['Encore', o.e || [], 'e']);
+  return out;
+}
+function officialIds(o) { return [...(o.s1 || []), ...(o.s2 || []), ...(o.s3 || []), ...(o.e || [])]; }
+const COSTUME_BLOCK = `<div class="set-block"><h3>Set 2</h3><div class="set-song"><span class="sname" style="color:var(--text-muted);">Musical costume &mdash; a whole album by another band, secret until the show. It can't be predicted, so it isn't.</span></div></div>`;
 
 function officialEntry(date) {
   const es = (PRED_LOG && PRED_LOG.entries) || [];
@@ -2224,9 +2239,70 @@ function compute() {
     if (!slModeSample || n1 + n2 + ne >= TOTAL_FLOOR || attempt >= 12) break;
   }
 
+  // Special nights (see SPECIAL NIGHTS): NYE adds a third set; Halloween's set 2 is the costume.
+  const special = specialNight(tgtShow ? tgtShow.date : (els.nextDate.value || null));
+  const n3 = special === 'nye' ? nyeSet3Size(asOfIdx, slModeSample) : 0;
+  const soy = special === 'nye' ? songOfTheYear(tgtShow ? tgtShow.date : els.nextDate.value, asOfIdx, rows) : null;
+
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
   const tourOpen = !!(tgtShow && tgtShow.tourOpen);
-  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow, nightKinds };
+  return { rows, st, asOfIdx, cal, n1, n2, ne, n3, special, soy, showsInFullWindow, runMates, themePool, tourOpen, tgtShow, nightKinds };
+}
+
+// ---------------------------------------------------------------------------
+// SPECIAL NIGHTS.
+//   NYE        Always three sets. Set 3 is the midnight set: it opens with Auld Lang Syne (and a
+//              gag nobody can predict), and the song right after Auld Lang Syne is usually the
+//              band's biggest new song of the year. Set 3 size comes from past NYEs (median 8).
+//   Halloween  Always three sets, and set 2 is the "musical costume" — a whole album by another
+//              band, secret until the show. It cannot be predicted, so it is never predicted:
+//              set 2 is a placeholder, and the night's own songs fill sets 1 and 3.
+// ---------------------------------------------------------------------------
+const ALS_ID = SONG_ID_BY_NAME.get('Auld Lang Syne');
+function specialNight(date) {
+  const md = date ? String(date).slice(5) : '';
+  return md === '12-31' ? 'nye' : (md === '10-31' ? 'halloween' : null);
+}
+// Third-set sizes of past NYEs since 2009: every song that night not counted in set 1, set 2 or
+// the encore (the corpus files set 3 under set 2's slots but leaves it out of n2).
+let _nyeSet3 = null;
+function nyeSet3Size(asOfIdx, sample) {
+  if (!_nyeSet3) {
+    _nyeSet3 = [];
+    SHOWS.forEach((x, i) => {
+      if (x.date < '2009-01-01' || x.date.slice(5) !== '12-31') return;
+      const total = (PLAYS_AT_IDX.get(i) || []).length;
+      const n3 = total - (x.n1 + x.n2 + x.ne);
+      if (n3 >= 3) _nyeSet3.push([i, n3]);
+    });
+  }
+  const v = _nyeSet3.filter(([i]) => i <= asOfIdx).map(([, n]) => n).sort((a, b) => a - b);
+  if (!v.length) return 8;
+  return sample ? v[Math.floor(Math.random() * v.length)] : v[Math.floor(v.length / 2)];
+}
+// The song most likely to follow Auld Lang Syne: the newest big song of the year — debuted
+// within ~13 months, played 3+ times this calendar year, not a ballad, the most played of those —
+// and, when the band has nothing new, the year's biggest jam vehicle (plays this year x typical
+// length). Scored on every NYE since 2009 using only what was known beforehand: right 2 of 16
+// times (Blaze On 2015, What's Going Through Your Mind 2024), in its top 3 three times — a long
+// shot for one exact slot, but twice the rate of the site's other exact-slot calls.
+function songOfTheYear(date, asOfIdx, rows) {
+  if (!date) return null;
+  const year = String(date).slice(0, 4);
+  const plays = new Map();
+  for (let i = 0; i <= asOfIdx && i < SHOWS.length; i++) {
+    if (SHOWS[i].date.slice(0, 4) !== year || SHOWS[i].date >= date) continue;
+    for (const sid of SONGS_AT_IDX.get(i) || []) plays.set(sid, (plays.get(sid) || 0) + 1);
+  }
+  const ok = new Map(rows.filter(r => r.pred > 0 && !r.runRepeat && !r.offTheme && !r.deepDormant && !r.dateBlocked).map(r => [r.id, r]));
+  const fresh = [...plays].filter(([id, c]) => {
+    const g = SONG_BY_ID.get(id);
+    return ok.has(id) && c >= 3 && g && g.debut && daysBetween(g.debut, date) <= 400 && !BREATHERS.has(id) && id !== ALS_ID;
+  }).sort((a, b) => b[1] - a[1]);
+  if (fresh.length) return fresh[0][0];
+  const big = [...plays].filter(([id]) => ok.has(id) && id !== ALS_ID && !BREATHERS.has(id))
+    .map(([id, c]) => [id, c * durMedian(ok.get(id))]).sort((a, b) => b[1] - a[1]);
+  return big.length ? big[0][0] : null;
 }
 
 // ---------- setlist assembly ----------
@@ -2462,6 +2538,56 @@ function cooldownOrder(arr) {
     }
   }
   return [first, ...out, last];
+}
+
+// A whole night, special nights included. Ordinary nights are exactly buildSetlist(). NYE: sets
+// 1, 2 and the encore are built from everything except Auld Lang Syne and the song of the year,
+// which open the midnight set; the rest of set 3 is drawn like a second set from what is left.
+// Halloween: built as usual, then set 2 moves to set 3 and set 2 becomes the costume placeholder.
+function buildNight(rows, n1, n2, ne, n3, special, soy) {
+  if (special === 'nye' && n3 > 0) {
+    const held = new Set([ALS_ID, soy].filter(x => x != null));
+    const sl = buildSetlist(rows.filter(r => !held.has(r.id)), n1, n2, ne);
+    sl.set3 = buildSet3(rows, sl, n3, soy);
+    sl.minutes.s3 = minutesOf(sl.set3);
+    return sl;
+  }
+  const sl = buildSetlist(rows, n1, n2, ne);
+  if (special === 'halloween') {
+    sl.set3 = sl.set2; sl.set2 = []; sl.costume = true;
+    sl.minutes.s3 = sl.minutes.s2; sl.minutes.s2 = 0;
+  }
+  return sl;
+}
+function buildSet3(rows, sl, n3, soy) {
+  const onStage = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
+  const byId = new Map(rows.map(r => [r.id, r]));
+  const head = [ALS_ID, soy].filter(id => id != null && byId.has(id) && !onStage.has(id)).map(id => byId.get(id));
+  head.forEach(r => onStage.add(r.id));
+  const cands = rows.filter(r => r.pred > 0 && !onStage.has(r.id) && !r.runRepeat && !r.offTheme &&
+    !r.deepDormant && !r.isBustout && !r.dateBlocked && !(r.id in BONDED) && !r.terminalOnly);
+  const w = r => r.pred * (r.slotP[3] + r.slotP[4] + r.slotP[5] + 0.05);
+  const pick = [];
+  const want = Math.max(0, n3 - head.length);
+  if (slModeSample) {
+    const bag = cands.slice();
+    while (pick.length < want && bag.length) {
+      const W = bag.reduce((a, r) => a + w(r), 0);
+      let x = Math.random() * W, i = 0;
+      for (; i < bag.length - 1; i++) { x -= w(bag[i]); if (x <= 0) break; }
+      pick.push(bag.splice(i, 1)[0]);
+    }
+  } else {
+    pick.push(...cands.sort((a, b) => w(b) - w(a)).slice(0, want));
+  }
+  orderByHabit(pick, 's2');
+  // the set closes on its strongest closer
+  let ci = -1;
+  pick.forEach((r, i) => { if (ci < 0 || r.closer > pick[ci].closer) ci = i; });
+  if (ci >= 0) pick.push(pick.splice(ci, 1)[0]);
+  const set3 = [...head, ...pick];
+  set3.forEach((r, i) => { r.role = i === 0 ? 'opener' : (i === set3.length - 1 ? 'closer' : ''); });
+  return set3;
 }
 
 function buildSetlist(rows, n1, n2, ne) {
@@ -3469,7 +3595,7 @@ function ratioCell(r) {
 }
 
 function render() {
-  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow, nightKinds } = compute();
+  const { rows, st, asOfIdx, cal, n1, n2, ne, n3, special, soy, showsInFullWindow, runMates, themePool, tourOpen, tgtShow, nightKinds } = compute();
   // The kind of night, in words, with the songs those nights have most favoured beyond what the
   // model already expected (the learned multipliers), among songs with a real chance tonight.
   const KIND_LABEL = { tourOpen: 'Tour opener', tourClose: 'Last show of the tour', nye: "New Year's Eve",
@@ -3480,7 +3606,7 @@ function render() {
     ? rows.filter(r => r.pred >= 0.05 && kindBoost(r) >= 1.08).sort((a, b) => kindBoost(b) - kindBoost(a)).slice(0, 3).map(r => r.name)
     : [];
   const kindLine = nightKinds.length
-    ? `${nightKinds.filter(k => !(k === 'standalone' && nightKinds.includes('dicks'))).map((k, i) => i && k !== 'dicks' ? (KIND_LABEL[k] || k).toLowerCase() : (KIND_LABEL[k] || k)).join(', ')}${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR && nightKinds.some(k => k === 'tourOpen' || k === 'tourClose') ? ` (${tgtShow.tour})` : ''}${favoured.length ? `: these nights have historically favoured ${favoured.join(', ')}.` : '.'}`
+    ? `${nightKinds.filter(k => !(k === 'standalone' && nightKinds.includes('dicks'))).map((k, i) => i && k !== 'dicks' && k !== 'nye' ? (KIND_LABEL[k] || k).toLowerCase() : (KIND_LABEL[k] || k)).join(', ')}${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR && nightKinds.some(k => k === 'tourOpen' || k === 'tourClose') ? ` (${tgtShow.tour})` : ''}${favoured.length ? `: these nights have historically favoured ${favoured.join(', ')}.` : '.'}`
     : (tourOpen ? `Tour opener${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR ? ` (${tgtShow.tour})` : ''}: the first night of the tour.` : '');
   LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
@@ -3554,13 +3680,13 @@ function render() {
     const pl = playedSetFor(officialFor.date);
     const playedSet = pl ? pl.set : null;
     const hitsIn = ids => playedSet ? ids.filter(id => playedSet.has(id)).length : 0;
-    const allIds = [...officialFor.official.s1, ...officialFor.official.s2, ...officialFor.official.e];
+    const allIds = officialIds(officialFor.official);
     // Exact-slot hits across the whole call, for the headline sentence.
-    const slotHits = !pl ? 0 : [['s1', officialFor.official.s1], ['s2', officialFor.official.s2], ['e', officialFor.official.e]]
-      .reduce((a, [k, ids]) => a + ids.filter((id, i) => placementOf(pl, id, k, i, ids.length) === 'slot').length, 0);
+    const slotHits = !pl ? 0 : officialSets(officialFor.official).filter(([, ids]) => ids)
+      .reduce((a, [, ids, k]) => a + ids.filter((id, i) => placementOf(pl, id, k, i, ids.length) === 'slot').length, 0);
     const slotLine = slotHits ? ` <b>${slotHits}</b> landed in the exact spot called.` : '';
     const block = (title, ids, setKey) => {
-      const arr = markSegues(asRows(ids), setKey, false);   // deterministic: a committed call
+      const arr = markSegues(asRows(ids), setKey === 's3' ? 's2' : setKey, false);   // deterministic: a committed call
       // The official call is the most likely songs for each set, not a timed set: long jams are each
       // individually likely, so the list runs well past a real set's length (a 7-song set 2 summed
       // to ~110 minutes against a real ~84). A length here would invite the wrong reading, so the
@@ -3581,9 +3707,7 @@ function render() {
         }).join('')}
       </div>`;
     };
-    let grid = block('Set 1', officialFor.official.s1, 's1')
-      + block('Set 2', officialFor.official.s2, 's2')
-      + block('Encore', officialFor.official.e, 'e');
+    let grid = officialSets(officialFor.official).map(([title, ids, k]) => ids ? block(title, ids, k) : COSTUME_BLOCK).join('');
     // What they played that the call never had. The honest other half of a hit count \u2014 a
     // scoreboard that only shows what it got right is the kind nobody believes.
     if (playedSet) {
@@ -3620,14 +3744,18 @@ function render() {
     els.setlistGrid.classList.remove('hidden'); els.mlWrap.classList.add('hidden');
     els.officialNote.classList.add('hidden');
     els.setlistTitle.innerHTML = `A realistic setlist &mdash; ${targetShort}`;
-    const sl = buildSetlist(rows, n1, n2, ne);
+    const sl = buildNight(rows, n1, n2, ne, n3, special, soy);
     markSegues(sl.set1, 's1', true); markSegues(sl.set2, 's2', true); markSegues(sl.encore, 'e', true);
+    if (sl.set3) markSegues(sl.set3, 's2', true);     // set 3 joins songs the way a second set does
     const block = (title, arr, mins, setKey) => `
       <div class="set-block">
-        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(realMin(setKey, mins))} min</span></h3>
+        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(realMin(setKey === 's3' ? 's2' : setKey, mins))} min</span></h3>
         ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032 \u00b7 ${pct(r.pred)}%</span></div>`).join('')}
       </div>`;
-    els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1, 's1') + block('Set 2', sl.set2, sl.minutes.s2, 's2') + block('Encore', sl.encore, sl.minutes.e, 'e');
+    els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1, 's1')
+      + (sl.costume ? COSTUME_BLOCK : block('Set 2', sl.set2, sl.minutes.s2, 's2'))
+      + (sl.set3 && sl.set3.length ? block('Set 3', sl.set3, sl.minutes.s3, 's3') : '')
+      + block('Encore', sl.encore, sl.minutes.e, 'e');
   } else {
     els.officialNote.classList.add('hidden');
     els.setlistGrid.classList.add('hidden'); els.mlWrap.classList.remove('hidden');
@@ -3884,7 +4012,7 @@ function renderTrackRecord() {
 
     t.textContent = `The official call — ${pending.venue} · ${pending.date}`;
     if (liveOn) {
-      const all = [...pending.official.s1, ...pending.official.s2, ...pending.official.e];
+      const all = officialIds(pending.official);
       l.innerHTML = `<span class="live-dot"></span><b>Show in progress.</b> `
         + `<b>${hitsIn(all)}</b> of <b>${all.length}</b> called songs played so far `
         + `(${playedSet.size} songs on stage). Committed by the build on <b>${prettyStamp(pending.snapAt)}</b> — `
@@ -3903,7 +4031,7 @@ function renderTrackRecord() {
     const block = (title, ids, setKey) => {
       // Same stable (hashed, not rolled) marks the Predicted Setlist tab shows for this call,
       // so the two views of one committed list never disagree on its transitions.
-      const marked = markSegues(ids.map(id => ({ id })), setKey, false);
+      const marked = markSegues(ids.map(id => ({ id })), setKey === 's3' ? 's2' : setKey, false);
       return `
       <div class="set-block"><h3>${title}${pl ? `<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${hitsIn(ids)}/${ids.length}</span>` : ''}</h3>
         ${marked.map((r, i) => {
@@ -3916,11 +4044,11 @@ function renderTrackRecord() {
         }).join('')}
       </div>`;
     };
-    g.innerHTML = block('Set 1', pending.official.s1, 's1') + block('Set 2', pending.official.s2, 's2') + block('Encore', pending.official.e, 'e');
+    g.innerHTML = officialSets(pending.official).map(([title, ids, k]) => ids ? block(title, ids, k) : COSTUME_BLOCK).join('');
     // Songs they played that the call never had — the same "we never had it" view the graded
     // rows show. Costs zero log bytes: the ids are already on the page either way.
     if (pl) {
-      const called = new Set([...pending.official.s1, ...pending.official.s2, ...pending.official.e]);
+      const called = new Set(officialIds(pending.official));
       const missed = [...playedSet].filter(id => !called.has(id));
       g.innerHTML += `<div class="set-block"><h3>Played, not called<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${missed.length}</span></h3>`
         + (missed.length
@@ -3955,11 +4083,11 @@ function renderTrackRecord() {
   if (pending) {
     const plNow = playedSetFor(pending.date);
     if (plNow && plNow.live) {
-      const all = [...pending.official.s1, ...pending.official.s2, ...pending.official.e];
+      const all = officialIds(pending.official);
       const hitOf = all.filter(id => plNow.set.has(id)).length;
       const hit20 = (pending.top20 || []).filter(id => plNow.set.has(id)).length;
-      const slotN = [['s1', pending.official.s1], ['s2', pending.official.s2], ['e', pending.official.e]]
-        .reduce((a, [k, ids]) => a + ids.filter((id, i) => placementOf(plNow, id, k, i, ids.length) === 'slot').length, 0);
+      const slotN = officialSets(pending.official).filter(([, ids]) => ids)
+        .reduce((a, [, ids, k]) => a + ids.filter((id, i) => placementOf(plNow, id, k, i, ids.length) === 'slot').length, 0);
       liveNow = `<div class="tr-live"><div class="tr-live-hd"><span class="live-dot"></span>`
         + `Tonight &mdash; ${pending.venue} &middot; ${pending.date} <em>(in progress, not yet graded)</em></div>`
         + statRow('now', [
@@ -4023,7 +4151,7 @@ function renderTrackRecord() {
     if (!e.graded || !e.res) return '';
     const rows = PLAYED_BY_DATE.get(e.date) || [];
     const played = new Set(rows.map(p => p.sid));
-    const call = [...e.official.s1, ...e.official.s2, ...e.official.e];
+    const call = officialIds(e.official);
     const li = (id, hit) => `<li class="${hit ? 'hit' : 'miss'}">${hit ? '\u2713' : '\u00b7'} ${nameOf(id)}</li>`;
     const missedByUs = [...played].filter(id => !call.includes(id) && !e.top20.includes(id));
     const realOpen = e.res.realOpen;

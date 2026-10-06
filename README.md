@@ -52,7 +52,12 @@ on every show since 2010 as it would have predicted it the day before, and what 
 is learned and applied — songs already played once this tour come back less, staples more; new
 songs less than their first burst suggests; and kinds of night (tour openers, first and last
 nights of a run, tour finales, New Year's Eve, stand-alone runs such as Dick's, NYE, Mexico and
-Sphere, and Dick's itself) have their own favourites and lengths. The replay
+Sphere, and Dick's itself) have their own favourites and lengths.
+
+**Special nights**: New Year's Eve gets a third (midnight) set that opens with Auld Lang Syne
+followed by one specific guess at the year's big song; Halloween's second set is the musical
+costume, left as a placeholder because it can't be predicted. The official call favours song
+accuracy: the most likely songs overall, each seated in its usual set. The replay
 is cached in `data/context_cache.json`; after a template change the first build replays
 everything once (several minutes). Soundchecks, TV spots and radio
 sessions in the setlist data are left out of the history: they are not concerts.

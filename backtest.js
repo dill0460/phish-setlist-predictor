@@ -157,7 +157,7 @@ function main() {
       const tgt = target(t);
       const con = buildConsensus(E, { draws: DRAWS, seed: hashSeed(tgt.date + SALT) });
       const pl = played.get(tgt.date) || new Set(), sl = slotsOf.get(tgt.date) || new Map();
-      const sets = [['s1', con.set1.map(x => x.id)], ['s2', con.set2.map(x => x.id)], ['e', con.encore.map(x => x.id)]];
+      const sets = [['s1', con.set1.map(x => x.id)], ['s2', con.set2.map(x => x.id)], ['s3', (con.set3 || []).map(x => x.id)], ['e', con.encore.map(x => x.id)]];
       let h0 = 0;
       for (const [, ids] of sets) { called += ids.length; h0 += ids.filter(id => pl.has(id)).length; }
       hit += h0; perOfficial.push([tgt.date, h0]);
@@ -165,13 +165,13 @@ function main() {
       if (realOpen && con.set1[0] && con.set1[0].id === realOpen[0]) nailed++;
       else if (realOpen && (con.open5 || []).includes(realOpen[0])) close++;
       // exact named spots: S1 open/close, S2 open/close, encore
-      const want = (k, i, len) => k === 'e' ? 6 : (k === 's1' ? 0 : 3) + (i === 0 ? 0 : (i === len - 1 ? 2 : 1));
+      const want = (k, i, len) => k === 'e' ? 6 : (k === 's3' ? 4 : (k === 's1' ? 0 : 3) + (i === 0 ? 0 : (i === len - 1 ? 2 : 1)));
       for (const [k, ids] of sets) ids.forEach((id, i) => { const w = want(k, i, ids.length); if ([0, 2, 3, 5, 6].includes(w) && (sl.get(id) || []).includes(w)) slot++; });
       // running order, from the real positions phish.in carries (when cached)
       const realOrder = REAL_ORDER.get(tgt.date);
       if (realOrder) {
         for (const [k, ids] of sets) {
-          if (k === 'e') continue;
+          if (k === 'e' || k === 's3') continue;
           const real = realOrder[k];
           const both = ids.filter(id => real.has(id));
           for (let a = 0; a < both.length; a++) for (let b2 = a + 1; b2 < both.length; b2++) {
