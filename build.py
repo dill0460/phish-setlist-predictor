@@ -228,7 +228,9 @@ def get_json(url, tries=3):
         try:
             with urlopen(Request(url, headers=UA), timeout=60) as r:
                 return json.loads(r.read().decode("utf-8"))
-        except (HTTPError, URLError) as e:
+        # TimeoutError: a server that accepts the connection but is slow to answer raises it from
+        # r.read(), outside URLError — without it here, a slow phish.in was never retried.
+        except (HTTPError, URLError, TimeoutError, ConnectionError) as e:
             if attempt == tries - 1:
                 raise
             time.sleep(2 * (attempt + 1))
@@ -394,17 +396,22 @@ def fetch_durations():
 
     Also returns each show's REAL set lengths, {date: [set1, set2, encore]} in minutes, from the same
     tracks (no extra requests). Only shows whose every track has audio and a length, and that have
-    both a Set 1 and a Set 2, are kept: a show with missing audio would read as a short night."""
+    both a Set 1 and a Set 2, are kept: a show with missing audio would read as a short night.
+
+    The third value says whether every page came back; when phish.in fails partway, main() fills
+    the songs it missed from the last good build."""
     agg = defaultdict(list)
     per_show = defaultdict(lambda: [0.0, 0.0, 0.0])
     broken = set()
     page = 1
+    complete = True
     while page <= 60:
         url = f"https://phish.in/api/v2/tracks?per_page=500&page={page}&sort=date:desc"
         try:
-            payload = get_json(url, tries=2)
+            payload = get_json(url, tries=3)
         except Exception as e:
             print(f"  ! durations page {page}: {e}", file=sys.stderr)
+            complete = False
             break
         tracks = (payload or {}).get("tracks") or []
         if not tracks:
@@ -465,7 +472,28 @@ def fetch_durations():
     show_min = {d: [round(v, 1) for v in m] for d, m in per_show.items()
                 if d not in broken and m[0] > 0 and m[1] > 0}
     print(f"  real set lengths for {len(show_min)} shows")
-    return out, show_min
+    return out, show_min, complete
+
+
+def saved_durations():
+    """Song lengths from the last good build (data/songs.json keeps each song's median and spread),
+    so a phish.in outage cannot strip every length from the page. Empty on a first-ever build."""
+    try:
+        with open(os.path.join(CACHE, "songs.json"), encoding="utf-8") as f:
+            prev = json.load(f)
+    except Exception:
+        return {}
+    return {s["name"]: {"med": s["dur"], "q": s.get("durq") or [s["dur"]] * 5, "n": 0}
+            for s in prev if s.get("dur") is not None}
+
+
+def saved_table(name):
+    """A derived table as the last good build wrote it (None if there is none)."""
+    try:
+        with open(os.path.join(CACHE, f"{name}.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
 
 
 def realtime_factors(show_min, shows_list, songs, plays, last_n=100):
@@ -982,8 +1010,8 @@ def mine_cool_affinity(raw, durations):
             if pd is not None and pd >= 10:
                 after[nm] += 1
                 n_after += 1
-    if not n_mid:
-        return {}
+    if not n_mid or not n_after:
+        return {}                   # no song lengths at all: nothing to measure against
     base = n_after / n_mid
     alpha = 6
     out = {}
@@ -1494,10 +1522,16 @@ def main():
 
     print("Fetching song durations from phish.in...")
     try:
-        durations, show_min = fetch_durations()
+        durations, show_min, complete = fetch_durations()
     except Exception as e:
-        print(f"  ! durations unavailable ({e}) — continuing without them", file=sys.stderr)
-        durations, show_min = {}, {}
+        print(f"  ! durations unavailable ({e})", file=sys.stderr)
+        durations, show_min, complete = {}, {}, False
+    if not complete:
+        # phish.in is down or slow: keep the lengths the last good build had for any song it missed
+        prev = saved_durations()
+        kept = {k: v for k, v in prev.items() if k not in durations}
+        durations = {**kept, **durations}
+        print(f"  ! phish.in incomplete: reusing last build's lengths for {len(kept)} songs", file=sys.stderr)
 
     # Dump the duration distributions to a plain CSV next to index.html. This is a
     # diagnostic artifact, not an input: it makes the sampled-length tuning inspectable
@@ -1555,6 +1589,10 @@ def main():
     locked = mine_date_locked(raw)
     minutes = set_minutes(shows_list, songs, plays)
     realtime = realtime_factors(show_min, shows_list, songs, plays)
+    if realtime is None:
+        realtime = saved_table("realtime")      # too few real set lengths this run: keep the last ones
+        if realtime:
+            print(f"  ! real-time factors: reusing last build's (since {realtime.get('since')})", file=sys.stderr)
     cal = fit_static_calibration(shows_list, songs, plays, GAP_MULT)
     # Day-aware gap residual. Fit on 2019+ on purpose — the effect is a property of
     # MODERN touring (short segments, destination runs, residencies) and is absent
