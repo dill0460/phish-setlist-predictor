@@ -1644,6 +1644,8 @@ def main():
         "__DAYHAZ_JSON__": j(dayhaz),
         "__REALTIME_JSON__": j(realtime),
         "__SONGPOS_JSON__": j(songpos),
+        # filled in by contexts.js, which runs after this script (it needs the built page)
+        "__CONTEXTCORR_JSON__": "null",
         "__LATEST_DATE__": shows_list[-1]["date"],
         "__SHOW_COUNT__": f"{len(shows_list):,}",
         "__SONG_COUNT__": f"{len(songs):,}",

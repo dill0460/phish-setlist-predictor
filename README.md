@@ -45,7 +45,16 @@ The realistic setlist is built to the shape of the **last 100 shows**: songs per
 jams per set, set lengths and how set 1 compares with set 2. Minutes are shown in real track
 time (calibrated on phish.in recordings). The running order inside each set follows each
 song's measured habit (Down with Disease early in set 2, Harry Hood late), not its probability.
-Tour openers are recognised from phish.net's tour names. Soundchecks, TV spots and radio
+Tour openers are recognised from phish.net's tour names.
+
+**Learned corrections** (`contexts.js`, run by the Action after `build.py`): the model is replayed
+on every show since 2010 as it would have predicted it the day before, and what it keeps missing
+is learned and applied — songs already played once this tour come back less, staples more; new
+songs less than their first burst suggests; and kinds of night (tour openers, first and last
+nights of a run, tour finales, New Year's Eve, stand-alone runs such as Dick's, NYE, Mexico and
+Sphere, and Dick's itself) have their own favourites and lengths. The replay
+is cached in `data/context_cache.json`; after a template change the first build replays
+everything once (several minutes). Soundchecks, TV spots and radio
 sessions in the setlist data are left out of the history: they are not concerts.
 
 ## Data

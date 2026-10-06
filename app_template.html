@@ -528,10 +528,11 @@
             <p><b>Songs that share a set</b> &mdash; thirteen further pairs turn up in the same set well beyond chance: Tweezer + Piper (2.6&times;), Also Sprach + Piper (2.6&times;), Slave + Light (2.7&times;), Funky Bitch + The Moma Dance (3.2&times;), Harry Hood + Twist (2.2&times;). They nudge set assignment rather than forcing it.</p>
             <p><b>Where a song lives</b> &mdash; each song carries its own history across seven slots (set 1 opener/song/closer, set 2 opener/song/closer, encore). Songs that only ever land as closers or encores are barred from mid-set outright: Tweezer Reprise is 92% encore-or-set-2-closer, and it will never appear in the middle of a set here. Slots are filled by weighted draw, not by the single best fit &mdash; real encores draw on 193 different songs, and the five most common cover only 21% of them.</p>
             <p><b>Set length in minutes</b> &mdash; sets fill to time, not just to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs. How many songs each set holds, how long it runs and how set 1 compares with set 2 are all measured on the <b>last 100 shows</b>, so the shape follows the band as it changes. The minutes shown are real track time, calibrated on phish.in recordings (set 2 jams stretch well past their usual length, so a real set 2 runs about a quarter longer than its songs' typical lengths add up to).</p>
-            <p><b>Running order</b> &mdash; beyond the opener and closer, each song has a habit of where it lands in a set: Down with Disease and Tweezer come early in set 2, Harry Hood and Wading in the Velvet Sea late; AC/DC Bag early in set 1, Split Open and Melt late. Sets are ordered by those habits (with a realistic amount of night-to-night variation), not by probability. Tested on every set since mid-2023, the habits alone put a pair of middle songs in the right order 60% of the time in set 1 and 66% in set 2, where a coin flip gets 50%.</p>
+            <p><b>Running order</b> &mdash; beyond the opener and closer, each song has a habit of where it lands in a set: Down with Disease and Tweezer come early in set 2, Harry Hood and Wading in the Velvet Sea late; AC/DC Bag early in set 1, Split Open and Melt late. Sets are ordered by those habits (with a realistic amount of night-to-night variation), not by probability. One honest caveat on the official call: it is the most likely songs for each set, and big jams are each individually likely, so its set 2 usually carries more of them than a real one does. Holding it to a real set's shape was tested and cost about a third of a correct song per show, so the call stays the most-likely list and shows song counts rather than a running time. Tested on every set since mid-2023, the habits alone put a pair of middle songs in the right order 60% of the time in set 1 and 66% in set 2, where a coin flip gets 50%.</p>
             <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
             <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar. <b>Tour openers</b> are recognised the same way, from phish.net's tour names (the first show of a new tour, or the first show back after two weeks off). A set of first-night "warm-up" songs was mined for them too, but when tested honestly it made the predictions slightly worse, so tour openers are flagged and not boosted.</p>
             <p><b>No repeats inside a run</b> &mdash; when the show you're predicting is night 2 or later of a stand at one venue, everything already played earlier in that run is all but ruled out. This is the strongest single pattern in the whole dataset: measured across 2009 onward, just <b>0.3%</b> of a night's songs had already appeared earlier in the same run, against <b>17.8%</b> for any three preceding shows. The Baker's Dozen ran thirteen nights and 237 songs with exactly one repeat. Adding this lifted backtested top-20 accuracy from 4.76 to 5.14 songs overall, and to 5.56 on run nights specifically. Ruling songs out doesn't shorten the night, it concentrates it &mdash; a run night actually runs <i>longer</i> than a one-off (18.1 songs against 16.7) &mdash; so the probability taken off the already-played songs is handed back to everything still eligible. Deep into a run that's a large boost for whatever's left; on night 2 it barely moves.</p>
+            <p><b>Learned from its own mistakes</b> &mdash; every day the model replays itself on every show since 2010, exactly as it would have predicted each one the day before, and learns what it keeps getting wrong. Two song patterns: within a tour, a song already played <b>once</b> comes back much less than its numbers suggest (about 0.75&times;) while a staple played twice or more comes back more (about 1.2&times;) &mdash; that is how a tour rotates; and a brand-new song's first burst of plays overstates it (about 0.45&times; in its first three months, 0.85&times; in its second year). And kinds of night: tour openers lean on Free, Ghost and Bouncing Around the Room; the first night of a run on Ghost, No Men In No Man's Land and Simple; the last night on Carini, Bathtub Gin and Twist; tour finales and New Year's Eve run longer; and stand-alone runs &mdash; destination runs that are not really a tour, like NYE, Mexico, Sphere and Dick's (filed under the summer tour, but its own thing) &mdash; lean on Free, Ghost, Simple and Tube, with Harry Hood and Ghost at Dick's. Each correction is shrunk toward &ldquo;no change&rdquo; when the evidence is thin, and the header says which kind of night you are looking at. Tested on 150 shows the corrections had never seen: about 0.2 more of the top 20 played per show, and noticeably more honest percentages.</p>
             <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set in Advanced settings. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
             <p><b>Date-locked songs</b> &mdash; anything played almost exclusively on one calendar date is excluded unless you set the show date to match. Exactly one song qualifies: Auld Lang Syne, 28 of its 29 outings on December 31.</p>
           </div>
@@ -1482,7 +1483,7 @@ function fitCalibration(asOfIdx, settings) {
     // recently arrive at roughly half their calibrated number while long-dormant ones arrive
     // above it — a bias the score-only calibration cannot see. Run-mates are left out of this
     // fit entirely; the within-run no-repeat rule prices those separately.
-    const obsRaw = [], obsG = [], obsR = [], obsHit = [];
+    const obsRaw = [], obsG = [], obsR = [], obsHit = [], obsSid = [];
     const nights = [];        // per eval night: its observations, and its run-mates (for the final fit)
     for (const T of evals) {
       const scores = rawScoresAt(T - 1, settings);
@@ -1505,10 +1506,12 @@ function fitCalibration(asOfIdx, settings) {
           obsG.push(gapBucket(s.gap));
           obsR.push(rb);
           obsHit.push(played.has(sid) ? 1 : 0);
+          obsSid.push(sid);
           night.hits += played.has(sid) ? 1 : 0;
           night.idx.push(obsRaw.length - 1);
         }
       }
+      night.T = T;
       nights.push(night);
     }
     // isotonic (PAVA) on non-empty bins
@@ -1563,6 +1566,7 @@ function fitCalibration(asOfIdx, settings) {
       let ps = night.idx.map(i => adjOf(obsRaw[i], obsG[i], obsR[i]));
       const mateMass = night.mates.reduce((s, m) => s + Math.max(0.001, adjOf(m[0], m[1], m[2]) * RUN_REPEAT_MULT), 0);
       ps = oddsScaleTo(ps, nightTarget - mateMass);
+      ps = applyLearned(ps, night.idx.map(i => obsSid[i]), SHOWS[night.T]);
       ps.forEach((p, k) => { fx.push(p); fy.push(obsHit[night.idx[k]]); });
     }
     // 150 per bin, not 40: the top bands hold only a few dozen songs per 120 shows, and at 40 the
@@ -1733,6 +1737,120 @@ const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
 // not, and with no tour name at all a 14+ day gap stands in for the schedule.
 const NO_TOUR = 'Not Part of a Tour';
 const TOUR_OPEN_GAP_DAYS = 14;
+
+// KINDS OF NIGHT. Some nights are not like the others, and the model only knows that indirectly.
+// contexts.js replays the model on every past night of each kind and records what it missed;
+// CONTEXT_CORR carries the result — {cats: {pattern: multiplier}, size: {kind: factor},
+// songs: {kind: {songid: multiplier}}} — null until that build step has run, in which case nothing
+// changes. contextsOf() and songCatsFor() are the ONE definition of each kind and pattern, used
+// both here and by contexts.js, so the two cannot disagree.
+const CONTEXT_CORR = __CONTEXTCORR_JSON__;
+function contextsOf(s, next) {
+  if (!s || !s.date) return [];
+  const out = [];
+  const m = /night\s+(\d+)\s+of\s+(\d+)/i.exec(s.runN || '');
+  const k = m ? +m[1] : 1, n = m ? +m[2] : 1;
+  const tour = s.tour && s.tour !== NO_TOUR ? s.tour : null;
+  if (s.tourOpen) out.push('tourOpen');
+  if (tour && (!next || next.tour !== s.tour)) out.push('tourClose');
+  if (s.date.slice(5) === '12-31') out.push('nye');
+  // First and last nights of a multi-night run. Middle nights were tested and gained nothing, and
+  // splitting further (night 1 / 2 / 3 of exactly three) left too few examples and lost.
+  if (n >= 2 && k === 1) out.push('runFirst');
+  if (n >= 2 && k === n) out.push('runLast');
+  // STAND-ALONE RUNS — destination runs that are not a tour: NYE, Mexico, Sphere, the MSG spring
+  // run (a named "tour" played at one venue), a multi-night run phish.net files under "Not Part of
+  // a Tour" (that is how the 2027 Riviera Maya run appears on the schedule), and Dick's, which is
+  // always filed under the summer tour but sits apart from it. Every night of such a run has its
+  // own feel; Dick's has enough history to carry its own correction as well. Measured with the
+  // other corrections in place, 340 shows since 2018: top-20 +0.22 -> +0.24, Brier -0.200 -> -0.213.
+  const dicks = /Dick's Sporting Goods Park/.test(s.venue || '');
+  if (dicks) out.push('dicks');
+  const venues = tour ? tourVenues().get(tour) : null;
+  if (dicks || (venues && venues.size === 1) || (!tour && n >= 2)) out.push('standalone');
+  return out;
+}
+// tour name -> the venues it visits (history and schedule), for the stand-alone test above
+let _tourVenues = null;
+function tourVenues() {
+  if (_tourVenues) return _tourVenues;
+  _tourVenues = new Map();
+  for (const x of [...SHOWS, ...UPCOMING]) {
+    const t = x.tour && x.tour !== NO_TOUR ? x.tour : null;
+    if (!t) continue;
+    if (!_tourVenues.has(t)) _tourVenues.set(t, new Set());
+    _tourVenues.get(t).add(x.venue);
+  }
+  return _tourVenues;
+}
+// The learned corrections for one night, applied to a list of probabilities (same order as `ids`):
+// song patterns first, the night keeping its total; then the kind of night, whose size factor sets
+// the new total. Used by compute() and by fitCalibration(), so both see identical numbers.
+function learnedKinds(show) {
+  if (!CONTEXT_CORR || !CONTEXT_CORR.songs || !show) return [];
+  return contextsOf(show, nextShowOf(show)).filter(c => CONTEXT_CORR.songs[c]);
+}
+function applyLearned(ps, ids, show) {
+  if (!CONTEXT_CORR || !show || !ps.length) return ps;
+  const total = ps.reduce((a, b) => a + b, 0);
+  let out = ps;
+  if (CONTEXT_CORR.cats) {
+    const catsOf = songCatsFor(show);
+    out = oddsScaleTo(out.map((p, k) => {
+      let m = 1;
+      for (const key of catsOf(ids[k])) m *= CONTEXT_CORR.cats[key] || 1;
+      return Math.min(0.95, p * m);
+    }), total);
+  }
+  const kinds = learnedKinds(show);
+  if (kinds.length) {
+    let F = 1;
+    for (const c of kinds) F *= (CONTEXT_CORR.size && CONTEXT_CORR.size[c]) || 1;
+    out = oddsScaleTo(out.map((p, k) => {
+      let m = 1;
+      for (const c of kinds) m *= CONTEXT_CORR.songs[c][ids[k]] || 1;
+      return Math.min(0.95, p * m);
+    }), total * F);
+  }
+  return out;
+}
+
+// SONG PATTERNS for one night: returns songid -> list of pattern keys.
+//   tour:t0 / t1 / t2  played 0, 1, or 2+ times earlier in this same tour. Phish rotates a tour:
+//                      measured against the model, a song already played ONCE this tour comes back
+//                      at ~0.72x, one not yet played at ~1.06x, and a staple played twice+ at ~1.19x.
+//   age:a90 ... old    days since the song's debut. A new song's first burst of plays reads as a
+//                      high rate, and it then settles: <= 90 days ~0.44x, a second year ~0.85x.
+// The multipliers themselves are learned by contexts.js; this only sorts songs into the patterns.
+function songCatsFor(s) {
+  const tour = s && s.tour && s.tour !== NO_TOUR ? s.tour : null;
+  const counts = new Map();
+  if (tour) {
+    for (let i = 0; i < SHOWS.length && SHOWS[i].date < s.date; i++) {
+      if (SHOWS[i].tour !== tour) continue;
+      for (const sid of SONGS_AT_IDX.get(i) || []) counts.set(sid, (counts.get(sid) || 0) + 1);
+    }
+  }
+  return id => {
+    const out = [];
+    if (tour) { const c = counts.get(id) || 0; out.push(c === 0 ? 'tour:t0' : c === 1 ? 'tour:t1' : 'tour:t2'); }
+    const g = SONG_BY_ID.get(id);
+    if (g && g.debut && s && s.date) {
+      const d = daysBetween(g.debut, s.date);
+      out.push(d <= 90 ? 'age:a90' : d <= 180 ? 'age:a180' : d <= 365 ? 'age:a365' : d <= 730 ? 'age:a730' : 'age:old');
+    }
+    return out;
+  };
+}
+// The show after `s` — the next one on record, else the next one on the announced schedule.
+function nextShowOf(s) {
+  if (!s || !s.date) return null;
+  if (DATE_IDX.has(s.date)) {
+    const i = DATE_IDX.get(s.date);
+    if (i + 1 < SHOWS.length) return SHOWS[i + 1];
+  }
+  return UPCOMING.find(u => u.date > s.date) || null;
+}
 {
   const seen = new Set();
   let prevDate = null;
@@ -2000,6 +2118,22 @@ function compute() {
       eligible.forEach((r, i) => { r.pred = scaled[i]; });
     }
   }
+  // LEARNED CORRECTIONS (see KINDS OF NIGHT): what the model has historically missed, learned by
+  // contexts.js from day-before replays of every past show — song patterns (tour repeats, song
+  // age), then the kind of night (tour opener / closer, NYE, first or last night of a run). They
+  // run BEFORE the final calibration, and that calibration is fit on corrected numbers too, so a
+  // boosted song's percentage is checked against reality like every other. (Applied after it, the
+  // corrections lifted top-20 hits but left songs shown at 45-60% playing 40% of the time.)
+  let nightKinds = [];
+  if (CONTEXT_CORR && tgtShow) {
+    const eligible = rows.filter(r => r.pred > 0 && !(r.deepDormant || r.runRepeat || r.offTheme || r.dateBlocked));
+    if (eligible.length) {
+      const before = eligible.map(r => r.pred);
+      const after = applyLearned(before, eligible.map(r => r.id), tgtShow);
+      eligible.forEach((r, k) => { if (after[k] !== before[k]) r.learnedMult = after[k] / before[k]; r.pred = after[k]; });
+      nightKinds = learnedKinds(tgtShow);
+    }
+  }
   // Final calibration (see fitCalibration): the finished number, mapped to how often songs at
   // that number really played. Suppressed rows keep their deliberately tiny values.
   if (cal.final) {
@@ -2092,7 +2226,7 @@ function compute() {
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
   const tourOpen = !!(tgtShow && tgtShow.tourOpen);
-  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow };
+  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow, nightKinds };
 }
 
 // ---------- setlist assembly ----------
@@ -2118,7 +2252,10 @@ function selectPool(rows, total) {
   for (const [depId, bond] of Object.entries(BONDED)) {
     if (inPool.has(bond.anchor) && Math.random() < bond.p) {
       const dep = byId.get(+depId);
-      if (dep && !inPool.has(dep.id) && !dep.offTheme && !dep.runRepeat) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
+      // A long-dormant partner does not ride in on its anchor: bond.p is an all-history rate, and a
+      // song gone 1,600 shows (The Asse Festival) was being revived at its 1990s pace. Its only door
+      // is the bustout channel, priced and capped like every other bustout.
+      if (dep && !inPool.has(dep.id) && !dep.offTheme && !dep.runRepeat && !dep.deepDormant) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
     }
   }
   const mins = a => a.reduce((s, r) => s + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
@@ -2673,6 +2810,9 @@ function buildSetlist(rows, n1, n2, ne) {
     if (Math.random() >= bond.p) continue;
     const dep = rows.find(r => r.id === +depId);
     if (!dep || used.has(dep.id) || dep.offTheme || dep.runRepeat) continue;
+    // Same rule as the pool draw (a deep-dormant partner never rides in), plus the one-bustout cap:
+    // this top-up runs after the bustout thin-out, so it was a side door for a second bustout.
+    if (dep.deepDormant || (dep.isBustout && placed.some(r => r.isBustout))) continue;
     // The bond top-up used to push straight past the drawn count. The bond itself is
     // non-negotiable, so when the destination set is full the weakest unlocked mid-set song
     // makes way instead of the count being breached.
@@ -3329,7 +3469,19 @@ function ratioCell(r) {
 }
 
 function render() {
-  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow } = compute();
+  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow, nightKinds } = compute();
+  // The kind of night, in words, with the songs those nights have most favoured beyond what the
+  // model already expected (the learned multipliers), among songs with a real chance tonight.
+  const KIND_LABEL = { tourOpen: 'Tour opener', tourClose: 'Last show of the tour', nye: "New Year's Eve",
+                       runFirst: 'First night of the run', runLast: 'Last night of the run',
+                       standalone: 'Stand-alone run', dicks: "Dick's" };
+  const kindBoost = r => nightKinds.reduce((m, k) => m * ((CONTEXT_CORR && CONTEXT_CORR.songs[k] && CONTEXT_CORR.songs[k][r.id]) || 1), 1);
+  const favoured = nightKinds.length
+    ? rows.filter(r => r.pred >= 0.05 && kindBoost(r) >= 1.08).sort((a, b) => kindBoost(b) - kindBoost(a)).slice(0, 3).map(r => r.name)
+    : [];
+  const kindLine = nightKinds.length
+    ? `${nightKinds.filter(k => !(k === 'standalone' && nightKinds.includes('dicks'))).map((k, i) => i && k !== 'dicks' ? (KIND_LABEL[k] || k).toLowerCase() : (KIND_LABEL[k] || k)).join(', ')}${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR && nightKinds.some(k => k === 'tourOpen' || k === 'tourClose') ? ` (${tgtShow.tour})` : ''}${favoured.length ? `: these nights have historically favoured ${favoured.join(', ')}.` : '.'}`
+    : (tourOpen ? `Tour opener${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR ? ` (${tgtShow.tour})` : ''}: the first night of the tour.` : '');
   LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
   // Name the actual show being predicted, not just the cutoff date it comes after.
@@ -3352,8 +3504,8 @@ function render() {
   // Conditions that materially change the prediction get their own line, but only while active.
   els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
     + (RUN_DEBT_STATE.owed ? `${runMates.size ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Reprise owed: ${RUN_DEBT.anchor} went unpaid earlier in this run, so <b>${RUN_DEBT.dep}</b> is live at <b>${(RUN_DEBT_STATE.p * 100).toFixed(0)}%</b>${RUN_DEBT_STATE.left === 0 ? ' on the closing night' : ''} (${RUN_DEBT_STATE.cell[0]} of ${RUN_DEBT_STATE.cell[1]} comparable nights since ${RUN_DEBT_MINED && RUN_DEBT_MINED.since ? RUN_DEBT_MINED.since.slice(0, 4) : '2009'}), most often as the encore finale.</span>` : '')
-    + (tourOpen ? `${runMates.size || RUN_DEBT_STATE.owed ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Tour opener${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR ? ` (${tgtShow.tour})` : ''}: the first night of the tour.</span>` : '')
-    + ((runMates.size || RUN_DEBT_STATE.owed || tourOpen) && themePool ? '<br>' : '')
+    + (kindLine ? `${runMates.size || RUN_DEBT_STATE.owed ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">${kindLine}</span>` : '')
+    + ((runMates.size || RUN_DEBT_STATE.owed || kindLine) && themePool ? '<br>' : '')
     + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
@@ -3409,8 +3561,11 @@ function render() {
     const slotLine = slotHits ? ` <b>${slotHits}</b> landed in the exact spot called.` : '';
     const block = (title, ids, setKey) => {
       const arr = markSegues(asRows(ids), setKey, false);   // deterministic: a committed call
-      const mins = arr.reduce((a, r) => a + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
-      const right = playedSet ? `${hitsIn(ids)}/${ids.length} hit` : `~${Math.round(realMin(setKey, mins))} min`;
+      // The official call is the most likely songs for each set, not a timed set: long jams are each
+      // individually likely, so the list runs well past a real set's length (a 7-song set 2 summed
+      // to ~110 minutes against a real ~84). A length here would invite the wrong reading, so the
+      // call shows its song count; drawn setlists keep their real-time minutes.
+      const right = playedSet ? `${hitsIn(ids)}/${ids.length} hit` : `${ids.length} song${ids.length === 1 ? '' : 's'}`;
       return `
       <div class="set-block">
         <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${right}</span></h3>

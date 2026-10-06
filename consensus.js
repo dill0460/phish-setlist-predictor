@@ -172,6 +172,13 @@ function completePairs(arrs, idOf, o = {}) {
   return added;
 }
 
+// Whether the official call is held to a real set's shape (see SET SHAPE in buildConsensus).
+// Measured over 100 shows x 300 draws, two seeds: ON matches real sets (set 2: 3.0 long jams,
+// ~71 planning minutes; real ~3 and ~66) but costs 0.27 and 0.43 hits per show (t = -2.4, -4.3);
+// a softer version (one extra jam, +25% length) still cost 0.07 and 0.24. It trades hits for a
+// realistic-looking call, so it is the site owner's choice, and it is off.
+const OFFICIAL_SET_SHAPE = false;
+
 function buildConsensus(E, opts = {}) {
   const draws = opts.draws || 500;
   if (opts.seed != null && E.setSeed) E.setSeed(opts.seed);
@@ -225,20 +232,47 @@ function buildConsensus(E, opts = {}) {
   const ranked = [...stat.entries()].sort((a, b) => b[1].n - a[1].n);
   const s1 = [], s2 = [], e = [];
   const inShow = new Set();
+  // SET SHAPE (OFF by default — see OFFICIAL_SET_SHAPE). Each long jam (10+ min) is individually a
+  // frequent pick, so a pure vote seats ~5 of them in a 7-song set 2 against a real ~3. With the
+  // shape on, each set holds at most its median count of long jams (LONG_SONGS) and roughly its
+  // median length (SET_MIN, +10%), both from the same last-100-show window as the counts; a song
+  // that does not fit is skipped for the next one down, and the limit is lifted only if a set
+  // cannot be filled otherwise.
+  const durOfId = id => { const r = rowById.get(id) || E.SONGS.find(s => s.id === id); return r && r.dur != null ? r.dur : 7.2; };
+  const longT = E.LONG_THRESH || 10;
+  const medLong = key => {
+    const t = E.LONG_SONGS && E.LONG_SONGS[key];
+    if (!t || !t.cdf) return Infinity;
+    for (const [n, c] of t.cdf) if (c >= 0.5) return n;
+    return Infinity;
+  };
+  const shapeOf = key => key === 'e' ? null : {
+    long: medLong(key),
+    budget: E.SET_MIN && E.SET_MIN[key] ? E.SET_MIN[key] * 1.10 : Infinity,
+  };
+  const fits = (arr, id, shape) => {
+    if (!shape || !OFFICIAL_SET_SHAPE) return true;
+    const d = durOfId(id);
+    if (d >= longT && arr.filter(x => durOfId(x) >= longT).length >= shape.long) return false;
+    return arr.reduce((a, x) => a + durOfId(x), 0) + d <= shape.budget;
+  };
   {
     const sel = [[e, ne, 'e'], [s2, n2, 's2'], [s1, n1, 's1']];
     const modal = t => (t.e >= t.s1 && t.e >= t.s2) ? 'e' : (t.s1 >= t.s2 ? 's1' : 's2');
     for (const [arr, cap, key] of sel) {
+      const shape = shapeOf(key);
       // Pass 1, MODAL-GUARDED: only songs whose modal location is this set. Without the
       // guard, scarce-first seating drafted 46 Days — the night's #1 song and a set-1
       // opener — into the encore purely because its encore count topped that (small)
       // ranking. A seat claim needs both: appeared here often, AND here is its home.
-      for (const relax of [false, true]) {
+      // Then the same two passes once more with the set-shape limits lifted, only if needed.
+      for (const [relax, shaped] of [[false, true], [true, true], [false, false], [true, false]]) {
         const byKey = [...stat.entries()]
           .filter(([id, t]) => !inShow.has(id) && t[key] > 0 && (relax || modal(t) === key))
           .sort((a, b) => b[1][key] - a[1][key] || b[1].n - a[1].n);
         for (const [id] of byKey) {
           if (arr.length >= cap) break;
+          if (shaped && !fits(arr, id, shape)) continue;
           arr.push(id); inShow.add(id);
         }
         if (arr.length >= cap) break;
@@ -328,4 +362,4 @@ function buildConsensus(E, opts = {}) {
   };
 }
 
-module.exports = { buildConsensus, hashSeed, enforceChains, completePairs, CHAINS };
+module.exports = { buildConsensus, hashSeed, enforceChains, completePairs, CHAINS, OFFICIAL_SET_SHAPE };
