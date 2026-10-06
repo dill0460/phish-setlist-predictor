@@ -92,6 +92,21 @@ official call, and how realistic the generated nights look against real ones. Ru
 `node backtest.js --fetch-phishin` once to download the phish.in track times it uses for
 set lengths and running order.
 
+## Ideas for later
+
+- **Phish's own festivals as stand-alone runs.** Festival 8 (2009) and Super Ball IX (2011) are
+  already treated like Dick's and Mexico, because phish.net files them as "Not Part of a Tour".
+  Magnaball (2015, Watkins Glen) and Mondegreen (2024, The Woodlands) are filed under that
+  summer's tour, so they are not. Counting them as stand-alone was tested in October 2026 and made no
+  measurable difference (top-20 -0.01 per show, Brier -0.001, both within noise). There are only
+  two such festivals to learn from. Worth re-testing after the next festival, which will be obvious
+  from the schedule: add its venue to the stand-alone rule in `contextsOf()` (`app_template.html`).
+- **Shows left out of the history.** The build drops everything phish.net marks "does not count
+  for stats". Checked in October 2026: those are soundchecks the day before a run (every festival
+  and Mexico run), national anthems at sports games, the 2008 wedding reception and the 2010 Hall
+  of Fame induction. The real festival and Mexico shows are all included. Soundcheck songs could
+  one day be a hint for the run that follows, but the samples are tiny.
+
 ## Credits
 
 Setlist data is the work of the [Mockingbird Foundation](https://phish.net/), a

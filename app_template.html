@@ -2158,6 +2158,22 @@ function compute() {
     }
   }
 
+  // A song only ever played on one calendar date (Auld Lang Syne on NYE) is nearly certain on that
+  // date, but everything above sees only its overall rate — about one show in 50 — so it read 2%
+  // on NYE. On its date it gets its real hit rate on that date since 2009, known before the show,
+  // with one imaginary miss and one hit added so a short record cannot claim certainty: Auld Lang
+  // Syne, played on 16 of 16 NYEs, shows 94%.
+  for (const r of rows) {
+    if (!r.dateLock || r.dateBlocked) continue;
+    let n = 0, hit = 0;
+    for (let i = 0; i <= asOfIdx && i < SHOWS.length; i++) {
+      if (SHOWS[i].date < '2009-01-01' || SHOWS[i].date.slice(5) !== r.dateLock) continue;
+      n++;
+      if (SONGS_AT_IDX.get(i)?.has(r.id)) hit++;
+    }
+    if (n) r.pred = Math.max(r.pred, (hit + 1) / (n + 2));
+  }
+
   // Reprise debt: replace the generic probability with the mined conditional and suspend the
   // bond (see the RUN_DEBT block). Mass is conserved: the probability added to the Reprise is
   // taken back proportionally from everything else, because a night does not get longer just
