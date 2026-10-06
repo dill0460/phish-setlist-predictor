@@ -29,7 +29,11 @@ P(song is played) = recency-weighted frequency × gap multiplier → calibrated
   played (0.45× the next show), peaks in the "due" zone 4–8 shows out (1.12×), and falls well
   below baseline past ~20 shows (0.22×). This term does most of the predictive work.
 - **Calibration** — raw scores are refit against what actually happened in the ~120 shows
-  before the target date, at the current settings, with themed runs excluded.
+  before the target date, at the current settings (nothing held out). A final pass checks the
+  finished number itself, so a song shown at 50% really plays about half the time.
+- **Night total** — each night's probabilities are scaled together so they add up to what a
+  real night holds (measured on the last 100 shows), so boosts take from other songs instead of
+  making the night longer, and a night after a long break is not over-filled.
 
 On top of that: song pairings mined from history (Mike's Song → Weekapaug Groove, The Horse →
 Silent in the Morning, Tweezer → Tweezer Reprise) are drawn as single units; songs that only
@@ -37,10 +41,17 @@ ever appear as closers or encores are barred from mid-set; cool-down songs are i
 how often they actually follow a long jam rather than by length; and songs locked to one
 calendar date (Auld Lang Syne) are excluded unless you're predicting that date.
 
+The realistic setlist is built to the shape of the **last 100 shows**: songs per set, long
+jams per set, set lengths and how set 1 compares with set 2. Minutes are shown in real track
+time (calibrated on phish.in recordings). The running order inside each set follows each
+song's measured habit (Down with Disease early in set 2, Harry Hood late), not its probability.
+Tour openers are recognised from phish.net's tour names. Soundchecks, TV spots and radio
+sessions in the setlist data are left out of the history: they are not concerts.
+
 ## Data
 
 - Setlists: [phish.net API v5](https://docs.phish.net/) (needs a free API key)
-- Song durations: [phish.in API v2](https://phish.in/api-docs)
+- Song durations and real set lengths: [phish.in API v2](https://phish.in/api-docs)
 
 ## Rebuilding
 
@@ -51,6 +62,21 @@ PHISHNET_API_KEY=your_key python build.py
 That fetches everything, recomputes every derived table, and writes `index.html`.
 A scheduled GitHub Action runs it daily and commits the result, so the site stays
 current on its own.
+
+## Testing a change
+
+```bash
+node test_ui.js                  # structural rules every generated night must obey
+node backtest.js                 # the before/after scoreboard (about 10 minutes)
+node backtest.js --quick         # probabilities only (about a minute)
+node compare.js before.json after.json   # paired before/after, from backtest.js --json
+```
+
+`backtest.js` predicts each of the last 150 shows using only the shows before it, then scores
+the top-20 list (how many were played), the Brier score (are the percentages honest?), the
+official call, and how realistic the generated nights look against real ones. Run
+`node backtest.js --fetch-phishin` once to download the phish.in track times it uses for
+set lengths and running order.
 
 ## Credits
 

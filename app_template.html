@@ -516,6 +516,8 @@
             <p><b>How overdue</b> &mdash; measured from the full history rather than assumed. A song is suppressed the night after it's played (0.45&times;), peaks about 4&ndash;8 shows later (1.12&times;), and drops well below its own average once it's been gone 20+ shows (0.22&times;) &mdash; long-dormant songs come back <i>less</i> often than raw frequency implies, not more. This term does most of the predictive work.</p>
             <p><b>Overdue against its own habit</b> &mdash; the two corrections above work on the calendar, which can't tell a song that plays every four shows from one that plays every twenty. So a further correction is fit on the ratio of a song's current gap to its <i>own</i> average gap. It matters a lot: a staple sitting past twice its usual gap is bumped <b>2.1&times;</b>. Before this was added, exactly the songs you'd swear were due &mdash; big, frequently played, conspicuously absent &mdash; were predicted at 25% and actually turned up 39% of the time. That gap is now closed.</p>
             <p><b>Corrected against reality</b> &mdash; raw scores are checked against what actually happened in the ~120 shows before your target date, at your current settings, and bent to match. Nothing is held out: a themed run (like the 2026 90s-throwback MSG run) picks its setlist by a rule this model can't see, but it's a handful of shows out of thousands &mdash; it washes out in the average rather than skewing it. We checked: leaving it in versus pulling it out moves any song's number by at most 1.5 points. Not worth a special case. The correction refits whenever you change a setting.</p>
+            <p><b>Checked again at the end</b> &mdash; the corrections above are fit one at a time, so the finished number gets one more check of its own: across those same ~120 shows, how often did songs given this number actually play? Songs shown at 45&ndash;60% used to turn up 38% of the time; this pass is why the percentages now mean what they say. It never changes the ranking, only the stated chance.</p>
+            <p><b>A night holds a night's worth of songs</b> &mdash; every night's probabilities are scaled together so they add up to what a real night holds, measured on the last 100 shows. Boosting some songs (opening night of a run, songs not yet played this run) therefore takes the same amount from everything else, and a night after a long break no longer comes out six songs too long.</p>
           </div>
         </details>
 
@@ -525,9 +527,10 @@
             <p><b>The Reprise can be owed across nights</b> &mdash; Tweezer &rarr; Reprise is a same-night pair only until a Tweezer ends a night without one. Then the Reprise is outstanding for the rest of the run: when a Tweezer has gone unpaid earlier in the run, the closing night has collected the Reprise 15 of 16 times since 2009 (Dick's 2026 is the latest), one night from the end only 3 of 13, earlier only 0 of 13, and when it does arrive it is the encore about 83% of the time. While a Reprise is owed the page prices it at those smoothed rates, drops the same-night Tweezer requirement for that one song, and says so in the banner above the setlist.</p>
             <p><b>Songs that share a set</b> &mdash; thirteen further pairs turn up in the same set well beyond chance: Tweezer + Piper (2.6&times;), Also Sprach + Piper (2.6&times;), Slave + Light (2.7&times;), Funky Bitch + The Moma Dance (3.2&times;), Harry Hood + Twist (2.2&times;). They nudge set assignment rather than forcing it.</p>
             <p><b>Where a song lives</b> &mdash; each song carries its own history across seven slots (set 1 opener/song/closer, set 2 opener/song/closer, encore). Songs that only ever land as closers or encores are barred from mid-set outright: Tweezer Reprise is 92% encore-or-set-2-closer, and it will never appear in the middle of a set here. Slots are filled by weighted draw, not by the single best fit &mdash; real encores draw on 193 different songs, and the five most common cover only 21% of them.</p>
-            <p><b>Set length in minutes</b> &mdash; sets fill to time (~73 min, ~67 min, ~15 min encore), not to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs.</p>
+            <p><b>Set length in minutes</b> &mdash; sets fill to time, not just to a song count, so a night that draws Tweezer, Down with Disease and Ruby Waves simply fits fewer songs. How many songs each set holds, how long it runs and how set 1 compares with set 2 are all measured on the <b>last 100 shows</b>, so the shape follows the band as it changes. The minutes shown are real track time, calibrated on phish.in recordings (set 2 jams stretch well past their usual length, so a real set 2 runs about a quarter longer than its songs' typical lengths add up to).</p>
+            <p><b>Running order</b> &mdash; beyond the opener and closer, each song has a habit of where it lands in a set: Down with Disease and Tweezer come early in set 2, Harry Hood and Wading in the Velvet Sea late; AC/DC Bag early in set 1, Split Open and Melt late. Sets are ordered by those habits (with a realistic amount of night-to-night variation), not by probability. Tested on every set since mid-2023, the habits alone put a pair of middle songs in the right order 60% of the time in set 1 and 66% in set 2, where a coin flip gets 50%.</p>
             <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
-            <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar.</p>
+            <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar. <b>Tour openers</b> are recognised the same way, from phish.net's tour names (the first show of a new tour, or the first show back after two weeks off). A set of first-night "warm-up" songs was mined for them too, but when tested honestly it made the predictions slightly worse, so tour openers are flagged and not boosted.</p>
             <p><b>No repeats inside a run</b> &mdash; when the show you're predicting is night 2 or later of a stand at one venue, everything already played earlier in that run is all but ruled out. This is the strongest single pattern in the whole dataset: measured across 2009 onward, just <b>0.3%</b> of a night's songs had already appeared earlier in the same run, against <b>17.8%</b> for any three preceding shows. The Baker's Dozen ran thirteen nights and 237 songs with exactly one repeat. Adding this lifted backtested top-20 accuracy from 4.76 to 5.14 songs overall, and to 5.56 on run nights specifically. Ruling songs out doesn't shorten the night, it concentrates it &mdash; a run night actually runs <i>longer</i> than a one-off (18.1 songs against 16.7) &mdash; so the probability taken off the already-played songs is handed back to everything still eligible. Deep into a run that's a large boost for whatever's left; on night 2 it barely moves.</p>
             <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set in Advanced settings. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
             <p><b>Date-locked songs</b> &mdash; anything played almost exclusively on one calendar date is excluded unless you set the show date to match. Exactly one song qualifies: Auld Lang Syne, 28 of its 29 outings on December 31.</p>
@@ -536,15 +539,15 @@
 
         <details><summary>How accurate is it, honestly?</summary>
           <div class="dbody">
-            <p>Tested against 143 shows the model never saw (2023 through January 2026, themed runs excluded): <b>the top 20 songs by probability contain about 5 of the ~18 played</b>. That is far better than chance and, as far as we can tell, better than anything else public &mdash; phish.net's Trey's Notebook, which ranks by plays in the last year, gets about 3. Bolting our overdue-ness term onto their one-year count lifts them to 4.8, which says plainly that the overdue term is where nearly all the edge lives; window length barely matters.</p>
+            <p>Tested walk-forward against the last 150 shows, each one predicted with only the shows before it: <b>the top 20 songs by probability contain about 6 of the ~18 played</b> (6.3). On an earlier 143-show test, when this model managed about 5, phish.net's Trey's Notebook, which ranks by plays in the last year, got about 3. Bolting our overdue-ness term onto their one-year count lifts them to 4.8, which says plainly that the overdue term is where nearly all the edge lives; window length barely matters.</p>
             <p>But five of eighteen is the honest ceiling here, and it's worth being blunt about why: <b>Phish setlists are close to irreducibly random.</b> Roughly 150 songs are in live rotation, the band deliberately avoids patterns, and a good chunk of any night is songs nobody would have ranked highly. No amount of modelling fixes that. Treat a generated setlist as a plausible night, not a forecast.</p>
-            <p>Known weak spots, stated plainly: song <i>selection</i> rests on much firmer ground than song <i>ordering</i> &mdash; slot tendencies are real but weak. We checked openers specifically, ranked by each song's odds of showing up at all times its own history of opening a set, against the same 143-show window above (139 of those had one clearly recorded opener): the real set 1 opener landed in our top 5 <b>24.5%</b> of the time, top 3 <b>15.1%</b>. Worse than song selection overall &mdash; ordering is genuinely the harder problem, and we're not going to pretend otherwise. Bonded pairs still nudge their partners' rates upward slightly. The cool-down pattern is genuine but mild (18% vs a 14% base rate), so it fires on only about 10% of generated nights. Nothing here can anticipate a themed show, a guest sit-in, a debut, or a one-off gag, and those are a real share of any tour.</p>
+            <p>Known weak spots, stated plainly: song <i>selection</i> rests on much firmer ground than song <i>ordering</i> &mdash; slot tendencies and running-order habits are real but loose. We checked openers specifically, ranked by each song's odds of showing up at all times its own history of opening a set, against the same 143-show window above (139 of those had one clearly recorded opener): the real set 1 opener landed in our top 5 <b>24.5%</b> of the time, top 3 <b>15.1%</b>. Worse than song selection overall &mdash; ordering is genuinely the harder problem, and we're not going to pretend otherwise. Bonded pairs still nudge their partners' rates upward slightly. The cool-down pattern is genuine but mild (18% vs a 14% base rate), so it fires on only about 10% of generated nights. Nothing here can anticipate a themed show, a guest sit-in, a debut, or a one-off gag, and those are a real share of any tour.</p>
           </div>
         </details>
 
         <details><summary>Where the data comes from</summary>
           <div class="dbody">
-            <p>Setlists come from the <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> API &mdash; the work of the volunteer-run, non-profit Mockingbird Foundation, and worth <a href="https://phish.net/donate" target="_blank" rel="noopener">supporting</a>. Song lengths come from <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a> (median of every circulating version since 2009). Neither project is affiliated with this tool, and any errors here are ours.</p>
+            <p>Setlists come from the <a href="https://phish.net/" target="_blank" rel="noopener">phish.net</a> API &mdash; the work of the volunteer-run, non-profit Mockingbird Foundation, and worth <a href="https://phish.net/donate" target="_blank" rel="noopener">supporting</a>. Song lengths and real set lengths come from <a href="https://phish.in/" target="_blank" rel="noopener">phish.in</a> (every circulating version since 2009). Soundchecks, TV spots and radio sessions that appear in the setlist data are left out: they are not concerts. Neither project is affiliated with this tool, and any errors here are ours.</p>
           </div>
         </details>
       </div>
@@ -574,7 +577,7 @@
       <div class="card">
         <p class="chart-title">Top 15 by chance of being played at the next show</p>
         <div id="predictChart"></div>
-        <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (excluding the themed 2026 Mexico/Sphere/MSG-90s runs), so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
+        <p class="note">Formula: recency-weighted frequency (distinct shows played &divide; shows in window, weighted by your recency setting) &times; gap multiplier (empirical suppression/boost by shows-since-last-played) &rarr; calibrated against actual play rates. The calibration is <b>dynamic</b>: it refits to your current window and recency settings on the ~120 shows before your "as of" date (nothing held out), with a final check on the finished number and each night held to a real night's song count, so changing settings re-anchors the probabilities honestly instead of reusing a stale correction.</p>
       </div>
       <div class="card">
         <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;">
@@ -773,7 +776,10 @@ const EXCLUDED_RANGES = [];
 const inExcludedRange = d => EXCLUDED_RANGES.some(([lo, hi]) => d >= lo && d <= hi);
 // Gap buckets for the gap-conditional calibration correction below.
 const GAP_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-const gapBucket = g => g <= 5 ? g : g <= 9 ? 6 : g <= 14 ? 7 : g <= 19 ? 8 : 9;
+// Bucket 9 starts at gap 19 (shows BETWEEN), which is show-gap 20 — exactly where GAP_MULT drops
+// from 0.644 to 0.222. It used to start at 20, so the one cell of bucket 8 that sat past the cliff
+// shared a correction with four cells that did not, and was under-predicted ~3x.
+const gapBucket = g => g <= 5 ? g : g <= 9 ? 6 : g <= 14 ? 7 : g <= 18 ? 8 : 9;
 // "Overdue" only means anything relative to a song's OWN rhythm: eight shows out is a long time
 // for something that turns up every four, and nothing at all for something that turns up every
 // twenty. The absolute-gap correction above cannot tell those apart, and measurement says the
@@ -1166,6 +1172,116 @@ for (const [sid, arr] of playIdx) {
   playSlots.set(sid, order.map(k => playSlots.get(sid)[k]));
 }
 const SONG_BY_ID = new Map(SONGS.map(s => [s.id, s]));
+
+// ---------------------------------------------------------------------------
+// NIGHT SHAPE — how many songs each set holds, how many long jams, and the shortest believable
+// night — from the LAST 100 SHOWS before the night being predicted, re-derived every compute().
+// build.py's tables (SET_COUNTS, LONG_SONGS: 2022 on) were a fixed era and drifted out of date:
+// 2026 shows ran shorter than 2022-23 ones. A rolling window follows the band, and because it ends
+// at the stats cutoff it is honest in a backtest too (no future show shapes a past prediction).
+// The official call's per-set counts are the medians of this window (consensus.js reads
+// SET_COUNTS), so its length follows as well. The mined tables remain the fallback when fewer than
+// 40 shows are available. Objects are updated in place so consensus.js and the tests see them.
+// ---------------------------------------------------------------------------
+const NIGHT_SHAPE_N = 100;
+let NIGHT_FLOOR = 14;                 // replaced per night by the window's 2nd percentile
+// Set-length rules for the builder, in the builder's own units (each song at its median length,
+// DEFAULT_DUR when unknown — what durOf() averages to). These were hardcoded constants measured
+// once on 2022+ shows, and one was simply wrong: "set 1 outruns set 2 in 81% of shows" is 67% on
+// the last 100 shows even in these units (49% in real track time). The defaults are the old
+// constants, used only until a window has been measured.
+const MIN_SHAPE = {
+  pS1Longer: 0.81,                                  // share of nights set 1 runs longer than set 2
+  band: { lo: 0.73, med: 1.07, hi: 1.58 },          // set 1 / set 2 minutes: p05, median, p95
+  perSong: { s1: [6.94, 9.80], s2: [7.98, 11.78] }, // minutes per song, p05..p95
+  mps: { s1: 8.17, s2: 9.85 },                      // median minutes per song
+};
+const PLAYS_AT_IDX = new Map();
+for (const p of PLAYS) {
+  const i = DATE_IDX.get(p.date);
+  if (!PLAYS_AT_IDX.has(i)) PLAYS_AT_IDX.set(i, []);
+  PLAYS_AT_IDX.get(i).push(p);
+}
+const shapeCache = new Map();
+function cdfOf(values) {
+  const c = new Map();
+  for (const v of values) c.set(v, (c.get(v) || 0) + 1);
+  const keys = [...c.keys()].sort((a, b) => a - b);
+  let acc = 0;
+  return keys.map(k => { acc += c.get(k) / values.length; return [k, +acc.toFixed(5)]; });
+}
+function applyNightShape(asOfIdx) {
+  let sh = shapeCache.get(asOfIdx);
+  if (!sh) {
+    const lo = Math.max(0, asOfIdx - NIGHT_SHAPE_N + 1), win = [];
+    for (let i = lo; i <= asOfIdx; i++) win.push(i);
+    const pick = k => win.map(i => SHOWS[i][k]).filter(v => v > 0);
+    sh = { n: win.length };
+    for (const [key, k] of [['s1', 'n1'], ['s2', 'n2'], ['e', 'ne']]) {
+      const v = pick(k).sort((a, b) => a - b);
+      sh[key] = v.length >= 40 ? { cdf: cdfOf(v), med: v[Math.floor(v.length / 2)], n: v.length } : null;
+    }
+    const tot = win.map(i => SHOWS[i].n1 + SHOWS[i].n2 + SHOWS[i].ne).filter(v => v > 0).sort((a, b) => a - b);
+    sh.floor = tot.length >= 40 ? tot[Math.floor(0.02 * (tot.length - 1))] : null;
+    const longs = { s1: [], s2: [] };
+    for (const i of win) {
+      const ps = PLAYS_AT_IDX.get(i) || [];
+      let a = 0, b = 0;
+      for (const p of ps) {
+        const sg = SONG_BY_ID.get(p.sid);
+        if (!sg || !(sg.dur >= LONG_THRESH)) continue;
+        if (p.sl.some(c => c <= 2)) a++;
+        if (p.sl.some(c => c >= 3 && c <= 5)) b++;
+      }
+      if (SHOWS[i].n1 > 0) longs.s1.push(a);
+      if (SHOWS[i].n2 > 0) longs.s2.push(b);
+    }
+    for (const key of ['s1', 's2']) {
+      const v = longs[key];
+      sh['long_' + key] = v.length >= 40 ? { cdf: cdfOf(v), zero: +(v.filter(x => x === 0).length / v.length).toFixed(4), n: v.length } : null;
+    }
+    // minutes, counted the way build.py's set_minutes() and the builder count them
+    const mins = [];
+    for (const i of win) {
+      const m = { s1: 0, s2: 0, e: 0, c1: 0, c2: 0 };
+      for (const p of PLAYS_AT_IDX.get(i) || []) {
+        const sg = SONG_BY_ID.get(p.sid), d = sg && sg.dur != null ? sg.dur : DEFAULT_DUR;
+        if (p.sl.some(c => c <= 2)) { m.s1 += d; m.c1++; } else if (p.sl.includes(6)) m.e += d; else { m.s2 += d; m.c2++; }
+      }
+      if (m.s1 > 0 && m.s2 > 0) mins.push(m);
+    }
+    if (mins.length >= 40) {
+      const q = (a, f) => { const b = a.slice().sort((x, y) => x - y); return b[Math.max(0, Math.min(b.length - 1, Math.floor(f * b.length)))]; };
+      const sd = a => { const mu = a.reduce((x, y) => x + y, 0) / a.length; return Math.sqrt(a.reduce((x, y) => x + (y - mu) ** 2, 0) / a.length); };
+      const col = k => mins.map(m => m[k]);
+      const ratio = mins.map(m => m.s1 / m.s2), ps1 = mins.map(m => m.s1 / m.c1), ps2 = mins.map(m => m.s2 / m.c2);
+      const tot = mins.map(m => m.s1 + m.s2 + m.e), enc = col('e').filter(v => v > 0);
+      sh.min = {
+        s1: q(col('s1'), 0.5), s2: q(col('s2'), 0.5), e: enc.length ? q(enc, 0.5) : 15,
+        s1Sd: sd(col('s1')), s2Sd: sd(col('s2')), eSd: enc.length ? sd(enc) : 5,
+        bounds: { s1: [q(col('s1'), 0.05), q(col('s1'), 0.95)], s2: [q(col('s2'), 0.05), q(col('s2'), 0.95)],
+                  e: enc.length ? [q(enc, 0.05), q(enc, 0.95)] : [8, 25], total: [q(tot, 0.05), q(tot, 0.95)] },
+        pS1Longer: mins.filter(m => m.s1 > m.s2).length / mins.length,
+        band: { lo: q(ratio, 0.05), med: q(ratio, 0.5), hi: q(ratio, 0.95) },
+        perSong: { s1: [q(ps1, 0.05), q(ps1, 0.95)], s2: [q(ps2, 0.05), q(ps2, 0.95)] },
+        mps: { s1: q(ps1, 0.5), s2: q(ps2, 0.5) },
+      };
+    }
+    shapeCache.set(asOfIdx, sh);
+  }
+  if (sh.min) {
+    for (const k of ['s1', 's2', 'e', 's1Sd', 's2Sd', 'eSd']) SET_MIN[k] = sh.min[k];
+    for (const k of ['s1', 's2', 'e', 'total']) SET_MIN.bounds[k] = sh.min.bounds[k];
+    MIN_SHAPE.pS1Longer = sh.min.pS1Longer;
+    Object.assign(MIN_SHAPE.band, sh.min.band);
+    MIN_SHAPE.perSong.s1 = sh.min.perSong.s1; MIN_SHAPE.perSong.s2 = sh.min.perSong.s2;
+    Object.assign(MIN_SHAPE.mps, sh.min.mps);
+  }
+  if (SET_COUNTS) for (const key of ['s1', 's2', 'e']) if (sh[key]) SET_COUNTS[key] = sh[key];
+  if (LONG_SONGS) for (const key of ['s1', 's2']) if (sh['long_' + key]) LONG_SONGS[key] = sh['long_' + key];
+  NIGHT_FLOOR = sh.floor || 14;
+  return sh;
+}
 // songs played at each show, by show index — used for the within-run no-repeat rule
 const SONGS_AT_IDX = new Map();
 for (const p of PLAYS) {
@@ -1190,6 +1306,19 @@ function runMateSongs(targetVenue, targetDate, asOfIdx) {
   return out;
 }
 const DEBUT_IDX = new Map(SONGS.map(s => [s.id, DATE_IDX.get(s.debut) ?? 0]));
+// The night being predicted: an announced show, a show on record, or (backtesting) the show that
+// really came next. A made-up date after the last show still gets the 14-day layoff rule, which
+// is all that is known about it.
+function targetShowFor(asOfIdx) {
+  const d = els.nextDate.value;
+  if (d && UPCOMING_BY_DATE.has(d)) return UPCOMING[UPCOMING_BY_DATE.get(d)];
+  if (d && DATE_IDX.has(d)) return SHOWS[DATE_IDX.get(d)];
+  if (asOfIdx >= 0 && asOfIdx < SHOWS.length - 1) return SHOWS[asOfIdx + 1];
+  if (d && asOfIdx >= 0 && d > SHOW_DATES[asOfIdx]) {
+    return { date: d, tourOpen: daysBetween(SHOW_DATES[asOfIdx], d) >= TOUR_OPEN_GAP_DAYS };
+  }
+  return null;
+}
 
 function lowerBound(arr, t) { let a=0,b=arr.length; while(a<b){const m=(a+b)>>1; if(arr[m]<t)a=m+1; else b=m;} return a; }
 function upperBound(arr, t) { let a=0,b=arr.length; while(a<b){const m=(a+b)>>1; if(arr[m]<=t)a=m+1; else b=m;} return a; }
@@ -1244,7 +1373,9 @@ function targetDateFor(A) {
   return new Date().toISOString().slice(0, 10);
 }
 function dayHazMult(showGap, dayGap) {
-  if (!DAY_HAZ_MULT || dayGap == null || !(showGap > 0)) return 1;
+  // dayGap < 0 means the "last play" is after the target date — only possible when the target
+  // sits inside the stats window, which compute() now prevents. Never read it as a long break.
+  if (!DAY_HAZ_MULT || dayGap == null || dayGap < 0 || !(showGap > 0)) return 1;
   let gb = -1;
   for (let i = 0; i < DAY_HAZ_GAPE.length; i++) {
     if (showGap >= DAY_HAZ_GAPE[i][0] && showGap < DAY_HAZ_GAPE[i][1]) { gb = i; break; }
@@ -1304,6 +1435,27 @@ function rawScoresAt(A, settings, targetDate) {
     }
     out.set(song.id, { freq, gap, gm, raw, dayGap, dayAdj, showsPlayed: hi - lo, showsInWindow: A - eff + 1, effStart: eff });
   }
+  // The calendar-break correction re-ranks songs WITHIN a night, but it must not change how
+  // many songs the night holds. It is a residual that averages 1.0 across all nights, not
+  // within one: after a long break every recently played song is in the "real break" column
+  // at once (up to 3x), and nothing on that night is marked down to pay for it. Measured over
+  // the last 150 shows, nights after a 14+ day break expected 20.1 songs and got 14.1. So the
+  // night is rescaled to the total it had before the day correction — the re-ranking survives,
+  // the inflation does not. Applied every night (short-gap nights are rescaled UP the same
+  // way), because that beat deflate-only on both measures: top-20 5.807 -> 6.013 vs 5.840,
+  // Brier 14.613 -> 14.473 vs 14.489 (backtest.js, 150 shows).
+  {
+    let s0 = 0, s1 = 0;
+    for (const s of out.values()) {
+      if (s.gap == null || !(s.dayAdj > 0)) continue;
+      s0 += Math.min(1, s.freq * s.gm / s.dayAdj); s1 += s.raw;
+    }
+    const k = s1 > 0 ? s0 / s1 : 1;
+    if (k !== 1) for (const s of out.values()) {
+      if (s.gap == null) continue;
+      s.gm *= k; s.dayAdj *= k; s.raw = Math.min(1, s.freq * s.gm);
+    }
+  }
   return out;
 }
 
@@ -1331,10 +1483,12 @@ function fitCalibration(asOfIdx, settings) {
     // above it — a bias the score-only calibration cannot see. Run-mates are left out of this
     // fit entirely; the within-run no-repeat rule prices those separately.
     const obsRaw = [], obsG = [], obsR = [], obsHit = [];
+    const nights = [];        // per eval night: its observations, and its run-mates (for the final fit)
     for (const T of evals) {
       const scores = rawScoresAt(T - 1, settings);
       const played = SONGS_AT_IDX.get(T) || new Set();
       const mates = runMateSongs(SHOWS[T].venue, SHOWS[T].date, T - 1);
+      const night = { idx: [], mates: [], hits: 0 };
       for (const [sid, s] of scores) {
         if (s.raw <= 0) continue;
         for (let b = 0; b < edges.length - 1; b++) {
@@ -1343,14 +1497,19 @@ function fitCalibration(asOfIdx, settings) {
             break;
           }
         }
-        if (s.gap != null && !mates.has(sid)) {
+        if (s.gap != null) {
+          const avg = s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null;
+          const rb = avg > 0 ? ratioBucket(s.gap / avg) : -1;
+          if (mates.has(sid)) { night.mates.push([s.raw, gapBucket(s.gap), rb]); night.hits += played.has(sid) ? 1 : 0; continue; }
           obsRaw.push(s.raw);
           obsG.push(gapBucket(s.gap));
-          const avg = s.showsPlayed > 0 ? s.showsInWindow / s.showsPlayed : null;
-          obsR.push(avg > 0 ? ratioBucket(s.gap / avg) : -1);
+          obsR.push(rb);
           obsHit.push(played.has(sid) ? 1 : 0);
+          night.hits += played.has(sid) ? 1 : 0;
+          night.idx.push(obsRaw.length - 1);
         }
       }
+      nights.push(night);
     }
     // isotonic (PAVA) on non-empty bins
     let blocks = bins.filter(b => b[0] >= 30).map(b => [b[1] / b[0], b[2] / b[0], b[0]]);
@@ -1387,10 +1546,97 @@ function fitCalibration(asOfIdx, settings) {
     }
     const ratioAdj = RATIO_BUCKETS.map(r =>
       (rN[r] < 200 || !(rP[r] > 0)) ? 1 : Math.max(0.4, Math.min(2.2, rH[r] / rP[r])));
-    result = { pts, gapAdj, ratioAdj, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
+    // FINAL pass, fit on the number the page actually shows. The curve above is fit on the raw
+    // score and the two corrections are then MULTIPLIED on top, each fit on a bucket average, so
+    // nothing ever checked the product: songs shown at 45-60% played 38% of the time, 60-80% 59%,
+    // 80%+ 67% (150-show backtest). This maps the finished probability — after the run-night
+    // redistribution compute() applies, rebuilt here for every eval night from its own
+    // run-mates — to how often songs at that number really played. Monotone, so the ranking
+    // (and the top-20) cannot move; only the stated percentages do.
+    const adjOf = (raw, g, rb) => calibrateWith(pts, raw) * gapAdj[g] * (rb >= 0 ? ratioAdj[rb] : 1);
+    // NIGHT TARGET: how many in-rotation songs a night actually holds, averaged over the last 100
+    // shows (see compute()). Debuts and deep bustouts are priced separately and are not in it.
+    const recent = nights.slice(0, 100);
+    const nightTarget = recent.reduce((a, n) => a + n.hits, 0) / Math.max(1, recent.length);
+    const fx = [], fy = [];
+    for (const night of nights) {
+      let ps = night.idx.map(i => adjOf(obsRaw[i], obsG[i], obsR[i]));
+      const mateMass = night.mates.reduce((s, m) => s + Math.max(0.001, adjOf(m[0], m[1], m[2]) * RUN_REPEAT_MULT), 0);
+      ps = oddsScaleTo(ps, nightTarget - mateMass);
+      ps.forEach((p, k) => { fx.push(p); fy.push(obsHit[night.idx[k]]); });
+    }
+    // 150 per bin, not 40: the top bands hold only a few dozen songs per 120 shows, and at 40 the
+    // map chased their noise (60-80% still read 67% -> 44%). A logistic (two-number) map was also
+    // tried and lost — its single slope is set by the thousands of near-zero songs and it
+    // stretched the top instead of shrinking it (Brier +0.046 against this pass's -0.043).
+    const final = isoMap(fx, fy, [0, .005, .01, .02, .03, .05, .075, .10, .15, .20, .25, .30, .40, .50, .65, 1.01], 150);
+    result = { pts, gapAdj, ratioAdj, final, nightTarget, n: evals.length, from: SHOW_DATES[evals[evals.length - 1]], to: SHOW_DATES[evals[0]] };
   }
   calCache.set(key, result);
   return result;
+}
+// Scale probabilities by one common factor in ODDS space until they sum to `target` (up or down). Odds
+// saturate toward 1 instead of clipping, so two songs only land on the same number if they
+// had the same odds to begin with. Shared by the run-night redistribution and its calibration.
+function oddsScaleTo(ps, target, cap = 0.96) {
+  // a zero (a date-locked song off its date) stays exactly zero
+  const odds = ps.map(p => { if (!(p > 0)) return 0; const q = Math.min(0.995, Math.max(1e-6, p)); return q / (1 - q); });
+  const sumAt = lambda => odds.reduce((s, o) => s + (lambda * o) / (1 + lambda * o), 0);
+  const now = ps.reduce((a, b) => a + b, 0);
+  if (!(target > 0) || Math.abs(target - now) < 1e-9) return ps.slice();
+  // bracket lambda on whichever side of 1 the target sits, then bisect
+  let lo = 1, hi = 1;
+  if (target > now) { while (sumAt(hi) < target && hi < 1e15) hi *= 4; }
+  else { while (sumAt(lo) > target && lo > 1e-15) lo /= 4; }
+  for (let iter = 0; iter < 60; iter++) {
+    const mid = (lo + hi) / 2;
+    if (sumAt(mid) < target) lo = mid; else hi = mid;
+  }
+  return odds.map(o => Math.min(cap, (hi * o) / (1 + hi * o)));
+}
+// Isotonic (pool-adjacent-violators) map from predicted to observed rate. Bins too thin to trust
+// are merged into their lower neighbour rather than dropped, so the top of the board is fit on
+// real outcomes instead of a straight-line guess.
+function isoMap(xs, ys, edges, minN) {
+  const bins = edges.slice(0, -1).map(() => [0, 0, 0]);
+  for (let i = 0; i < xs.length; i++) {
+    for (let b = 0; b < edges.length - 1; b++) {
+      if (xs[i] >= edges[b] && xs[i] < edges[b + 1]) { bins[b][0]++; bins[b][1] += xs[i]; bins[b][2] += ys[i]; break; }
+    }
+  }
+  const merged = [];
+  for (const b of bins) {
+    if (!b[0]) continue;
+    if (merged.length && merged[merged.length - 1][0] < minN) { const m = merged[merged.length - 1]; m[0] += b[0]; m[1] += b[1]; m[2] += b[2]; }
+    else merged.push(b.slice());
+  }
+  while (merged.length > 1 && merged[merged.length - 1][0] < minN) {
+    const t = merged.pop(), m = merged[merged.length - 1]; m[0] += t[0]; m[1] += t[1]; m[2] += t[2];
+  }
+  let blocks = merged.map(b => [b[1] / b[0], b[2] / b[0], b[0]]);
+  let i = 0;
+  while (i < blocks.length - 1) {
+    if (blocks[i][1] > blocks[i + 1][1]) {
+      const [x1, y1, w1] = blocks[i], [x2, y2, w2] = blocks[i + 1];
+      blocks.splice(i, 2, [(x1 * w1 + x2 * w2) / (w1 + w2), (y1 * w1 + y2 * w2) / (w1 + w2), w1 + w2]);
+      i = Math.max(0, i - 1);
+    } else i++;
+  }
+  return blocks.length >= 3 ? blocks.map(b => [b[0], b[1]]) : null;
+}
+// Apply the final map. Below its first point it scales proportionally; above its last it keeps
+// the last segment's slope (clamped to 0..1), so the map stays strictly increasing everywhere.
+function applyFinal(fin, p) {
+  if (!fin || !(p > 0)) return p;
+  const [x0, y0] = fin[0];
+  if (p <= x0) return y0 * p / x0;
+  for (let i = 0; i < fin.length - 1; i++) {
+    const [xa, ya] = fin[i], [xb, yb] = fin[i + 1];
+    if (p <= xb) return xb > xa ? ya + (yb - ya) * (p - xa) / (xb - xa) : yb;
+  }
+  const [xa, ya] = fin[fin.length - 2], [xb, yb] = fin[fin.length - 1];
+  const slope = Math.max(0, Math.min(1, (yb - ya) / Math.max(1e-9, xb - xa)));
+  return Math.min(0.95, yb + slope * (p - xb));
 }
 function calibrateWith(pts, p) {
   if (p <= 0) return 0;
@@ -1479,6 +1725,28 @@ function syncNextDate() {
 // a show that already happened, or one on the announced schedule. Both carry a real runPos/runN
 // computed from actual venue-run data. Only fall back to manual selection for a date with no match.
 const UPCOMING_BY_DATE = new Map(UPCOMING.map((s, i) => [s.date, i]));
+// TOUR OPENERS — a known fact from the schedule, like run position. phish.net names every tour
+// ("2026 Fall Tour", "2027 Mexico"), so the opener is simply the first show of a tour name not
+// seen before. One-off shows are all filed as "Not Part of a Tour"; one counts as an opener only
+// after 14+ days off, which is the layoff the warm-up effect is about. build.py stamps the same
+// rule onto SHOWS and UPCOMING (`tourOpen`); it is re-derived here only when an older build did
+// not, and with no tour name at all a 14+ day gap stands in for the schedule.
+const NO_TOUR = 'Not Part of a Tour';
+const TOUR_OPEN_GAP_DAYS = 14;
+{
+  const seen = new Set();
+  let prevDate = null;
+  const mark = s => {
+    if (s.tourOpen == null) {
+      const gap = prevDate ? daysBetween(prevDate, s.date) : Infinity;
+      s.tourOpen = (!s.tour || s.tour === NO_TOUR) ? gap >= TOUR_OPEN_GAP_DAYS : !seen.has(s.tour);
+    }
+    if (s.tour) seen.add(s.tour);
+    prevDate = s.date;
+  };
+  SHOWS.forEach(mark);
+  UPCOMING.filter(u => u.date > (SHOW_DATES[SHOW_DATES.length - 1] || '')).forEach(mark);
+}
 
 // TONIGHT'S SHOW DATE, computed IN THE BROWSER — deliberately not baked at build time.
 //
@@ -1534,8 +1802,25 @@ function getSettings() {
 
 function compute() {
   const st = getSettings();
-  const asOfIdx = upperBound(SHOW_DATES, st.end) - 1;
+  let asOfIdx = upperBound(SHOW_DATES, st.end) - 1;
+  // The stats window must end BEFORE the night being predicted. "Use stats through" is
+  // inclusive, so picking a past show while the stats still ran through (or past) that date
+  // put the answer inside the window: every song played that night was then hit by the
+  // played-last-show multiplier (0.445x), a zero-day calendar gap (0.15x) and the run-repeat
+  // rule (0.02x, because the night counted as an "earlier night" of its own run) — measured,
+  // You Enjoy Myself went from 46% to 0.1% — while songs played AFTER it got a negative day gap
+  // that read as a long break and were boosted ~3x. Clamped silently: the window simply stops
+  // at the last show before the target. Live predictions are untouched (the target is always
+  // after the latest show), and so are snapshots, which always cut the stats the day before.
+  {
+    const d = els.nextDate.value;
+    if (d && asOfIdx >= 0 && d <= SHOW_DATES[asOfIdx]) {
+      asOfIdx = lowerBound(SHOW_DATES, d) - 1;
+      if (asOfIdx >= 0) st.end = SHOW_DATES[asOfIdx];
+    }
+  }
   const cal = fitCalibration(asOfIdx, st);
+  applyNightShape(asOfIdx);
   const scores = rawScoresAt(asOfIdx, st);
 
   // global slot dist + per-song slots within window
@@ -1616,11 +1901,24 @@ function compute() {
   }
   // measured run-position effects (share-of-slots basis, so show length is already controlled for)
   const runPos = els.runPos.value;
-  if (runPos === 'tour') {
-    // after a layoff they lean on warm-up songs in set 1
+  // After a layoff they lean on warm-up songs in set 1. This table was mined on every build but
+  // never applied: it hung off a runPos value of 'tour' that nothing ever set. The target night's
+  // tour-opener flag comes from the schedule (see TOUR OPENERS above).
+  //
+  // TOUR_OPEN_WEIGHT scales that boost (0 = off, 1 = the mined multiplier, applied as m^weight).
+  // It is OFF, by measurement. Tested honestly — warm-up table mined only on shows before the test
+  // window, 150-show walk-forward on the cleaned data — the full boost cost top-20 -0.18 +/- 0.15
+  // and Brier +0.25 +/- 0.12 on the 17 tour openers, and half strength (0.5) still cost
+  // -0.12 +/- 0.15. The mined multipliers (2-2.5x on five songs) do not hold up in 2023-26: Ghost
+  // did open-night well (47% vs 20%), Stash went the other way (12% vs 20%), and the post-break
+  // handling already lifts these songs. Detection stays on — it is a fact about the night, shown
+  // in the header — and the boost is one number away if a later re-test says otherwise.
+  const TOUR_OPEN_WEIGHT = 0;
+  const tgtShow = targetShowFor(asOfIdx);
+  if (tgtShow && tgtShow.tourOpen && TOUR_OPEN && TOUR_OPEN_WEIGHT > 0) {
     for (const r of rows) {
       const m = TOUR_OPEN[r.id];
-      if (m) { r.runMult = m; r.pred = Math.min(1, r.pred * m); }
+      if (m) { r.tourMult = Math.pow(m, TOUR_OPEN_WEIGHT); r.pred = Math.min(1, r.pred * r.tourMult); }
     }
   }
   if (runPos === 'open' || runPos === 'close') {
@@ -1667,25 +1965,47 @@ function compute() {
       // isn't real. Odds (o = p/(1-p)) scaled by one solved lambda and converted back via
       // p' = lambda*o/(1+lambda*o) approach 1 smoothly instead of clipping, so two songs land on
       // the same displayed number only if they had the same odds to begin with.
-      let suppressedAfter = 0;
-      const eligible = [];
-      for (const r of rows) {
-        if (runMates.has(r.id) || r.offTheme || r.deepDormant) suppressedAfter += r.pred;
-        else eligible.push(r);
-      }
-      const target = before - suppressedAfter;
-      const eligibleBefore = eligible.reduce((s, r) => s + r.pred, 0);
-      if (eligible.length && target > eligibleBefore) {
-        const odds = eligible.map(r => { const p = Math.min(0.995, Math.max(1e-6, r.pred)); return p / (1 - p); });
-        const sumAt = lambda => odds.reduce((s, o) => s + (lambda * o) / (1 + lambda * o), 0);
-        let lo = 1, hi = 1;
-        while (sumAt(hi) < target && hi < 1e15) hi *= 4;
-        for (let iter = 0; iter < 60; iter++) {
-          const mid = (lo + hi) / 2;
-          if (sumAt(mid) < target) lo = mid; else hi = mid;
+      if (!cal.nightTarget) {               // no measured night total (thin history): old rule
+        let suppressedAfter = 0;
+        const eligible = [];
+        for (const r of rows) {
+          if (runMates.has(r.id) || r.offTheme || r.deepDormant) suppressedAfter += r.pred;
+          else eligible.push(r);
         }
-        eligible.forEach((r, i) => { r.pred = Math.min(0.96, (hi * odds[i]) / (1 + hi * odds[i])); });
+        const target = before - suppressedAfter;
+        if (eligible.length && target > eligible.reduce((a, r) => a + r.pred, 0)) {
+          const scaled = oddsScaleTo(eligible.map(r => r.pred), target);
+          eligible.forEach((r, i) => { r.pred = scaled[i]; });
+        }
       }
+    }
+  }
+  // NIGHT TOTAL. Every night is scaled, in odds space, so its in-rotation songs add up to what a
+  // real night holds — measured, the last 100 shows. Before this, nothing held a night's total
+  // to anything: the run-repeat rule handed suppressed mass back (only ever upward), and the
+  // run-position and tour-opener boosts added mass that nothing took away. Measured over 150
+  // shows: one-off nights expected 19.0 songs and played 17.8; nights after a break expected
+  // 14.2 and played 17.4. The run-night redistribution above is the special case of this rule,
+  // so it now only runs when there is no measured target. Ranking within a night is untouched;
+  // suppressed rows (run repeats, off-theme) keep their tiny values and count toward the total.
+  if (cal.nightTarget) {
+    let held = 0;
+    const eligible = [];
+    for (const r of rows) {
+      if (r.deepDormant || r.dateBlocked) continue;
+      if (r.runRepeat || r.offTheme) held += r.pred; else eligible.push(r);
+    }
+    if (eligible.length) {
+      const scaled = oddsScaleTo(eligible.map(r => r.pred), cal.nightTarget - held);
+      eligible.forEach((r, i) => { r.pred = scaled[i]; });
+    }
+  }
+  // Final calibration (see fitCalibration): the finished number, mapped to how often songs at
+  // that number really played. Suppressed rows keep their deliberately tiny values.
+  if (cal.final) {
+    for (const r of rows) {
+      if (r.deepDormant || r.runRepeat || r.offTheme || r.dateBlocked) continue;
+      r.pred = applyFinal(cal.final, r.pred);
     }
   }
 
@@ -1758,7 +2078,7 @@ function compute() {
   // total runs 10 at the extreme low end but only 1% fall below 14 and 2% below 15, so the
   // night is redrawn (bounded, never looped indefinitely) until it clears a floor. Set floors
   // of 6 and 4 stay as the per-set backstop; this is the joint constraint they cannot express.
-  const TOTAL_FLOOR = 14;               // 2022+ p02 (min 13, p05 15, median 18). Was 15, which
+  const TOTAL_FLOOR = NIGHT_FLOOR;      // the last 100 shows' 2nd percentile (see NIGHT SHAPE). Was 14, the 2022+ p02; 15 before that, which
                                         // was the 2009+ p02 — with counts now mined 2022+, a
                                         // floor of 15 would top up 2.5% of real-shaped nights
                                         // that are legitimately short. Real under-14: 0.5%.
@@ -1771,7 +2091,8 @@ function compute() {
   }
 
   const showsInFullWindow = rows.length ? Math.max(...rows.filter(r => !r.isBustout).map(r => r.showsInWindow)) : 0;
-  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool };
+  const tourOpen = !!(tgtShow && tgtShow.tourOpen);
+  return { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow };
 }
 
 // ---------- setlist assembly ----------
@@ -1912,8 +2233,14 @@ function sampleQuantiles(q, u) {
   return q[2];
 }
 
+// A reentry is one performance split in two, not two performances: the return segment of a
+// woven-in song runs a median 0.19x the song's usual length (p25 0.12, p75 0.35; 80 real
+// reentries 2019+, phish.in track times). Counting the copy at full length double-booked the
+// song's minutes — every generated night over the total-minutes ceiling carried one.
+const REENTRY_RETURN = 0.19;
 function durOf(r) {
   if (!r) return DEFAULT_DUR;
+  if (r.reentry) return REENTRY_RETURN * durOf(Object.assign({}, r, { reentry: false }));
   const key = r.id != null ? r.id : r.name;
   if (DUR_CACHE.has(key)) return DUR_CACHE.get(key);
   let d;
@@ -1934,17 +2261,53 @@ function durMedian(r) { return r && r.dur != null ? r.dur : DEFAULT_DUR; }
 
 function minutesOf(arr) { return arr.reduce((s, r) => s + durOf(r), 0); }
 
+// RUNNING ORDER beyond the opener and closer. The middle of each set used to be sorted by
+// probability — the likeliest song played second, the least likely played last — which is not how
+// a set is built. SONG_POS (build.py mine_song_positions) holds where each song usually sits among
+// the middle slots: 0 = right after the opener, 1 = right before the closer (Down with Disease 0.16
+// and Harry Hood 0.82 in set 2; AC/DC Bag 0.13 and Split Open and Melt 0.80 in set 1). A song
+// with no history sits mid-set. A realistic night draws each song's slot around its own habit with
+// the spread real songs show (sd 0.29 — position habits are real but loose); the ranked view and
+// the official call use the habit itself.
+const SONG_POS = __SONGPOS_JSON__;
+const POS_SPREAD = 0.29;
+function posHabit(r, setKey) {
+  const e = SONG_POS && SONG_POS[r.id] && SONG_POS[r.id][setKey === 's1' ? '1' : '2'];
+  return e ? e[0] : 0.5;
+}
+function orderByHabit(arr, setKey) {
+  const g = () => { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const key = new Map(arr.map(r => [r, posHabit(r, setKey) + (slModeSample ? POS_SPREAD * g() : 0)]));
+  return arr.sort((a, b) => key.get(a) - key.get(b));
+}
+// Abramowitz-Stegun 7.1.26, |error| < 1.5e-7 — enough to turn a z-score into a share of nights.
+function erf(x) {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x));
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return x >= 0 ? y : -y;
+}
+// REAL-TIME MINUTES, for display. The builder plans every set with each song at its median
+// length, and real nights run longer than that because jams stretch past their median: on
+// phish.in track times, real set 1 runs 1.09x the sum of its songs' medians, set 2 1.16x (more
+// jam vehicles), the encore 0.97x. build.py measures these factors on the last 100 shows with
+// audio; the page shows minutes in real time with them. Null-safe: no table, no conversion.
+const REALTIME = __REALTIME_JSON__;
+function realMin(setKey, m) {
+  const f = REALTIME && REALTIME[setKey];
+  return f > 0 ? m * f : m;
+}
+
 // Insert a breather after a long jam in set 2's back half.
 // "Cool-down" is learned from data, not from length alone: COOL_AFF is how much more often a
 // song actually follows a 10+ min jam in a set-2 mid slot than the 35% base rate.
 function cooldownOrder(arr) {
   if (arr.length < 5) return arr;
   const first = arr[0], last = arr[arr.length - 1];
-  let pool = arr.slice(1, -1);
+  // the middle in running-order (habit) order; it used to be re-sorted by probability here
+  let pool = orderByHabit(arr.slice(1, -1), 's2');
   const out = [];
   const halfway = Math.floor(pool.length / 2);
   while (pool.length) {
-    pool.sort((a, b) => b.pred - a.pred);
     const cur = pool.shift();
     out.push(cur);
     if (durOf(cur) >= 10 && out.length >= halfway && pool.length) {
@@ -1990,9 +2353,17 @@ function buildSetlist(rows, n1, n2, ne) {
     s2: clamp((SET_MIN.s2 + jitMin(SET_MIN.s2Sd)) * lenAdj, SET_BOUNDS.s2),
     e:  clamp((SET_MIN.e  + jitMin(SET_MIN.eSd))  * lenAdj, SET_BOUNDS.e),
   };
-  // set 1 outruns set 2 in 81% of shows — usually keep that, occasionally don't
-  if (budget.s2 > budget.s1 && Math.random() < 0.81) {
-    const t = budget.s1; budget.s1 = budget.s2; budget.s2 = t;
+  // Set 1 outruns set 2 on a measured share of nights (MIN_SHAPE.pS1Longer). The two budgets are
+  // jittered independently, so set 1 already comes out longer with probability p0; swapping a
+  // set-2-longer draw with probability w lands the night on the measured share. (This used to
+  // swap at a flat 0.81 ON TOP of p0, which put set 1 ahead on roughly 93% of budgets.)
+  {
+    const z = (SET_MIN.s1 - SET_MIN.s2) / Math.max(1e-9, Math.hypot(SET_MIN.s1Sd || 0, SET_MIN.s2Sd || 0));
+    const p0 = 0.5 * (1 + erf(z / Math.SQRT2));
+    const w = p0 < 1 ? Math.max(0, Math.min(1, (MIN_SHAPE.pS1Longer - p0) / (1 - p0))) : 0;
+    if (budget.s2 > budget.s1 && Math.random() < w) {
+      const t = budget.s1; budget.s1 = budget.s2; budget.s2 = t;
+    }
   }
   // Set balance, measured: set 1 runs 1.07× set 2 at the median, and 90% of real shows sit
   // between 0.73× and 1.58× (2022+). Two independently jittered budgets can land outside
@@ -2000,8 +2371,9 @@ function buildSetlist(rows, n1, n2, ne) {
   // the night's total minutes unchanged.
   {
     const t = budget.s1 + budget.s2, r = budget.s1 / budget.s2;
-    if (r > 1.58) { budget.s1 = t * 1.58 / 2.58; budget.s2 = t / 2.58; }
-    else if (r < 0.73) { budget.s1 = t * 0.73 / 1.73; budget.s2 = t / 1.73; }
+    const { lo, hi } = MIN_SHAPE.band;
+    if (r > hi) { budget.s1 = t * hi / (1 + hi); budget.s2 = t / (1 + hi); }
+    else if (r < lo) { budget.s1 = t * lo / (1 + lo); budget.s2 = t / (1 + lo); }
   }
   // and the whole night stays inside its realistic envelope
   const tot = budget.s1 + budget.s2 + budget.e;
@@ -2021,7 +2393,7 @@ function buildSetlist(rows, n1, n2, ne) {
   // >= 6. Clamping each budget to what its own drawn count can actually hold removes the
   // contradiction at the source. Bounds are the real 5th-95th percentile of minutes-per-song,
   // measured over 2022+ shows: set 1 6.94-9.80, set 2 7.98-11.78.
-  const PER_SONG = { s1: [6.94, 9.80], s2: [7.98, 11.78] };
+  const PER_SONG = MIN_SHAPE.perSong;      // measured on the last 100 shows (see MIN_SHAPE)
   budget.s1 = clamp(budget.s1, [n1 * PER_SONG.s1[0], n1 * PER_SONG.s1[1]]);
   budget.s2 = clamp(budget.s2, [n2 * PER_SONG.s2[0], n2 * PER_SONG.s2[1]]);
 
@@ -2318,22 +2690,11 @@ function buildSetlist(rows, n1, n2, ne) {
     dest.push(dep);
   }
 
-  s1mid.sort((a, b) => b.pred - a.pred);
-  // Set 2 is long-form: don't stack short songs next to each other. Interleave so a short song
-  // sits between longer ones wherever the draw allows.
-  s2mid.sort((a, b) => b.pred - a.pred);
-  const longs = s2mid.filter(r => durOf(r) >= 8), shorts = s2mid.filter(r => durOf(r) < 8);
-  if (longs.length && shorts.length) {
-    const woven = [];
-    const every = Math.max(1, Math.round(longs.length / (shorts.length + 1)));
-    let si = 0;
-    longs.forEach((r, i) => {
-      woven.push(r);
-      if (si < shorts.length && (i + 1) % every === 0 && i < longs.length - 1) woven.push(shorts[si++]);
-    });
-    while (si < shorts.length) woven.splice(Math.max(0, woven.length - 1), 0, shorts[si++]);
-    s2mid.length = 0; s2mid.push(...woven);
-  }
+  // Running order (see RUNNING ORDER). Set 2's breather placement is cooldownOrder()'s job. (A
+  // long/short interleave used to sit here; cooldownOrder re-sorted the middle straight after it,
+  // so it never reached a setlist, and it was removed.)
+  orderByHabit(s1mid, 's1');
+  orderByHabit(s2mid, 's2');
 
   enc.sort((a, b) => a.closer - b.closer);   // an encore builds — the biggest closer lands last
   // Hard structural rule after the sort: no long banger in a lead slot. A >10-minute song
@@ -2469,18 +2830,20 @@ function buildSetlist(rows, n1, n2, ne) {
       // forcing it back inside the all-shows band would be correcting the draw with a
       // statistic that does not apply to it. Widen the band to whatever the drawn counts
       // imply, at their median minutes-per-song.
-      const cImplied = (n1 * 8.17) / Math.max(1e-9, n2 * 9.85);
-      const loR = Math.min(0.73, cImplied * 0.85), hiR = Math.max(1.58, cImplied * 1.15);
+      const B = MIN_SHAPE.band;
+      const cImplied = (n1 * MIN_SHAPE.mps.s1) / Math.max(1e-9, n2 * MIN_SHAPE.mps.s2);
+      const loR = Math.min(B.lo, cImplied * 0.85), hiR = Math.max(B.hi, cImplied * 1.15);
       if (ratio <= hiR && ratio >= loR) break;
-      const from = ratio > 1.58 ? sl.set1 : sl.set2;
-      const to = ratio > 1.58 ? sl.set2 : sl.set1;
+      const tooLong1 = ratio > hiR;
+      const from = tooLong1 ? sl.set1 : sl.set2;
+      const to = tooLong1 ? sl.set2 : sl.set1;
       if (from.length <= 5) break;
       const cands = from.slice(1, -1).filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
-      let best = null, bestDev = Math.abs(Math.log(ratio / 1.07));
+      let best = null, bestDev = Math.abs(Math.log(ratio / B.med));
       for (const c of cands) {
-        const nm1 = ratio > 1.58 ? m1 - durOf(c) : m1 + durOf(c);
-        const nm2 = ratio > 1.58 ? m2 + durOf(c) : m2 - durOf(c);
-        const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
+        const nm1 = tooLong1 ? m1 - durOf(c) : m1 + durOf(c);
+        const nm2 = tooLong1 ? m2 + durOf(c) : m2 - durOf(c);
+        const dev = Math.abs(Math.log((nm1 / nm2) / B.med));
         if (dev < bestDev) { bestDev = dev; best = c; }
       }
       if (distinctN(to) >= capOf(to === sl.set1 ? 'set1' : 'set2')) {
@@ -2490,13 +2853,13 @@ function buildSetlist(rows, n1, n2, ne) {
         // return song is best — a bad trade can overshoot the band in the other direction.
         const outs = cands;
         const ins = to.slice(1, -1).filter(r => !lockedIds.has(r.id) && !r.cool && !r.terminalOnly);
-        let bp = null, bpDev = Math.abs(Math.log(ratio / 1.07));
+        let bp = null, bpDev = Math.abs(Math.log(ratio / B.med));
         for (const c of outs) for (const d of ins) {
           const dd = durOf(c) - durOf(d);
-          const nm1 = ratio > 1.58 ? m1 - dd : m1 + dd;
-          const nm2 = ratio > 1.58 ? m2 + dd : m2 - dd;
+          const nm1 = tooLong1 ? m1 - dd : m1 + dd;
+          const nm2 = tooLong1 ? m2 + dd : m2 - dd;
           if (nm2 <= 0) continue;
-          const dev = Math.abs(Math.log((nm1 / nm2) / 1.07));
+          const dev = Math.abs(Math.log((nm1 / nm2) / B.med));
           if (dev < bpDev) { bpDev = dev; bp = [c, d]; }
         }
         if (!bp) break;
@@ -2585,14 +2948,14 @@ function buildSetlist(rows, n1, n2, ne) {
   // Top the show back up from the best remaining eligible songs, into whichever set is
   // furthest below its own drawn count.
   {
-    // Floor 14 = the 2022+ p02 (was a hardcoded 15, the 2009+ figure — a stale twin of the
-    // TOTAL_FLOOR constant in compute(); keep the two in step). And CAP-AWARE: this loop used
+    // Floor = the rolling last-100-show 2nd percentile, shared with TOTAL_FLOOR in compute() (it was
+    // a hardcoded 14, the 2022+ p02, and before that 15, the 2009+ figure). And CAP-AWARE: this loop used
     // to splice into whichever set was "shorter" even when that set was already AT its drawn
     // count, which pushed sets over cap on ~8% of nights once modern counts (smaller, so
     // drawn totals of 14-16 are common) made the floor fire more often. A set only receives
     // when it is genuinely below its own drawn count; if neither is, the night ships as-is —
     // a floor must not outrank the cap that every other pass respects.
-    const FLOOR_ASM = 14;
+    const FLOOR_ASM = NIGHT_FLOOR;     // same rolling 2nd percentile as TOTAL_FLOOR
     const inShow = new Set([...sl.set1, ...sl.set2, ...sl.encore].map(r => r.id));
     if (inShow.size < FLOOR_ASM) {
       // !isBustout on every refill pool: the "at most one bustout" invariant is enforced by
@@ -2795,11 +3158,18 @@ function applyReentry(sl) {
   delete copy.cool;
 
   if (mode === 'crossset') {
-    // second pass lands in the other set / encore
-    const other = pick.key === 'set1' ? 'set2' : 'set1';
-    if (sl[other].length) {
-      const at = 1 + Math.floor(Math.random() * Math.max(1, sl[other].length - 1));
-      sl[other].splice(at, 0, copy);
+    // The second pass lands in a LATER set: set 1 -> set 2, set 2 -> the encore. It used to go
+    // to "the other set", which for a set-2 song meant set 1 — earlier in the night, so the
+    // "repeat" became the first appearance. Measured at 1,500 nights that put a Tweezer Reprise
+    // copy in set 1 ahead of its own Tweezer in set 2.
+    if (pick.key === 'set1') {
+      if (sl.set2.length) {
+        const at = 1 + Math.floor(Math.random() * Math.max(1, sl.set2.length - 1));
+        sl.set2.splice(at, 0, copy);
+      }
+    } else {
+      // ahead of the finale, which stays the last song of the night
+      sl.encore.splice(Math.max(0, sl.encore.length - 1), 0, copy);
     }
     return;
   }
@@ -2959,7 +3329,7 @@ function ratioCell(r) {
 }
 
 function render() {
-  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool } = compute();
+  const { rows, st, asOfIdx, cal, n1, n2, ne, showsInFullWindow, runMates, themePool, tourOpen, tgtShow } = compute();
   LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
   // Name the actual show being predicted, not just the cutoff date it comes after.
@@ -2982,7 +3352,8 @@ function render() {
   // Conditions that materially change the prediction get their own line, but only while active.
   els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
     + (RUN_DEBT_STATE.owed ? `${runMates.size ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Reprise owed: ${RUN_DEBT.anchor} went unpaid earlier in this run, so <b>${RUN_DEBT.dep}</b> is live at <b>${(RUN_DEBT_STATE.p * 100).toFixed(0)}%</b>${RUN_DEBT_STATE.left === 0 ? ' on the closing night' : ''} (${RUN_DEBT_STATE.cell[0]} of ${RUN_DEBT_STATE.cell[1]} comparable nights since ${RUN_DEBT_MINED && RUN_DEBT_MINED.since ? RUN_DEBT_MINED.since.slice(0, 4) : '2009'}), most often as the encore finale.</span>` : '')
-    + ((runMates.size || RUN_DEBT_STATE.owed) && themePool ? '<br>' : '')
+    + (tourOpen ? `${runMates.size || RUN_DEBT_STATE.owed ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Tour opener${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR ? ` (${tgtShow.tour})` : ''}: the first night of the tour.</span>` : '')
+    + ((runMates.size || RUN_DEBT_STATE.owed || tourOpen) && themePool ? '<br>' : '')
     + (themePool ? `<span style="color:var(--series-2);font-weight:600;">Playing it like <b>${els.themeYear.value}</b>: restricted to the <b>${rows.filter(r => !r.offTheme && !r.deepDormant).length}</b> songs the band played that year.</span>` : '');
   els.heroFlags.style.display = els.heroFlags.innerHTML ? '' : 'none';
   const targetShort = target ? `${target.venue} &middot; ${target.date}` : `next show after ${st.end}`;
@@ -3039,7 +3410,7 @@ function render() {
     const block = (title, ids, setKey) => {
       const arr = markSegues(asRows(ids), setKey, false);   // deterministic: a committed call
       const mins = arr.reduce((a, r) => a + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
-      const right = playedSet ? `${hitsIn(ids)}/${ids.length} hit` : `~${Math.round(mins)} min`;
+      const right = playedSet ? `${hitsIn(ids)}/${ids.length} hit` : `~${Math.round(realMin(setKey, mins))} min`;
       return `
       <div class="set-block">
         <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">${right}</span></h3>
@@ -3096,12 +3467,12 @@ function render() {
     els.setlistTitle.innerHTML = `A realistic setlist &mdash; ${targetShort}`;
     const sl = buildSetlist(rows, n1, n2, ne);
     markSegues(sl.set1, 's1', true); markSegues(sl.set2, 's2', true); markSegues(sl.encore, 'e', true);
-    const block = (title, arr, mins) => `
+    const block = (title, arr, mins, setKey) => `
       <div class="set-block">
-        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(mins)} min</span></h3>
+        <h3>${title}<span style="float:right;font-weight:400;letter-spacing:0;text-transform:none;color:var(--text-muted);">~${Math.round(realMin(setKey, mins))} min</span></h3>
         ${arr.map(r => `<div class="set-song"><span class="sname"><span class="songlink" data-sid="${r.id}">${r.name}</span>${segHtml(r.seg)}${r.role ? `<span class="role">${r.role}</span>` : ''}${r.isBustout ? '<span class="badge bust">bustout</span>' : ''}${r.cool ? '<span class="badge cool">cool-down</span>' : ''}</span><span class="sprob">${r.dur != null ? r.dur.toFixed(1) : '~' + DEFAULT_DUR.toFixed(1)}\u2032 \u00b7 ${pct(r.pred)}%</span></div>`).join('')}
       </div>`;
-    els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1) + block('Set 2', sl.set2, sl.minutes.s2) + block('Encore', sl.encore, sl.minutes.e);
+    els.setlistGrid.innerHTML = block('Set 1', sl.set1, sl.minutes.s1, 's1') + block('Set 2', sl.set2, sl.minutes.s2, 's2') + block('Encore', sl.encore, sl.minutes.e, 'e');
   } else {
     els.officialNote.classList.add('hidden');
     els.setlistGrid.classList.add('hidden'); els.mlWrap.classList.remove('hidden');

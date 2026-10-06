@@ -79,6 +79,30 @@ def assign_run_positions(shows):
                 s["runPos"] = "middle"
     return shows
 
+NO_TOUR = "Not Part of a Tour"
+TOUR_OPEN_GAP_DAYS = 14
+
+
+def assign_tour_openers(shows):
+    """Tag each show (chronological dicts with 'date' and, when known, 'tour') with tourOpen.
+
+    phish.net names every tour ("2026 Fall Tour", "2027 Mexico"), so the opener is the first show of
+    a tour name not seen before. One-off shows all share the name "Not Part of a Tour" and count as
+    an opener only after TOUR_OPEN_GAP_DAYS off. With no tour name at all (a schedule entry the API
+    returned without one) the same day-gap rule stands in. The template applies the identical rule
+    when an older build left the flag off, and mine_tour_openers() measures with it."""
+    to_d = lambda s: date(*map(int, s.split("-")))
+    seen, prev = set(), None
+    for s in shows:
+        gap = (to_d(s["date"]) - to_d(prev)).days if prev else 10 ** 6
+        tour = s.get("tour") or ""
+        s["tourOpen"] = (gap >= TOUR_OPEN_GAP_DAYS) if (not tour or tour == NO_TOUR) else (tour not in seen)
+        if tour:
+            seen.add(tour)
+        prev = s["date"]
+    return shows
+
+
 # Date ranges kept OUT of the calibration fit. Deliberately EMPTY.
 #
 # An earlier version excluded three whole 2026 tour names ("2026 Summer Tour", "2026 Sphere",
@@ -232,6 +256,7 @@ def fetch_setlists():
     if not rows:
         sys.exit("No setlist rows fetched — check the API key and network access.")
     rows = phish_only(rows)
+    rows = drop_non_concerts(rows)
     before = len({r.get("showdate") for r in rows})
     rows = [r for r in rows if (r.get("showdate") or "") < CUTOFF]
     after = len({r.get("showdate") for r in rows})
@@ -259,6 +284,50 @@ def phish_only(rows):
     if not out:
         sys.exit("Artist filter removed everything — the API's artist fields changed shape; aborting rather than building an empty site.")
     return out
+
+
+# Soundchecks, TV spots and radio sessions sit in phish.net's setlist data as "shows". They are
+# not concerts, and the model was treating them as if they were: the 3-song Moon Palace soundcheck
+# the night before every Mexico run made each run look like five nights (night 1 = a soundcheck),
+# its songs got the 0.02x already-played-this-run penalty for all four real nights, and every gap
+# count shifted by one. Since 2009 there are exactly 20 such entries — Bonnaroo, Bethel Woods,
+# Watkins Glen and Dover soundchecks, the Mexico soundchecks, Fallon/Letterman/NPR Tiny Desk, the
+# Rock Hall induction — and every one has no second set and at most 8 songs. Every real concert in
+# that era has two sets. Two rules, both logged by name so nothing disappears silently:
+#   1. phish.net's own flag: rows marked exclude = 1 (its "excluded from stats").
+#   2. the measured backstop for anything the flag misses: since 2009, no set 2 and <= 8 songs.
+NON_CONCERT_SINCE = "2009-01-01"
+NON_CONCERT_MAX_SONGS = 8
+
+
+def drop_non_concerts(rows):
+    by_show = defaultdict(list)
+    for r in rows:
+        by_show[r.get("showid") or r.get("showdate")].append(r)
+    flagged, backstop = {}, {}
+    for sid, rs in by_show.items():
+        d = rs[0].get("showdate") or ""
+        if any(str(r.get("exclude", 0)) == "1" for r in rs):
+            flagged[sid] = (d, rs[0].get("venue"), "excluded from stats by phish.net")
+        sets = {str(r.get("set", "")).lower() for r in rs}
+        n = len({r.get("songid") for r in rs})
+        if d >= NON_CONCERT_SINCE and "2" not in sets and n <= NON_CONCERT_MAX_SONGS:
+            backstop[sid] = (d, rs[0].get("venue"), f"no second set, {n} song(s)")
+    # Same defensive posture as phish_only(): a rule that suddenly removes a large share of the
+    # corpus means the data changed shape, and a gutted site is worse than a noisy one. Each rule
+    # is capped on its own, so a surprise in phish.net's flag cannot switch off the backstop.
+    cap = 0.05 * max(1, len(by_show))
+    drop = {}
+    for name, found in (("phish.net exclude flag", flagged), ("no-second-set backstop", backstop)):
+        if len(found) > cap:
+            print(f"  ! {name} would drop {len(found)} of {len(by_show)} shows — skipping that rule",
+                  file=sys.stderr)
+        else:
+            for sid, v in found.items():
+                drop.setdefault(sid, v)
+    for sid, (d, venue, why) in sorted(drop.items(), key=lambda kv: kv[1][0]):
+        print(f"  not a concert, left out: {d} {venue} ({why})")
+    return [r for r in rows if (r.get("showid") or r.get("showdate")) not in drop]
 
 
 def fetch_upcoming(recent_shows=None):
@@ -307,7 +376,9 @@ def fetch_upcoming(recent_shows=None):
             continue
         seen.add(d)
         out.append({"date": d, "venue": r.get("venue") or "", "city": r.get("city") or "",
-                    "state": r.get("state") or r.get("country") or ""})
+                    "state": r.get("state") or r.get("country") or "",
+                    # the shows endpoint calls it tour_name; the setlists endpoint, tourname
+                    "tour": r.get("tour_name") or r.get("tourname") or ""})
     # Prepend the tail of real history so a run already underway (night 1 already happened)
     # is recognized as continuing rather than mistaken for a fresh opening night.
     context = [{"date": s["date"], "venue": s["venue"]} for s in (recent_shows or [])[-6:]]
@@ -319,8 +390,14 @@ def fetch_upcoming(recent_shows=None):
 
 
 def fetch_durations():
-    """Median song length (minutes) from phish.in, modern era only. Optional."""
+    """Median song length (minutes) from phish.in, modern era only. Optional.
+
+    Also returns each show's REAL set lengths, {date: [set1, set2, encore]} in minutes, from the same
+    tracks (no extra requests). Only shows whose every track has audio and a length, and that have
+    both a Set 1 and a Set 2, are kept: a show with missing audio would read as a short night."""
     agg = defaultdict(list)
+    per_show = defaultdict(lambda: [0.0, 0.0, 0.0])
+    broken = set()
     page = 1
     while page <= 60:
         url = f"https://phish.in/api/v2/tracks?per_page=500&page={page}&sort=date:desc"
@@ -334,9 +411,20 @@ def fetch_durations():
             break
         stop = False
         for t in tracks:
-            if not t.get("duration") or not t.get("show_date"):
+            d = t.get("show_date")
+            if d and d >= "2009-01-01":
+                if not t.get("duration") or t.get("audio_status") not in (None, "complete"):
+                    broken.add(d)
+                else:
+                    sn = str(t.get("set_name") or "")
+                    k = 0 if sn == "Set 1" else (2 if sn.startswith("Encore") else (1 if sn.startswith("Set") else None))
+                    if k is None:
+                        broken.add(d)           # soundcheck or an unlabeled track: not a clean night
+                    else:
+                        per_show[d][k] += t["duration"] / 60000.0
+            if not t.get("duration") or not d:
                 continue
-            if t["show_date"] < "2009-01-01":
+            if d < "2009-01-01":
                 stop = True
                 break
             for s in t.get("songs") or []:
@@ -374,6 +462,35 @@ def fetch_durations():
             "n": len(mins),
         }
     print(f"  durations for {len(out)} songs")
+    show_min = {d: [round(v, 1) for v in m] for d, m in per_show.items()
+                if d not in broken and m[0] > 0 and m[1] > 0}
+    print(f"  real set lengths for {len(show_min)} shows")
+    return out, show_min
+
+
+def realtime_factors(show_min, shows_list, songs, plays, last_n=100):
+    """Real track time over the builder's planning minutes, per set, on the last `last_n` shows that
+    have clean audio. The builder plans a set as the sum of its songs' MEDIAN lengths; real sets run
+    longer because jams stretch past the median (2022+: set 1 x1.09, set 2 x1.16, encore x0.97).
+    The page multiplies its displayed minutes by these. Counted exactly the way set_minutes() and the
+    template count a set: a song in set 1 at all is set 1; otherwise encore if it closed the night."""
+    dur = {s["id"]: s.get("dur") for s in songs}
+    model = defaultdict(lambda: [0.0, 0.0, 0.0])
+    for p in plays:
+        d = dur.get(p["sid"])
+        d = d if d is not None else 7.2           # the template's DEFAULT_DUR
+        k = 0 if any(c <= 2 for c in p["sl"]) else (2 if 6 in p["sl"] else 1)
+        model[p["date"]][k] += d
+    dates = [s["date"] for s in shows_list if s["date"] in show_min and model[s["date"]][0] > 0
+             and model[s["date"]][1] > 0][-last_n:]
+    if len(dates) < 20:
+        return None
+    out = {"n": len(dates), "since": dates[0]}
+    for k, name in ((0, "s1"), (1, "s2"), (2, "e")):
+        real = sum(show_min[d][k] for d in dates)
+        plan = sum(model[d][k] for d in dates if show_min[d][k] > 0 or k < 2)
+        out[name] = round(real / plan, 3) if plan > 0 else 1.0
+    print(f"  real-time factors (last {out['n']} shows with audio): set 1 x{out['s1']}, set 2 x{out['s2']}, encore x{out['e']}")
     return out
 
 
@@ -1206,8 +1323,55 @@ def mine_set_affinity(raw, pair_rules, modern="2009-01-01"):
     return out
 
 
-def mine_tour_openers(raw, modern="2009-01-01"):
-    """Warm-up songs: set 1 of the first show of a tour, after time off."""
+SONG_POS_SINCE = "2009-01-01"
+SONG_POS_PRIOR = 4          # pseudo-observations at the middle of the set (0.5)
+
+
+def mine_song_positions(raw, since=None):
+    """Where in a set each song is usually played — the running order beyond opener and closer.
+
+    For every set 1 and set 2 with 4+ songs, each MIDDLE song (not the opener, not the closer —
+    those slots are chosen separately) gets a relative position r = 0 for the slot right after the
+    opener through r = 1 for the slot right before the closer. Per song and set: the mean r, shrunk
+    toward 0.5 by SONG_POS_PRIOR pseudo-observations so a song seen three times cannot pin itself to
+    one end, and the number of observations. A repeat later in the same set (a reentry) is not a
+    position of its own; the first appearance is used.
+
+    Returns {songid: {"1": [mean, n], "2": [mean, n]}} with a set present only when observed."""
+    since = since or SONG_POS_SINCE
+    sets = defaultdict(list)
+    for r in raw:
+        st = str(r.get("set", ""))
+        if r["showdate"] < since or st not in ("1", "2"):
+            continue
+        sets[(r["showdate"], st)].append((int(r["position"]), r["songid"]))
+    acc = defaultdict(lambda: [0.0, 0])
+    for (d, st), rs in sets.items():
+        order, seen = [], set()
+        for _, sid in sorted(rs):
+            if sid not in seen:
+                seen.add(sid)
+                order.append(sid)
+        n = len(order)
+        if n < 4:
+            continue
+        for i in range(1, n - 1):
+            a = acc[(order[i], st)]
+            a[0] += (i - 1) / (n - 3)
+            a[1] += 1
+    out = defaultdict(dict)
+    for (sid, st), (tot, n) in acc.items():
+        out[str(sid)][st] = [round((tot + 0.5 * SONG_POS_PRIOR) / (n + SONG_POS_PRIOR), 3), n]
+    print(f"  running-order profiles for {len(out)} songs (since {since})")
+    return dict(out)
+
+
+def mine_tour_openers(raw, openers=None, modern="2009-01-01"):
+    """Warm-up songs: set 1 of the first show of a tour, after time off.
+
+    `openers` is the set of tour-opener dates from assign_tour_openers(), the same rule the site
+    uses to flag the night being predicted. (It used to take the earliest date of each tour name,
+    which counted only one "Not Part of a Tour" show in all of 2009+ as an opener.)"""
     tours, s1, names = defaultdict(list), defaultdict(set), {}
     for r in raw:
         if r["showdate"] < modern:
@@ -1216,7 +1380,7 @@ def mine_tour_openers(raw, modern="2009-01-01"):
         tours[r["tourname"]].append(r["showdate"])
         if r["set"] == "1":
             s1[r["showdate"]].add(r["songid"])
-    firsts = {min(ds) for ds in tours.values()}
+    firsts = set(openers) if openers is not None else {min(ds) for ds in tours.values()}
     fc, oc, tf, to = Counter(), Counter(), 0, 0
     for d, ss in s1.items():
         if d in firsts:
@@ -1330,10 +1494,10 @@ def main():
 
     print("Fetching song durations from phish.in...")
     try:
-        durations = fetch_durations()
+        durations, show_min = fetch_durations()
     except Exception as e:
         print(f"  ! durations unavailable ({e}) — continuing without them", file=sys.stderr)
-        durations = {}
+        durations, show_min = {}, {}
 
     # Dump the duration distributions to a plain CSV next to index.html. This is a
     # diagnostic artifact, not an input: it makes the sampled-length tuning inspectable
@@ -1353,6 +1517,7 @@ def main():
     print("Shaping...")
     shows_list, songs, plays = shape(raw, durations)
     assign_run_positions(shows_list)   # every historical show gets its real run position — known, not guessed
+    assign_tour_openers(shows_list)    # and whether it opened a tour — from phish.net's tour names
     print(f"  {len(shows_list)} shows, {len(songs)} songs, {len(plays)} (song, show) records")
 
     print("Fetching upcoming shows...")
@@ -1361,6 +1526,12 @@ def main():
     except Exception as e:
         print(f"  ! upcoming unavailable ({e})", file=sys.stderr)
         upcoming = []
+    # Tour openers on the schedule, judged against the WHOLE history (a tour name seen before is
+    # not new). Re-running over history leaves its flags unchanged; only the upcoming ones are new.
+    assign_tour_openers(shows_list + upcoming)
+    for u in upcoming:
+        if u.get("tourOpen"):
+            print(f"  tour opener ahead: {u['date']} {u['venue']} ({u.get('tour') or 'no tour name'})")
 
     print("Mining patterns...")
     pairs = mine_pairs(raw)
@@ -1376,12 +1547,14 @@ def main():
     setcounts = mine_setcounts(raw)
     print("Mining long-song floors...")
     longsongs = mine_longsongs(raw, durations)
-    touropen = mine_tour_openers(raw)
+    touropen = mine_tour_openers(raw, {s["date"] for s in shows_list if s.get("tourOpen")})
+    songpos = mine_song_positions(raw)
     closer = mine_closers(raw)
     jamrate = mine_jam_rate(raw)
     breathers = breather_ids(songs)
     locked = mine_date_locked(raw)
     minutes = set_minutes(shows_list, songs, plays)
+    realtime = realtime_factors(show_min, shows_list, songs, plays)
     cal = fit_static_calibration(shows_list, songs, plays, GAP_MULT)
     # Day-aware gap residual. Fit on 2019+ on purpose — the effect is a property of
     # MODERN touring (short segments, destination runs, residencies) and is absent
@@ -1397,7 +1570,7 @@ def main():
                       ("pair_rules", pairs), ("cool_affinity", cool), ("run_position", runpos), ("run_debt", rundebt),
                       ("set_affinity", setaff), ("tour_opener", touropen), ("closer_score", closer), ("jam_rate", jamrate), ("breathers", breathers),
                       ("date_locked", locked), ("set_minutes", minutes), ("calibration", cal),
-                      ("day_hazard", dayhaz),
+                      ("day_hazard", dayhaz), ("realtime", realtime), ("song_positions", songpos),
                       ("upcoming", upcoming)]:
         with open(os.path.join(CACHE, f"{name}.json"), "w") as f:
             json.dump(obj, f, separators=(",", ":"))
@@ -1469,6 +1642,8 @@ def main():
         "__SETMIN_JSON__": j(minutes),
         "__STATIC_CAL_JSON__": j(cal),
         "__DAYHAZ_JSON__": j(dayhaz),
+        "__REALTIME_JSON__": j(realtime),
+        "__SONGPOS_JSON__": j(songpos),
         "__LATEST_DATE__": shows_list[-1]["date"],
         "__SHOW_COUNT__": f"{len(shows_list):,}",
         "__SONG_COUNT__": f"{len(songs):,}",

@@ -106,7 +106,7 @@ console.log('\n— song length —');
 check('durOf stays within the song\'s own p10..p90', () => {
   for (const d of NIGHTS.slice(0, 60)) {
     for (const r of all(d)) {
-      if (!r.durq) continue;
+      if (!r.durq || r.reentry) continue;   // a reentry's return segment is a measured fraction
       const v = E.durOf(r);
       if (v < r.durq[0] - 1e-6 || v > r.durq[4] + 1e-6)
         return `${r.name} drew ${v.toFixed(1)} outside [${r.durq[0]}, ${r.durq[4]}]`;
@@ -279,13 +279,16 @@ check('cool-down badge only ever renders in set 2', () => {
   return null;
 });
 
-check('set 1 : set 2 minute ratio stays in the measured 0.73-1.58 band', () => {
+check('set 1 : set 2 minute ratio stays in the measured band', () => {
+  // The band is the last 100 shows' 5th-95th percentile (MIN_SHAPE, in the builder's own units);
+  // an older template without it uses the fixed 2022+ band, 0.73-1.58. Same small headroom either way.
+  const B = (E.MIN_SHAPE && E.MIN_SHAPE.band) || { lo: 0.73, hi: 1.58 };
   let out = 0;
   for (const d of NIGHTS) {
     const { s1, s2 } = d.sl.minutes;
     if (!s2) continue;
     const r = s1 / s2;
-    if (r < 0.70 || r > 1.62) out++;
+    if (r < B.lo - 0.03 || r > B.hi + 0.04) out++;
   }
   // 0.73-1.58 is the 5th-95th percentile of real nights, so ~10% of REAL shows sit outside
   // it by construction. Asserting 5% demanded more regularity than reality has.
@@ -342,6 +345,30 @@ check('a themed year admits no off-theme song', () => {
     for (const r of all(d))
       if (!pool.has(r.id)) return `${r.name} entered a 1996-themed night off-theme`;
   return null;
+});
+
+// ---------------------------------------------------------------------------
+console.log('\n— stats cutoff —');
+
+check('a past show scores the same whatever "stats through" says', () => {
+  // The night being predicted must never sit inside its own stats window. With stats left at
+  // the latest show, picking a past night used to crush every song played that night to ~0.1%.
+  const keep = { refEnd: E.getSetting('refEnd'), nextDate: E.getSetting('nextDate'), runPos: E.getSetting('runPos') };
+  const N = E.SHOWS.length, tgt = E.SHOWS[N - 1];
+  E.setSetting('nextDate', tgt.date);
+  E.setSetting('runPos', tgt.runPos && tgt.runPos !== 'none' ? tgt.runPos : '');
+  E.setSetting('refEnd', tgt.date);
+  const inside = new Map(E.compute().rows.map(r => [r.id, r.pred]));
+  E.setSetting('refEnd', E.SHOWS[N - 2].date);
+  const clean = new Map(E.compute().rows.map(r => [r.id, r.pred]));
+  Object.entries(keep).forEach(([k, v]) => E.setSetting(k, v));
+  let worst = 0, who = null;
+  for (const [id, p] of clean) {
+    const d = Math.abs(p - (inside.get(id) || 0));
+    if (d > worst) { worst = d; who = id; }
+  }
+  if (inside.size !== clean.size) return `row count differs (${inside.size} vs ${clean.size})`;
+  return worst > 1e-9 ? `${(E.SONGS.find(s => s.id === who) || {}).name} differs by ${(100 * worst).toFixed(1)} points` : null;
 });
 
 // ---------------------------------------------------------------------------

@@ -38,7 +38,7 @@ function extractJsonTables(indexHtml) {
     __SETMIN_JSON__: 'SET_MIN', __STATIC_CAL_JSON__: 'STATIC_CAL',
     __DAYHAZ_JSON__: 'DAY_HAZ',
     __PREDLOG_JSON__: 'PRED_LOG', __LIVE_JSON__: 'LIVE_SET',
-    __SEGUES_JSON__: 'SEGUES',
+    __SEGUES_JSON__: 'SEGUES', __REALTIME_JSON__: 'REALTIME', __SONGPOS_JSON__: 'SONG_POS',
   };
   // A table can legitimately be absent: index.html may predate a table the template
   // introduced. Substituting null lets the engine load anyway (the guarded code paths
@@ -50,7 +50,9 @@ function extractJsonTables(indexHtml) {
     // trailing line comment before the newline. Anchoring on a bare `;\n` is wrong:
     // several of these declarations carry an inline `// ...` note after the semicolon,
     // and a lazy match would then run on and swallow the next declaration whole.
-    const tail = ';[ \\t]*(?://[^\\n]*)?\\n';
+    // `\r` is allowed before the newline: an index.html written on Windows has CRLF line endings,
+    // and without it every lookup ran on into the next declaration ("STATIC_CAL already declared").
+    const tail = ';[ \\t\\r]*(?://[^\\n]*)?\\n';
     let m = indexHtml.match(new RegExp(`const ${name} = new Set\\(([\\s\\S]*?)\\)${tail}`));
     if (m) { out[ph] = m[1]; continue; }
     m = indexHtml.match(new RegExp(`const ${name} = ([\\s\\S]*?)${tail}`));
@@ -145,7 +147,10 @@ function buildEngine(templatePath, indexPath) {
               SONGS, SHOWS, SET_BOUNDS, NIGHT_STRETCH_W, BONDED, restoreBonds, RUN_DEBT, runDebtFor,
               get RUN_DEBT_STATE() { return RUN_DEBT_STATE; },
               get slModeSample() { return slModeSample; },
-              setSampleMode(v) { slModeSample = v; } };
+              setSampleMode(v) { slModeSample = v; },
+              // newer engine pieces; null when the template predates them
+              MIN_SHAPE: typeof MIN_SHAPE !== 'undefined' ? MIN_SHAPE : null,
+              realMin: typeof realMin !== 'undefined' ? realMin : null };
   `);
   const api = mod();
   api.__missing__ = missing;
