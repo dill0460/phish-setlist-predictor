@@ -38,7 +38,7 @@ function extractJsonTables(indexHtml) {
     __SETMIN_JSON__: 'SET_MIN', __STATIC_CAL_JSON__: 'STATIC_CAL',
     __DAYHAZ_JSON__: 'DAY_HAZ',
     __PREDLOG_JSON__: 'PRED_LOG', __LIVE_JSON__: 'LIVE_SET',
-    __SEGUES_JSON__: 'SEGUES', __REALTIME_JSON__: 'REALTIME', __SONGPOS_JSON__: 'SONG_POS',
+    __SEGUES_JSON__: 'SEGUES', __REALTIME_JSON__: 'REALTIME', __SONGPOS_JSON__: 'SONG_POS', __CONTEXTCORR_JSON__: 'CONTEXT_CORR',
   };
   // A table can legitimately be absent: index.html may predate a table the template
   // introduced. Substituting null lets the engine load anyway (the guarded code paths
@@ -150,7 +150,15 @@ function buildEngine(templatePath, indexPath) {
               setSampleMode(v) { slModeSample = v; },
               // newer engine pieces; null when the template predates them
               MIN_SHAPE: typeof MIN_SHAPE !== 'undefined' ? MIN_SHAPE : null,
-              realMin: typeof realMin !== 'undefined' ? realMin : null };
+              SET_MIN: typeof SET_MIN !== 'undefined' ? SET_MIN : null,
+              realMin: typeof realMin !== 'undefined' ? realMin : null,
+              contextsOf: typeof contextsOf !== 'undefined' ? contextsOf : null,
+              nextShowOf: typeof nextShowOf !== 'undefined' ? nextShowOf : null,
+              songCatsFor: typeof songCatsFor !== 'undefined' ? songCatsFor : null,
+              oddsScaleTo: typeof oddsScaleTo !== 'undefined' ? oddsScaleTo : null,
+              applyLearned: typeof applyLearned !== 'undefined' ? applyLearned : null,
+              learnedKinds: typeof learnedKinds !== 'undefined' ? learnedKinds : null,
+              CONTEXT_CORR: typeof CONTEXT_CORR !== 'undefined' ? CONTEXT_CORR : null };
   `);
   const api = mod();
   api.__missing__ = missing;

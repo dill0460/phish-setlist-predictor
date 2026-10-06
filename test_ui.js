@@ -372,6 +372,46 @@ check('a past show scores the same whatever "stats through" says', () => {
 });
 
 // ---------------------------------------------------------------------------
+console.log('\n— learned corrections —');
+
+check('learned corrections keep a night\'s total, apart from its size factor', () => {
+  // contexts.js learns per-song multipliers; the page must re-rank with them and then hand the
+  // night back its total (times the kind-of-night size factor), or every boost would lengthen it.
+  const C = E.CONTEXT_CORR;
+  const nights = E.SHOWS.slice(-60).filter(s => E.learnedKinds(s).length);
+  if (!nights.length) return 'no recent night of a learned kind';
+  for (const s of nights.slice(0, 8)) {
+    const ids = E.SONGS.slice(0, 300).map(x => x.id);
+    const ps = ids.map((_, k) => 0.02 + 0.6 * ((k * 37) % 97) / 97);
+    const out = E.applyLearned(ps, ids, s);
+    const F = E.learnedKinds(s).reduce((f, k) => f * ((C.size && C.size[k]) || 1), 1);
+    const want = ps.reduce((x, y) => x + y, 0) * F, got = out.reduce((x, y) => x + y, 0);
+    if (Math.abs(want - got) > 1e-3 * want) return `${s.date}: total ${got.toFixed(3)} vs expected ${want.toFixed(3)}`;
+  }
+  return null;
+}, ['CONTEXT_CORR']);
+
+check('the official call keeps a real set\'s shape when that option is on', () => {
+  // A pure vote seated ~5 long jams in an ~8-song set 2 (a real one holds ~3) and read 110 minutes.
+  const { buildConsensus, OFFICIAL_SET_SHAPE } = require('./consensus.js');
+  if (!OFFICIAL_SET_SHAPE) return null;           // the shape is off by choice (consensus.js); nothing to hold
+  const keep = { refEnd: E.getSetting('refEnd'), nextDate: E.getSetting('nextDate'), runPos: E.getSetting('runPos') };
+  const N = E.SHOWS.length;
+  let worst = 0, at = null;
+  for (let t = N - 4; t < N; t++) {
+    E.setSetting('refEnd', E.SHOWS[t - 1].date); E.setSetting('nextDate', E.SHOWS[t].date); E.setSetting('runPos', '');
+    const c = buildConsensus(E, { draws: 60, seed: t });
+    const long = c.set2.filter(x => E.durMedian(E.SONGS.find(s => s.id === x.id)) >= E.LONG_THRESH).length;
+    let quota = 99;
+    const tb = E.LONG_SONGS && E.LONG_SONGS.s2;
+    if (tb) for (const [n, p] of tb.cdf) if (p >= 0.5) { quota = n; break; }
+    if (long - quota > worst) { worst = long - quota; at = E.SHOWS[t].date; }
+  }
+  Object.entries(keep).forEach(([k, v]) => E.setSetting(k, v));
+  return worst > 0 ? `${at}: set 2 holds ${worst} more long jam(s) than a typical set 2` : null;
+}, ['LONG_SONGS']);
+
+// ---------------------------------------------------------------------------
 console.log(`\n${'='.repeat(58)}`);
 console.log(`${pass} passed, ${fail} failed, ${skip} skipped`);
 if (failures.length) {

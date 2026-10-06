@@ -34,6 +34,7 @@ on:
       - 'harness.js'
       - 'snapshot.js'
       - 'live.js'
+      - 'contexts.js'
       - '.github/workflows/update.yml'
   schedule:
     - cron: "0 9 * * *"        # 5am ET / 3am MT — hours after any show has ended
@@ -65,6 +66,16 @@ jobs:
         env:
           PHISHNET_API_KEY: ${{ secrets.PHISHNET_API_KEY }}
         run: python build.py
+
+      # Learns what the model misses on particular kinds of night (tour openers, tour closers,
+      # NYE, first/middle/last night of a run) by replaying it on past ones, and writes that into
+      # the page. Cached in data/, so a normal day replays one show; after a template change it
+      # replays every show since 2010 once (several minutes). Allowed to fail: the page then runs
+      # without these corrections, exactly as before. Must run BEFORE snapshot.js so the official
+      # call is made with them.
+      - name: Learn kind-of-night corrections
+        continue-on-error: true
+        run: node contexts.js
 
       # Grades any finished show that now has real setlist data, and commits the official call
       # for the next one. A graded row is never touched again — that invariant is what makes
