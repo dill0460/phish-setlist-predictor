@@ -419,6 +419,9 @@ check('NYE gets a midnight set that opens with Auld Lang Syne', () => {
     const all = [...sl.set1, ...sl.set2, ...sl.set3, ...sl.encore].filter(r => !r.reentry).map(r => r.id);
     if (new Set(all).size !== all.length) { bad.push('a song appears twice'); break; }
   }
+  // the odds table agrees: Auld Lang Syne is near-certain on NYE (it read 2% before)
+  const als = c.rows.find(r => r.name === 'Auld Lang Syne');
+  if (!als || als.pred < 0.8) bad.push(`Auld Lang Syne shown at ${als ? Math.round(als.pred * 100) : 0}%`);
   restore();
   return bad.length ? `${nye}: ${bad[0]}` : null;
 });
