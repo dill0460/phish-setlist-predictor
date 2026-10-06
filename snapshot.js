@@ -72,12 +72,13 @@ let changed = false;
     const started = e.date < todayMT || (live && live.date === e.date && (live.sids || []).length > 0);
     if (!started) {
       const top = e.top20 || [];
+      // same run rule as runMateSongs in app_template.html (a residency counts as one run)
       const runMates = new Set();
       {
         const j0 = E.SHOWS.findIndex(s2 => s2.date === e.date);
         const isRun = (j) => E.SHOWS[j] && E.SHOWS[j].venue === e.venue;
         for (let j = (j0 >= 0 ? j0 : E.SHOWS.length) - 1; j >= 0 && isRun(j) &&
-             (new Date(E.SHOWS[j + 1] ? E.SHOWS[j + 1].date : e.date) - new Date(E.SHOWS[j].date)) / 864e5 <= 3; j--)
+             (new Date(E.SHOWS[j + 1] ? E.SHOWS[j + 1].date : e.date) - new Date(E.SHOWS[j].date)) / 864e5 <= 14; j--)
           for (const p of (byDate.get(E.SHOWS[j].date) || [])) runMates.add(p.sid);
       }
       const added = completePairs(arrs, idOfName, {
