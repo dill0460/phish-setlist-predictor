@@ -532,7 +532,7 @@
             <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
             <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar. <b>Tour openers</b> are recognised the same way, from phish.net's tour names (the first show of a new tour, or the first show back after two weeks off). A set of first-night "warm-up" songs was mined for them too, but when tested honestly it made the predictions slightly worse, so tour openers are flagged and not boosted.</p>
             <p><b>No repeats inside a run</b> &mdash; when the show you're predicting is night 2 or later of a stand at one venue, everything already played earlier in that run is all but ruled out. This is the strongest single pattern in the whole dataset: measured across 2009 onward, just <b>0.3%</b> of a night's songs had already appeared earlier in the same run, against <b>17.8%</b> for any three preceding shows. The Baker's Dozen ran thirteen nights and 237 songs with exactly one repeat. Adding this lifted backtested top-20 accuracy from 4.76 to 5.14 songs overall, and to 5.56 on run nights specifically. Ruling songs out doesn't shorten the night, it concentrates it &mdash; a run night actually runs <i>longer</i> than a one-off (18.1 songs against 16.7) &mdash; so the probability taken off the already-played songs is handed back to everything still eligible. Deep into a run that's a large boost for whatever's left; on night 2 it barely moves.</p>
-            <p><b>Learned from its own mistakes</b> &mdash; every day the model replays itself on every show since 2010, exactly as it would have predicted each one the day before, and learns what it keeps getting wrong. Two song patterns: within a tour, a song already played <b>once</b> comes back much less than its numbers suggest (about 0.75&times;) while a staple played twice or more comes back more (about 1.2&times;) &mdash; that is how a tour rotates; and a brand-new song's first burst of plays overstates it (about 0.45&times; in its first three months, 0.85&times; in its second year). And kinds of night: tour openers lean on Free, Ghost and Bouncing Around the Room; the first night of a run on Ghost, No Men In No Man's Land and Simple; the last night on Carini, Bathtub Gin and Twist; tour finales and New Year's Eve run longer. Each correction is shrunk toward &ldquo;no change&rdquo; when the evidence is thin, and the header says which kind of night you are looking at. Tested on 150 shows the corrections had never seen: about 0.2 more of the top 20 played per show, and noticeably more honest percentages.</p>
+            <p><b>Learned from its own mistakes</b> &mdash; every day the model replays itself on every show since 2010, exactly as it would have predicted each one the day before, and learns what it keeps getting wrong. Two song patterns: within a tour, a song already played <b>once</b> comes back much less than its numbers suggest (about 0.75&times;) while a staple played twice or more comes back more (about 1.2&times;) &mdash; that is how a tour rotates; and a brand-new song's first burst of plays overstates it (about 0.45&times; in its first three months, 0.85&times; in its second year). And kinds of night: tour openers lean on Free, Ghost and Bouncing Around the Room; the first night of a run on Ghost, No Men In No Man's Land and Simple; the last night on Carini, Bathtub Gin and Twist; tour finales and New Year's Eve run longer; and stand-alone runs &mdash; destination runs that are not really a tour, like NYE, Mexico, Sphere and Dick's (filed under the summer tour, but its own thing) &mdash; lean on Free, Ghost, Simple and Tube, with Harry Hood and Ghost at Dick's. Each correction is shrunk toward &ldquo;no change&rdquo; when the evidence is thin, and the header says which kind of night you are looking at. Tested on 150 shows the corrections had never seen: about 0.2 more of the top 20 played per show, and noticeably more honest percentages.</p>
             <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set in Advanced settings. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
             <p><b>Date-locked songs</b> &mdash; anything played almost exclusively on one calendar date is excluded unless you set the show date to match. Exactly one song qualifies: Auld Lang Syne, 28 of its 29 outings on December 31.</p>
           </div>
@@ -1758,7 +1758,30 @@ function contextsOf(s, next) {
   // splitting further (night 1 / 2 / 3 of exactly three) left too few examples and lost.
   if (n >= 2 && k === 1) out.push('runFirst');
   if (n >= 2 && k === n) out.push('runLast');
+  // STAND-ALONE RUNS — destination runs that are not a tour: NYE, Mexico, Sphere, the MSG spring
+  // run (a named "tour" played at one venue), a multi-night run phish.net files under "Not Part of
+  // a Tour" (that is how the 2027 Riviera Maya run appears on the schedule), and Dick's, which is
+  // always filed under the summer tour but sits apart from it. Every night of such a run has its
+  // own feel; Dick's has enough history to carry its own correction as well. Measured with the
+  // other corrections in place, 340 shows since 2018: top-20 +0.22 -> +0.24, Brier -0.200 -> -0.213.
+  const dicks = /Dick's Sporting Goods Park/.test(s.venue || '');
+  if (dicks) out.push('dicks');
+  const venues = tour ? tourVenues().get(tour) : null;
+  if (dicks || (venues && venues.size === 1) || (!tour && n >= 2)) out.push('standalone');
   return out;
+}
+// tour name -> the venues it visits (history and schedule), for the stand-alone test above
+let _tourVenues = null;
+function tourVenues() {
+  if (_tourVenues) return _tourVenues;
+  _tourVenues = new Map();
+  for (const x of [...SHOWS, ...UPCOMING]) {
+    const t = x.tour && x.tour !== NO_TOUR ? x.tour : null;
+    if (!t) continue;
+    if (!_tourVenues.has(t)) _tourVenues.set(t, new Set());
+    _tourVenues.get(t).add(x.venue);
+  }
+  return _tourVenues;
 }
 // The learned corrections for one night, applied to a list of probabilities (same order as `ids`):
 // song patterns first, the night keeping its total; then the kind of night, whose size factor sets
@@ -3450,13 +3473,14 @@ function render() {
   // The kind of night, in words, with the songs those nights have most favoured beyond what the
   // model already expected (the learned multipliers), among songs with a real chance tonight.
   const KIND_LABEL = { tourOpen: 'Tour opener', tourClose: 'Last show of the tour', nye: "New Year's Eve",
-                       runFirst: 'First night of the run', runLast: 'Last night of the run' };
+                       runFirst: 'First night of the run', runLast: 'Last night of the run',
+                       standalone: 'Stand-alone run', dicks: "Dick's" };
   const kindBoost = r => nightKinds.reduce((m, k) => m * ((CONTEXT_CORR && CONTEXT_CORR.songs[k] && CONTEXT_CORR.songs[k][r.id]) || 1), 1);
   const favoured = nightKinds.length
     ? rows.filter(r => r.pred >= 0.05 && kindBoost(r) >= 1.08).sort((a, b) => kindBoost(b) - kindBoost(a)).slice(0, 3).map(r => r.name)
     : [];
   const kindLine = nightKinds.length
-    ? `${nightKinds.map((k, i) => i ? (KIND_LABEL[k] || k).toLowerCase() : (KIND_LABEL[k] || k)).join(', ')}${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR && nightKinds.some(k => k === 'tourOpen' || k === 'tourClose') ? ` (${tgtShow.tour})` : ''}${favoured.length ? `: these nights have historically favoured ${favoured.join(', ')}.` : '.'}`
+    ? `${nightKinds.filter(k => !(k === 'standalone' && nightKinds.includes('dicks'))).map((k, i) => i && k !== 'dicks' ? (KIND_LABEL[k] || k).toLowerCase() : (KIND_LABEL[k] || k)).join(', ')}${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR && nightKinds.some(k => k === 'tourOpen' || k === 'tourClose') ? ` (${tgtShow.tour})` : ''}${favoured.length ? `: these nights have historically favoured ${favoured.join(', ')}.` : '.'}`
     : (tourOpen ? `Tour opener${tgtShow && tgtShow.tour && tgtShow.tour !== NO_TOUR ? ` (${tgtShow.tour})` : ''}: the first night of the tour.` : '');
   LAST_CTX = { rows: new Map(rows.map(r => [r.id, r])), asOfIdx };
   const startDate = st.mode === 'rolling' ? addYears(st.end, st.years) : st.customStart;
