@@ -531,7 +531,7 @@
             <p><b>Running order</b> &mdash; beyond the opener and closer, each song has a habit of where it lands in a set: Down with Disease and Tweezer come early in set 2, Harry Hood and Wading in the Velvet Sea late; AC/DC Bag early in set 1, Split Open and Melt late. Sets are ordered by those habits (with a realistic amount of night-to-night variation), not by probability. The official call is built for song accuracy first: it is the songs that come up most often across hundreds of simulated nights, each seated in the set it usually lands in. That gets more songs right than filling each set separately (about +0.18 per show), at the cost of looking a bit less like a typical show &mdash; set 2 usually carries more big jams than a real one &mdash; so it shows song counts rather than a running time. Tested on every set since mid-2023, the habits alone put a pair of middle songs in the right order 60% of the time in set 1 and 66% in set 2, where a coin flip gets 50%.</p>
             <p><b>Cool-downs</b> &mdash; the breather that follows a big set-2 jam is drawn from a curated list of ballads and low-energy songs (Waste, Shade, Lonely Trip, Lifeboy, Leaves, Dirt, Strange Design, Velvet Sea and about fifty more), then ranked by how often each actually follows a 10+ minute jam. <b>This is the one hand-tuned piece of the model, and deliberately so:</b> tempo and mood appear in no available dataset, and the structural signals genuinely cannot tell a ballad from a short fast song &mdash; NICU sits 98.6% mid-set, identical to Lifeboy, and Poor Heart is 100% mid-set but is a bluegrass sprint. A measured proxy would keep producing wrong answers, so it isn't used here.</p>
             <p><b>Position in a run</b> &mdash; opening, middle and closing nights get measurably different setlists, and it's filled in for you automatically whenever your show date matches something real (already happened or on the announced schedule), rather than asked as a guess. Closing nights run longer (21.4 songs vs 18.0 on openers) and favour Wilson, AC/DC Bag, You Enjoy Myself, Buried Alive and Gotta Jibboo (about 2&times;); opening nights favour Stash, Blaze On, Bouncing Around the Room and Sample in a Jar. <b>Tour openers</b> are recognised the same way, from phish.net's tour names (the first show of a new tour, or the first show back after two weeks off). A set of first-night "warm-up" songs was mined for them too, but when tested honestly it made the predictions slightly worse, so tour openers are flagged and not boosted.</p>
-            <p><b>No repeats inside a run</b> &mdash; when the show you're predicting is night 2 or later of a stand at one venue, everything already played earlier in that run is all but ruled out. This is the strongest single pattern in the whole dataset: measured across 2009 onward, just <b>0.3%</b> of a night's songs had already appeared earlier in the same run, against <b>17.8%</b> for any three preceding shows. The Baker's Dozen ran thirteen nights and 237 songs with exactly one repeat. Adding this lifted backtested top-20 accuracy from 4.76 to 5.14 songs overall, and to 5.56 on run nights specifically. Ruling songs out doesn't shorten the night, it concentrates it &mdash; a run night actually runs <i>longer</i> than a one-off (18.1 songs against 16.7) &mdash; so the probability taken off the already-played songs is handed back to everything still eligible. Deep into a run that's a large boost for whatever's left; on night 2 it barely moves.</p>
+            <p><b>No repeats inside a run</b> &mdash; when the show you're predicting is night 2 or later of a stand at one venue, everything already played earlier in that run is ruled out. This is the strongest single pattern in the whole dataset: since 2009 Phish has repeated a song within a run just <b>10 times in about 12,500 chances</b>, nearly all gags, against <b>17.8%</b> of a night's songs for any three preceding shows. The Baker's Dozen ran thirteen nights and 237 songs with exactly one repeat. A residency spread over several weekends counts as one stand: Sphere 2026 played nine nights across three weekends without a single repeat. Adding this lifted backtested top-20 accuracy from 4.76 to 5.14 songs overall, and to 5.56 on run nights specifically. Ruling songs out doesn't shorten the night, it concentrates it &mdash; a run night actually runs <i>longer</i> than a one-off (18.1 songs against 16.7) &mdash; so the probability taken off the already-played songs is handed back to everything still eligible. Deep into a run that's a large boost for whatever's left; on night 2 it barely moves.</p>
             <p><b>Learned from its own mistakes</b> &mdash; every day the model replays itself on every show since 2010, exactly as it would have predicted each one the day before, and learns what it keeps getting wrong. Two song patterns: within a tour, a song already played <b>once</b> comes back much less than its numbers suggest (about 0.75&times;) while a staple played twice or more comes back more (about 1.2&times;) &mdash; that is how a tour rotates; and a brand-new song's first burst of plays overstates it (about 0.45&times; in its first three months, 0.85&times; in its second year). And kinds of night: tour openers lean on Free, Ghost and Bouncing Around the Room; the first night of a run on Ghost, No Men In No Man's Land and Simple; the last night on Carini, Bathtub Gin and Twist; tour finales and New Year's Eve run longer; and stand-alone runs &mdash; destination runs that are not really a tour, like NYE, Mexico, Sphere and Dick's (filed under the summer tour, but its own thing) &mdash; lean on Free, Ghost, Simple and Tube, with Harry Hood and Ghost at Dick's. Each correction is shrunk toward &ldquo;no change&rdquo; when the evidence is thin, and the header says which kind of night you are looking at. Tested on 150 shows the corrections had never seen: about 0.2 more of the top 20 played per show, and noticeably more honest percentages.</p>
             <p><b>New Year's Eve and Halloween</b> &mdash; both are always three-set nights. On NYE the third set is the midnight set: it opens with Auld Lang Syne (and a gag nobody can predict), and the song right after Auld Lang Syne is usually the band's big new song of the year &mdash; so that slot gets one specific guess: the newest non-ballad song played most that year, or the year's biggest jam vehicle if there is nothing new (right 2 times in 16 NYEs since 2009, Blaze On and What's Going Through Your Mind, which is about as good as one exact slot gets). On Halloween the second set is the &ldquo;musical costume,&rdquo; a whole album by another band kept secret until the show, so it is left as a placeholder rather than guessed; the band's own songs fill sets 1 and 3.</p>
             <p><b>Bustouts</b> &mdash; a return after a long absence, with the threshold set in Advanced settings. At 100+ shows this happens roughly every other show; 68% of real shows have none. At most one appears per night here. Songs gone so long they have no plays in your window share a measured 0.25/show budget, split across career-size tiers in their real proportions &mdash; so a song with one or two career plays can return, but almost never does.</p>
@@ -805,14 +805,16 @@ for (const p of PLAYS) {
   if (!SONGS_BY_YEAR.has(y)) SONGS_BY_YEAR.set(y, new Set());
   SONGS_BY_YEAR.get(y).add(p.sid);
 }
-// Within a multi-night run at one venue, Phish essentially does not repeat: measured 2009+,
-// only 0.3% of a night's songs had already been played earlier in that same run, against a
-// 17.8% rate for any three preceding shows. The Baker's Dozen ran 13 nights and 237 songs with
-// a single repeat. The global gap curve nowhere near captures this (it discounts last night's
-// songs by 55%, not 98%), so run-mates get an explicit multiplier. Not zero — repeats are rare,
-// not impossible. Backtested over 200 shows: top-20 hits 4.76 -> 5.14 overall, 4.95 -> 5.56 on
-// run nights; the metric is flat for any multiplier <= 0.25, so this is set to the measured rate.
-const RUN_REPEAT_MULT = 0.02;
+// Within a multi-night run at one venue, Phish does not repeat a song. Since 2009 it happened 10
+// times in about 12,500 chances (0.08%), nearly all gags or Tweezer business (Hold Your Head Up,
+// Tweezer Reprise, the Baker's Dozen closing Lawn Boy), against a 17.8% rate for any three
+// preceding shows. The global gap curve nowhere near captures this (it discounts last night's
+// songs by 55%), so run-mates are ruled out outright: a HARD rule, set by Lee. It was a 0.02
+// multiplier ("rare, not impossible"); no song that low ever reached a call, so the only change
+// is that the page now says 0%. The one exception is built in elsewhere: a Tweezer left unpaid
+// earlier in the run still owes its Reprise (see RUN_DEBT). Originally backtested over 200 shows:
+// top-20 hits 4.76 -> 5.14 overall, 4.95 -> 5.56 on run nights.
+const RUN_REPEAT_MULT = 0;
 const GAP_MULT = [null, 0.445, 0.782, 0.935, 1.049, 1.12, 1.116, 1.088, 1.06, 0.972, 0.979,
                   0.892, 0.864, 0.789, 0.733, 0.746, 0.742, 0.666, 0.663, 0.644, 0.222];
 const COOL_AFF = __COOL_JSON__;     // songid -> how much more often it follows a 10+ min jam (set-2 mid)
@@ -1306,8 +1308,15 @@ for (const p of PLAYS) {
   SONGS_AT_IDX.get(i).add(p.sid);
 }
 // Songs already played earlier in the SAME venue run as the show being predicted. Walks back
-// from the stats cutoff while the venue matches and consecutive shows are <= 3 days apart —
-// the same run rule build.py uses to tag run positions.
+// from the stats cutoff while the venue matches, show by show, so any other venue in between ends
+// the run. Consecutive shows up to RESIDENCY_DAYS apart still count as one run: a residency played
+// over several weekends is one stand. Sphere 2026 ran nine nights over three weekends (5 days off
+// between them) and repeated nothing — 0 of 157 songs from earlier weekends, where the model, which
+// had cut the run at 3 days, expected about 35. Since 1989 that is the only same-venue stand split
+// by more than 3 days, so nothing else moves. Measured over 400 shows: top-20 +0.050 per show
+// (+/- 0.027), Brier -0.033 (+/- 0.020); the last three Sphere nights went 2 -> 5, 1 -> 7 and
+// 6 -> 13 of the top 20. build.py's run positions ("night 1 of 3") still count each weekend.
+const RESIDENCY_DAYS = 14;
 function runMateSongs(targetVenue, targetDate, asOfIdx) {
   const out = new Set();
   if (!targetVenue || !targetDate) return out;
@@ -1315,7 +1324,7 @@ function runMateSongs(targetVenue, targetDate, asOfIdx) {
   let nextDate = targetDate;
   for (let j = asOfIdx; j >= 0; j--) {
     if (SHOWS[j].venue !== targetVenue) break;
-    if (dayDiff(SHOWS[j].date, nextDate) > 3) break;
+    if (dayDiff(SHOWS[j].date, nextDate) > RESIDENCY_DAYS) break;
     nextDate = SHOWS[j].date;
     for (const sid of SONGS_AT_IDX.get(j) || []) out.add(sid);
   }
@@ -1579,7 +1588,7 @@ function fitCalibration(asOfIdx, settings) {
     const fx = [], fy = [];
     for (const night of nights) {
       let ps = night.idx.map(i => adjOf(obsRaw[i], obsG[i], obsR[i]));
-      const mateMass = night.mates.reduce((s, m) => s + Math.max(0.001, adjOf(m[0], m[1], m[2]) * RUN_REPEAT_MULT), 0);
+      const mateMass = night.mates.reduce((s, m) => s + adjOf(m[0], m[1], m[2]) * RUN_REPEAT_MULT, 0);
       ps = oddsScaleTo(ps, nightTarget - mateMass);
       ps = applyLearned(ps, night.idx.map(i => obsSid[i]), SHOWS[night.T]);
       ps.forEach((p, k) => { fx.push(p); fy.push(obsHit[night.idx[k]]); });
@@ -2062,7 +2071,7 @@ function compute() {
     }
   }
   // Within-run no-repeat: if the show being predicted is night 2+ of a venue run, the songs
-  // already played earlier in that run are all but off the table (measured 0.3% recurrence).
+  // already played earlier in that run are ruled out (a hard rule; see RUN_REPEAT_MULT).
   let runMates = new Set(), themePool = null;
   restoreBonds();                 // a previous call's Reprise-debt suspension must never leak into this one
   RUN_DEBT_STATE = { owed: false };
@@ -2081,7 +2090,7 @@ function compute() {
       for (const r of rows) before += r.pred;
       for (const r of rows) {
         if (themePool && !themePool.has(r.id)) { r.offTheme = true; r.pred = Math.max(0.0005, r.pred * THEME_OFF_MULT); }
-        if (runMates.has(r.id)) { r.runRepeat = true; r.pred = Math.max(0.001, r.pred * RUN_REPEAT_MULT); }
+        if (runMates.has(r.id)) { r.runRepeat = true; r.pred = r.pred * RUN_REPEAT_MULT; }
       }
       // Ruling songs out doesn't shorten the show — it concentrates it. Measured over 124
       // historical run nights: the band plays 18.1 songs on a run night (more than the 16.7 of
@@ -3644,7 +3653,7 @@ function render() {
   els.heroSubtitle.innerHTML = `Predicting <b>${targetLabel}</b>, from the <b>${showsInFullWindow}</b> shows between <b>${startDate}</b> and <b>${st.end}</b>. `
     + `A <b>statistically honest guess</b> at the next Phish setlist, built from all <b>__SHOW_COUNT__ shows</b> and <b>__SONG_COUNT__ songs</b> since 1983 and refreshed daily from phish.net &mdash; it knows the current rotation, who's overdue, what opens, what closes, and what follows the big jam.`;
   // Conditions that materially change the prediction get their own line, but only while active.
-  els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish almost never repeats within a run.</span>` : '')
+  els.heroFlags.innerHTML = (runMates.size ? `<span style="color:var(--series-1);font-weight:600;">Mid-run: <b>${runMates.size}</b> songs already played earlier in this run are ruled out &mdash; Phish doesn't repeat a song within a run.</span>` : '')
     + (RUN_DEBT_STATE.owed ? `${runMates.size ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">Reprise owed: ${RUN_DEBT.anchor} went unpaid earlier in this run, so <b>${RUN_DEBT.dep}</b> is live at <b>${(RUN_DEBT_STATE.p * 100).toFixed(0)}%</b>${RUN_DEBT_STATE.left === 0 ? ' on the closing night' : ''} (${RUN_DEBT_STATE.cell[0]} of ${RUN_DEBT_STATE.cell[1]} comparable nights since ${RUN_DEBT_MINED && RUN_DEBT_MINED.since ? RUN_DEBT_MINED.since.slice(0, 4) : '2009'}), most often as the encore finale.</span>` : '')
     + (kindLine ? `${runMates.size || RUN_DEBT_STATE.owed ? '<br>' : ''}<span style="color:var(--series-1);font-weight:600;">${kindLine}</span>` : '')
     + ((runMates.size || RUN_DEBT_STATE.owed || kindLine) && themePool ? '<br>' : '')
@@ -4228,7 +4237,7 @@ function showSongCard(sid) {
     : `<b>~${DEFAULT_DUR.toFixed(1)} min</b> (no measured recordings &mdash; catalog-median ballpark)`;
   const slotTxt = (r && r.slotN >= 3) ? ` &middot; Most common slot: <b>${SLOT_NAMES[r.bestSlot]}</b>` : '';
   lines.push(`Typical length: ${durTxt}${slotTxt}.`);
-  if (r && r.runRepeat) lines.push(`<b>Already played earlier in this run</b> &mdash; ruled all but out for this show; Phish repeats within a run only about 0.3% of the time.`);
+  if (r && r.runRepeat) lines.push(`<b>Already played earlier in this run</b> &mdash; ruled out for this show. Phish doesn't repeat a song within a run: 10 times in about 12,500 chances since 2009, nearly all gags.`);
   if (r && r.pred > 0) lines.push(`Chance at the show you're predicting: <b>${(r.pred * 100).toFixed(1)}%</b>.`);
   $('scTitle').innerHTML = `${song.name}${song.cover ? ' <span class="slot-tag">non-original</span>' : ''}`;
   $('scSub').textContent = `Debuted ${song.debut}`;
