@@ -158,7 +158,10 @@ function buildEngine(templatePath, indexPath) {
               oddsScaleTo: typeof oddsScaleTo !== 'undefined' ? oddsScaleTo : null,
               applyLearned: typeof applyLearned !== 'undefined' ? applyLearned : null,
               learnedKinds: typeof learnedKinds !== 'undefined' ? learnedKinds : null,
-              CONTEXT_CORR: typeof CONTEXT_CORR !== 'undefined' ? CONTEXT_CORR : null };
+              CONTEXT_CORR: typeof CONTEXT_CORR !== 'undefined' ? CONTEXT_CORR : null,
+              buildNight: typeof buildNight !== 'undefined' ? buildNight : null,
+              nyeSet3Size: typeof nyeSet3Size !== 'undefined' ? nyeSet3Size : null,
+              songOfTheYear: typeof songOfTheYear !== 'undefined' ? songOfTheYear : null };
   `);
   const api = mod();
   api.__missing__ = missing;

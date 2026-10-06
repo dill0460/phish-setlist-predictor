@@ -18,7 +18,8 @@ function gradeOpener(entry, realOpener) {
 
 function gradeEntry(entry, playRows) {
   const played = new Set(playRows.map(p => p.sid));
-  const allOf = [...entry.official.s1, ...entry.official.s2, ...entry.official.e];
+  // set 3 exists only on a NYE call; a Halloween call's set 2 (the costume) is empty by design
+  const allOf = [...entry.official.s1, ...entry.official.s2, ...(entry.official.s3 || []), ...entry.official.e];
   return {
     played: played.size,
     hit20: entry.top20.filter(id => played.has(id)).length,

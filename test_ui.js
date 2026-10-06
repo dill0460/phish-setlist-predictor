@@ -391,25 +391,53 @@ check('learned corrections keep a night\'s total, apart from its size factor', (
   return null;
 }, ['CONTEXT_CORR']);
 
-check('the official call keeps a real set\'s shape when that option is on', () => {
-  // A pure vote seated ~5 long jams in an ~8-song set 2 (a real one holds ~3) and read 110 minutes.
-  const { buildConsensus, OFFICIAL_SET_SHAPE } = require('./consensus.js');
-  if (!OFFICIAL_SET_SHAPE) return null;           // the shape is off by choice (consensus.js); nothing to hold
-  const keep = { refEnd: E.getSetting('refEnd'), nextDate: E.getSetting('nextDate'), runPos: E.getSetting('runPos') };
-  const N = E.SHOWS.length;
-  let worst = 0, at = null;
-  for (let t = N - 4; t < N; t++) {
-    E.setSetting('refEnd', E.SHOWS[t - 1].date); E.setSetting('nextDate', E.SHOWS[t].date); E.setSetting('runPos', '');
-    const c = buildConsensus(E, { draws: 60, seed: t });
-    const long = c.set2.filter(x => E.durMedian(E.SONGS.find(s => s.id === x.id)) >= E.LONG_THRESH).length;
-    let quota = 99;
-    const tb = E.LONG_SONGS && E.LONG_SONGS.s2;
-    if (tb) for (const [n, p] of tb.cdf) if (p >= 0.5) { quota = n; break; }
-    if (long - quota > worst) { worst = long - quota; at = E.SHOWS[t].date; }
+// ---------------------------------------------------------------------------
+console.log('\n— special nights —');
+
+// Predict a past night the way the backtest does (stats end the show before it).
+function asTarget(date) {
+  const i = E.SHOWS.findIndex(s => s.date === date);
+  E.setSetting('refEnd', E.SHOWS[i - 1].date);
+  E.setSetting('nextDate', date);
+  E.setSetting('runPos', E.SHOWS[i].runPos && E.SHOWS[i].runPos !== 'none' ? E.SHOWS[i].runPos : '');
+}
+const keepSettings = () => { const k = { refEnd: E.getSetting('refEnd'), nextDate: E.getSetting('nextDate'), runPos: E.getSetting('runPos') };
+  return () => Object.entries(k).forEach(([a, v]) => E.setSetting(a, v)); };
+
+check('NYE gets a midnight set that opens with Auld Lang Syne', () => {
+  const nye = E.SHOWS.filter(s => s.date.endsWith('12-31')).map(s => s.date).pop();
+  if (!nye || !E.buildNight) return 'no NYE on record, or no buildNight';
+  const restore = keepSettings();
+  asTarget(nye);
+  const c = E.compute();
+  const bad = [];
+  for (let k = 0; k < 20; k++) {
+    const sl = E.buildNight(c.rows, c.n1, c.n2, c.ne, c.n3, c.special, c.soy);
+    if (!sl.set3 || sl.set3.length < 3) { bad.push('no third set'); break; }
+    if (sl.set3[0].name !== 'Auld Lang Syne') { bad.push(`set 3 opened with ${sl.set3[0].name}`); break; }
+    if (c.soy != null && sl.set3[1].id !== c.soy) { bad.push('song of the year not right after Auld Lang Syne'); break; }
+    const all = [...sl.set1, ...sl.set2, ...sl.set3, ...sl.encore].filter(r => !r.reentry).map(r => r.id);
+    if (new Set(all).size !== all.length) { bad.push('a song appears twice'); break; }
   }
-  Object.entries(keep).forEach(([k, v]) => E.setSetting(k, v));
-  return worst > 0 ? `${at}: set 2 holds ${worst} more long jam(s) than a typical set 2` : null;
-}, ['LONG_SONGS']);
+  restore();
+  return bad.length ? `${nye}: ${bad[0]}` : null;
+});
+
+check('Halloween leaves set 2 to the musical costume', () => {
+  const hw = E.SHOWS.filter(s => s.date.endsWith('10-31')).map(s => s.date).pop();
+  if (!hw || !E.buildNight) return 'no Halloween on record, or no buildNight';
+  const restore = keepSettings();
+  asTarget(hw);
+  const c = E.compute();
+  const sl = E.buildNight(c.rows, c.n1, c.n2, c.ne, c.n3, c.special, c.soy);
+  const { buildConsensus } = require('./consensus.js');
+  const con = buildConsensus(E, { draws: 40, seed: 7 });
+  restore();
+  if (c.special !== 'halloween') return `${hw} not recognised as Halloween`;
+  if (!sl.costume || sl.set2.length || !(sl.set3 || []).length) return 'realistic night: set 2 not left to the costume';
+  if (!con.costume || con.set2.length || !con.set3.length) return 'official call: set 2 not left to the costume';
+  return null;
+});
 
 // ---------------------------------------------------------------------------
 console.log(`\n${'='.repeat(58)}`);

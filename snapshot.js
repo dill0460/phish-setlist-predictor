@@ -124,7 +124,11 @@ if (next) {
     date: next.date, venue: next.venue, city: next.city, runN: next.runN || '',
     graded: false, snapAt: stampM ? stampM[1] : 'unknown build',
     top20: con.top20.map(x => x.id), open5: con.open5,
-    official: { s1: con.set1.map(x => x.id), s2: con.set2.map(x => x.id), e: con.encore.map(x => x.id) },
+    official: Object.assign(
+      { s1: con.set1.map(x => x.id), s2: con.set2.map(x => x.id), e: con.encore.map(x => x.id) },
+      // NYE: the midnight set. Halloween: set 2 is the musical costume, deliberately not called.
+      (con.set3 || []).length ? { s3: con.set3.map(x => x.id) } : {},
+      con.costume ? { costume: true } : {}),
   });
   changed = true;
   console.log(`snapshotted ${next.date} ${next.venue} (official ${con.set1.length}+${con.set2.length}+${con.encore.length}, seed ${hashSeed(next.date)})`);

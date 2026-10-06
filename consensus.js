@@ -172,13 +172,6 @@ function completePairs(arrs, idOf, o = {}) {
   return added;
 }
 
-// Whether the official call is held to a real set's shape (see SET SHAPE in buildConsensus).
-// Measured over 100 shows x 300 draws, two seeds: ON matches real sets (set 2: 3.0 long jams,
-// ~71 planning minutes; real ~3 and ~66) but costs 0.27 and 0.43 hits per show (t = -2.4, -4.3);
-// a softer version (one extra jam, +25% length) still cost 0.07 and 0.24. It trades hits for a
-// realistic-looking call, so it is the site owner's choice, and it is off.
-const OFFICIAL_SET_SHAPE = false;
-
 function buildConsensus(E, opts = {}) {
   const draws = opts.draws || 500;
   if (opts.seed != null && E.setSeed) E.setSeed(opts.seed);
@@ -189,8 +182,8 @@ function buildConsensus(E, opts = {}) {
   const c = E.compute();
   const stat = new Map(); // sid -> counts
   const get = id => {
-    if (!stat.has(id)) stat.set(id, { n: 0, s1: 0, s2: 0, e: 0, open1: 0, close1: 0, open2: 0, close2: 0, finale: 0,
-                                      pos1: 0, posN1: 0, pos2: 0, posN2: 0 });
+    if (!stat.has(id)) stat.set(id, { n: 0, s1: 0, s2: 0, s3: 0, e: 0, open1: 0, close1: 0, open2: 0, close2: 0, open3: 0, close3: 0,
+                                      finale: 0, pos1: 0, posN1: 0, pos2: 0, posN2: 0, pos3: 0, posN3: 0 });
     return stat.get(id);
   };
 
@@ -198,13 +191,18 @@ function buildConsensus(E, opts = {}) {
     const n1 = Math.max(6, E.sampleSetCount('s1', c.n1));
     const n2 = Math.max(4, E.sampleSetCount('s2', c.n2));
     const ne = Math.max(1, E.sampleSetCount('e', c.ne));
-    const sl = E.buildSetlist(c.rows, n1, n2, ne);
+    // Special nights (NYE third set, Halloween costume) go through buildNight; ordinary nights are
+    // exactly buildSetlist. A NYE draws its own third-set size, like the other sets.
+    const sl = (c.special && E.buildNight)
+      ? E.buildNight(c.rows, n1, n2, ne, c.special === 'nye' ? E.nyeSet3Size(c.asOfIdx, true) : 0, c.special, c.soy)
+      : E.buildSetlist(c.rows, n1, n2, ne);
     // A reentry copy (the return of a woven-in song) is the same performance, not a second
     // appearance: counting it gave a song two votes in one night, and in another set.
     sl.set1.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s1++; if (j === 0) t.open1++; if (j === sl.set1.length - 1) t.close1++; });
     sl.set2.forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s2++; if (j === 0) t.open2++; if (j === sl.set2.length - 1) t.close2++; });
+    (sl.set3 || []).forEach((r, j) => { if (r.reentry) return; const t = get(r.id); t.n++; t.s3++; if (j === 0) t.open3++; if (j === sl.set3.length - 1) t.close3++; });
     // where each song sat among the middle slots (0 = after the opener, 1 = before the closer)
-    for (const [arr, k] of [[sl.set1, '1'], [sl.set2, '2']]) {
+    for (const [arr, k] of [[sl.set1, '1'], [sl.set2, '2'], [sl.set3 || [], '3']]) {
       const mid = arr.slice(1, -1).filter(r => !r.reentry);
       mid.forEach((r, j) => { const t = get(r.id); t['pos' + k] += mid.length > 1 ? j / (mid.length - 1) : 0.5; t['posN' + k]++; });
     }
@@ -217,71 +215,43 @@ function buildConsensus(E, opts = {}) {
   // SET_COUNTS: c.n1/n2/ne are SAMPLED per compute() call in realistic mode, and using them
   // here made the official list size wander between 15 and 25 songs across shows.
   const med = (k, fb) => (E.SET_COUNTS && E.SET_COUNTS[k] && E.SET_COUNTS[k].med) || fb;
-  const n1 = med('s1', 10), n2 = med('s2', 8), ne = med('e', 2);
+  const n1 = med('s1', 10), ne = med('e', 2);
+  // NYE: a third set of the median past-NYE size. Halloween: set 2 is the costume (never called),
+  // and the songs that would have been set 2 are called as set 3.
+  const n2 = c.special === 'halloween' ? 0 : med('s2', 8);
+  const n3 = c.special === 'nye' && E.nyeSet3Size ? E.nyeSet3Size(c.asOfIdx, false)
+    : (c.special === 'halloween' ? med('s2', 8) : 0);
 
-  // Selection: each set is filled from ITS OWN appearance ranking across the draws — a song
-  // earns a set-1 seat by how often it actually appeared in set 1, not by global rank plus a
-  // modal-set fallback. The old scheme let jam vehicles that missed a set-2 seat OVERFLOW
-  // into set 1 (the committed 8/1 call carried Piper — 3% of its modern appearances are
-  // set 1 — as a first-set song), displacing genuinely set-1-typical picks. Measured cost of
-  // this scheme: ~0.28 expected song hits per show (~5%); bought: set-lean composition that
-  // matches real shows (set 1 75% vs real 74%, set 2 31% vs 33%) instead of 69/34 with
-  // overflow artifacts. The committed top-20 list remains the pure accuracy instrument —
-  // this changes only which structured SETLIST is claimed. Scarce sets pick first (encore,
-  // then set 2) so the big set never strip-mines their small candidate cohorts.
+  // SELECTION — accuracy first. The call is the songs drawn most often across all the draws, which
+  // is what gets the most songs right; each is then seated in the set it was most often drawn into,
+  // with the songs most at home in the encore (then the NYE midnight set) claiming seats first. It
+  // used to fill each set from that set's own ranking instead, which bought a more typical set-1 /
+  // set-2 mix at a measured price: this way scored +0.18 and +0.17 hits per show (two seeds, 100
+  // shows x 300 draws) with openers unchanged, and song accuracy is what the site owner asked for.
+  // (A version that also held each set to a typical number of long jams was tried and dropped: it
+  // cost 0.27-0.43 hits per show.)
   const ranked = [...stat.entries()].sort((a, b) => b[1].n - a[1].n);
-  const s1 = [], s2 = [], e = [];
+  const s1 = [], s2 = [], s3 = [], e = [];
   const inShow = new Set();
-  // SET SHAPE (OFF by default — see OFFICIAL_SET_SHAPE). Each long jam (10+ min) is individually a
-  // frequent pick, so a pure vote seats ~5 of them in a 7-song set 2 against a real ~3. With the
-  // shape on, each set holds at most its median count of long jams (LONG_SONGS) and roughly its
-  // median length (SET_MIN, +10%), both from the same last-100-show window as the counts; a song
-  // that does not fit is skipped for the next one down, and the limit is lifted only if a set
-  // cannot be filled otherwise.
-  const durOfId = id => { const r = rowById.get(id) || E.SONGS.find(s => s.id === id); return r && r.dur != null ? r.dur : 7.2; };
-  const longT = E.LONG_THRESH || 10;
-  const medLong = key => {
-    const t = E.LONG_SONGS && E.LONG_SONGS[key];
-    if (!t || !t.cdf) return Infinity;
-    for (const [n, c] of t.cdf) if (c >= 0.5) return n;
-    return Infinity;
-  };
-  const shapeOf = key => key === 'e' ? null : {
-    long: medLong(key),
-    budget: E.SET_MIN && E.SET_MIN[key] ? E.SET_MIN[key] * 1.10 : Infinity,
-  };
-  const fits = (arr, id, shape) => {
-    if (!shape || !OFFICIAL_SET_SHAPE) return true;
-    const d = durOfId(id);
-    if (d >= longT && arr.filter(x => durOfId(x) >= longT).length >= shape.long) return false;
-    return arr.reduce((a, x) => a + durOfId(x), 0) + d <= shape.budget;
-  };
   {
-    const sel = [[e, ne, 'e'], [s2, n2, 's2'], [s1, n1, 's1']];
-    const modal = t => (t.e >= t.s1 && t.e >= t.s2) ? 'e' : (t.s1 >= t.s2 ? 's1' : 's2');
-    for (const [arr, cap, key] of sel) {
-      const shape = shapeOf(key);
-      // Pass 1, MODAL-GUARDED: only songs whose modal location is this set. Without the
-      // guard, scarce-first seating drafted 46 Days — the night's #1 song and a set-1
-      // opener — into the encore purely because its encore count topped that (small)
-      // ranking. A seat claim needs both: appeared here often, AND here is its home.
-      // Then the same two passes once more with the set-shape limits lifted, only if needed.
-      for (const [relax, shaped] of [[false, true], [true, true], [false, false], [true, false]]) {
-        const byKey = [...stat.entries()]
-          .filter(([id, t]) => !inShow.has(id) && t[key] > 0 && (relax || modal(t) === key))
-          .sort((a, b) => b[1][key] - a[1][key] || b[1].n - a[1].n);
-        for (const [id] of byKey) {
-          if (arr.length >= cap) break;
-          if (shaped && !fits(arr, id, shape)) continue;
-          arr.push(id); inShow.add(id);
-        }
-        if (arr.length >= cap) break;
-      }
-      if (arr.length < cap) {                     // cohort fully dry (tiny pools): global rank
-        for (const [id] of ranked) {
-          if (arr.length >= cap) break;
-          if (!inShow.has(id)) { arr.push(id); inShow.add(id); }
-        }
+    const caps = { e: ne, s3: n3, s2: n2, s1: n1 }, arrs = { e, s3, s2, s1 };
+    const keys = ['e', 's3', 's2', 's1'];
+    const home = t => keys.filter(k => caps[k] > 0).sort((x, y) => t[y] - t[x]);
+    const share = (t, k) => t[k] / Math.max(1, t.n);
+    const picked = ranked.slice(0, keys.reduce((a, k) => a + caps[k], 0))
+      .sort((a, b) => share(b[1], 'e') - share(a[1], 'e') || share(b[1], 's3') - share(a[1], 's3'));
+    const left = [];
+    for (const [id, t] of picked) {
+      const k = home(t)[0];
+      if (k && arrs[k].length < caps[k]) { arrs[k].push(id); inShow.add(id); } else left.push([id, t]);
+    }
+    for (const [id, t] of left) {
+      for (const k of home(t)) if (arrs[k].length < caps[k]) { arrs[k].push(id); inShow.add(id); break; }
+    }
+    for (const k of keys) {                       // tiny pools: fill any empty seat by overall rank
+      for (const [id] of ranked) {
+        if (arrs[k].length >= caps[k]) break;
+        if (!inShow.has(id)) { arrs[k].push(id); inShow.add(id); }
       }
     }
   }
@@ -300,7 +270,7 @@ function buildConsensus(E, opts = {}) {
     const dep = idOf(depNm), anc = idOf(ancNm);
     if (dep == null || anc == null || !inShow.has(dep) || inShow.has(anc)) continue;
     if (owedDep != null && dep === owedDep) continue;
-    for (const arr of [s1, s2, e]) {
+    for (const arr of [s1, s2, s3, e]) {
       const i = arr.indexOf(dep);
       if (i < 0) continue;
       const next = ranked.find(([id]) => !inShow.has(id) &&
@@ -328,6 +298,13 @@ function buildConsensus(E, opts = {}) {
   const s1o = order(s1, 'open1', 'close1', '1');
   const s2o = order(s2, 'open2', 'close2', '2');
   const eo = e.slice().sort((x, y) => (stat.get(x)?.finale || 0) - (stat.get(y)?.finale || 0)); // finale last
+  // NYE set 3: Auld Lang Syne at midnight, then the song of the year, then the rest in order.
+  let s3o = order(s3, 'open3', 'close3', '3');
+  if (c.special === 'nye') {
+    const als = idOf('Auld Lang Syne');
+    const head = [als, c.soy].filter(id => id != null && s3o.includes(id));
+    s3o = [...head, ...s3o.filter(id => !head.includes(id))];
+  }
 
   // Anchor present, dependent missing: seat the dependent (see COMPLETE THE PAIRS above). Runs
   // AFTER ordering so the dependent lands at its real spacing from the anchor instead of wherever
@@ -357,9 +334,10 @@ function buildConsensus(E, opts = {}) {
     .map(r => r.id);
   return {
     set1: withNames(s1o), set2: withNames(s2o), encore: withNames(eo),
+    set3: withNames(s3o), costume: c.special === 'halloween', special: c.special || null,
     top20: c.rows.slice().sort((a, b) => b.pred - a.pred).slice(0, 20).map(r => ({ id: r.id, name: r.name, p: +r.pred.toFixed(4) })),
     open5, draws, pairsAdded,
   };
 }
 
-module.exports = { buildConsensus, hashSeed, enforceChains, completePairs, CHAINS, OFFICIAL_SET_SHAPE };
+module.exports = { buildConsensus, hashSeed, enforceChains, completePairs, CHAINS };
