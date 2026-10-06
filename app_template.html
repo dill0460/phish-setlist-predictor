@@ -2118,7 +2118,10 @@ function selectPool(rows, total) {
   for (const [depId, bond] of Object.entries(BONDED)) {
     if (inPool.has(bond.anchor) && Math.random() < bond.p) {
       const dep = byId.get(+depId);
-      if (dep && !inPool.has(dep.id) && !dep.offTheme && !dep.runRepeat) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
+      // A long-dormant partner does not ride in on its anchor: bond.p is an all-history rate, and a
+      // song gone 1,600 shows (The Asse Festival) was being revived at its 1990s pace. Its only door
+      // is the bustout channel, priced and capped like every other bustout.
+      if (dep && !inPool.has(dep.id) && !dep.offTheme && !dep.runRepeat && !dep.deepDormant) { chosen.push(dep); inPool.add(dep.id); dep.locked = true; }
     }
   }
   const mins = a => a.reduce((s, r) => s + (r.dur != null ? r.dur : DEFAULT_DUR), 0);
@@ -2673,6 +2676,9 @@ function buildSetlist(rows, n1, n2, ne) {
     if (Math.random() >= bond.p) continue;
     const dep = rows.find(r => r.id === +depId);
     if (!dep || used.has(dep.id) || dep.offTheme || dep.runRepeat) continue;
+    // Same rule as the pool draw (a deep-dormant partner never rides in), plus the one-bustout cap:
+    // this top-up runs after the bustout thin-out, so it was a side door for a second bustout.
+    if (dep.deepDormant || (dep.isBustout && placed.some(r => r.isBustout))) continue;
     // The bond top-up used to push straight past the drawn count. The bond itself is
     // non-negotiable, so when the destination set is full the weakest unlocked mid-set song
     // makes way instead of the count being breached.
